@@ -1,0 +1,19 @@
+[project]
+name = "wingloop"
+version = "0.1.0"
+description = "A connectome-driven fly that flies: wing hinge, unsteady aerodynamics, and the descending neurons that steer it"
+requires-python = ">=3.10"
+dependencies = ["numpy", "pandas", "scipy"]
+
+[project.optional-dependencies]
+body = ["mujoco", "flygym-gymnasium"]
+dev = ["pytest", "ruff"]
+
+[tool.ruff]
+line-length = 96
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B"]
+
+[tool.pytest.ini_options]
+markers = ["slow: needs a built body or a connectome"]
