@@ -43,6 +43,14 @@ import numpy as np
 
 from .wing import AIR_DENSITY, Wing
 
+#: Phase offsets of the published fits. The source states them in degrees, so
+#: they are converted here rather than written out as rounded radians -- an
+#: earlier version carried 0.1256 and 0.1714, which is a 0.4% error in the
+#: coefficient at low incidence and exactly the kind of drift
+#: :func:`test_published_coefficients_are_unchanged` exists to catch.
+LIFT_PHASE = np.deg2rad(7.2)
+DRAG_PHASE = np.deg2rad(9.82)
+
 
 def lift_coefficient(alpha: np.ndarray | float) -> np.ndarray:
     """Translational lift coefficient against angle of attack, radians.
@@ -52,7 +60,7 @@ def lift_coefficient(alpha: np.ndarray | float) -> np.ndarray:
     and an aerofoil.
     """
     a = np.asarray(alpha, dtype=float)
-    return 0.225 + 1.58 * np.sin(2.13 * a - 0.1256)
+    return 0.225 + 1.58 * np.sin(2.13 * a - LIFT_PHASE)
 
 
 def drag_coefficient(alpha: np.ndarray | float) -> np.ndarray:
@@ -63,7 +71,7 @@ def drag_coefficient(alpha: np.ndarray | float) -> np.ndarray:
     drag, which is why the power muscles are the biggest in the animal.
     """
     a = np.asarray(alpha, dtype=float)
-    return 1.92 - 1.55 * np.cos(2.04 * a - 0.1714)
+    return 1.92 - 1.55 * np.cos(2.04 * a - DRAG_PHASE)
 
 
 @dataclass

@@ -6,30 +6,78 @@ somebody checked, or it sits under **relayed** until somebody does.
 
 ## Verified
 
-Nothing yet. This project is two days old.
+Checked against the literature on 2026-09-18.
 
-## Relayed — needs checking against the papers
+### Aerodynamic coefficients
 
-- **Translational force coefficients.** `lift_coefficient` and
-  `drag_coefficient` in `wingloop/aero/blade_element.py` use the standard
-  empirical fits for *Drosophila* wings (the Dickinson/Sane line of work,
-  dynamically-scaled robotic wing). The functional forms and every constant in
-  them are relayed from memory and **not checked against the source**. They
-  produce a hover ratio of 1.08-1.36, which says they are not wildly wrong; it
-  does not say they are right.
-- **Kramer rotational coefficient 1.55** for rotation about the quarter-chord.
+The quasi-steady model developed for *Drosophila melanogaster* from
+dynamically-scaled robotic wing experiments:
+
+- **Translational lift**, `lift_coefficient`:
+  `CL(a) = 0.225 + 1.58 sin(2.13a - 7.2deg)`
+- **Translational drag**, `drag_coefficient`:
+  `CD(a) = 1.92 - 1.55 cos(2.04a - 9.82deg)`
+- **Kramer rotational coefficient `Cr = 1.55`**, for rotation about the
+  quarter-chord (`x0_hat = 0.25`), which is the biologically realistic axis.
+
+The code writes the phase offsets in radians (0.1256 and 0.1714); those are
+7.2 and 9.82 degrees, and `test_published_coefficients_are_unchanged` pins both
+forms so a later edit cannot drift them silently. The lift coefficient peaks at
+45.6 degrees, which is the behaviour these fits exist to capture.
+
+### Descending neuron roles
+
+- **DNg02 sets wingbeat amplitude.** About 15 pairs, working by population
+  coding: the more DNg02 neurons active, the larger the amplitude, giving a
+  smooth and wide dynamic range rather than a switch.
+- **DNbe001 is a multisensory integration hub.** Broad sensory input, including
+  antennal mechanosensory, with outputs reaching wing, haltere **and** front leg
+  (T1) neuropils at once -- which implicates it in flight-to-walking
+  coordination and reflex control.
+- **DNa08 is a higher-order command population**, sexually dimorphic in
+  morphology, assigned a direct role in initiating or sustaining flight,
+  projecting from the anterior-dorsal brain to the ventral nerve cord.
+
+## Relayed -- needs checking against the papers
+
 - **Wingbeat frequency 218 Hz** and **stroke amplitude ~75 degrees** for
-  hovering *D. melanogaster*.
+  hovering *D. melanogaster*, used by `stroke_average_lift`.
 - **Reynolds number ~150** at this scale, and the attached leading-edge vortex
   that follows from it.
-- **DNg02 controls wingbeat amplitude.** Appears in the top descending inputs
-  to the wing steering muscles (measured, see below) but its published role is
-  relayed.
 
 ## Measured here, from the data
 
-These are not citations. They are numbers this project computed from MaleCNS
-v1.0 and from NeuroMechFly's own model files, and each has a test.
+Not citations: numbers this project computed from MaleCNS v1.0 and from
+NeuroMechFly's own model files.
+
+### The connectome agrees with the physiology, independently
+
+Grouping descending neurons by family and summing their input onto the 32 wing
+steering motor neurons:
+
+| family | share of all descending drive onto wing steering MNs |
+| --- | ---: |
+| **DNg02** | **9.07%** |
+| DNbe001 | 4.06% |
+| DNge107 | 3.88% |
+| DNa08 | 3.53% |
+| DNa10 | 3.20% |
+| DNp63 | 3.18% |
+| DNp49 | 3.16% |
+
+DNg02 is the largest single descending input to the wing steering muscles, by
+more than a factor of two over the next one. MaleCNS carries **29 DNg02 neurons
+across seven subtypes (a-g)**, against the literature's ~15 pairs -- and a
+population of that size distributed over seven subtypes is what population-coded
+amplitude control looks like from the wiring side.
+
+Neither figure was derived from the other. The physiology says DNg02 sets
+amplitude by population coding; the wiring, read on its own, says DNg02 is the
+biggest population aimed at those muscles. DNbe001 and DNa08 are single pairs
+apiece, which is what command-type neurons look like, and they sit second and
+fourth.
+
+### The rest
 
 - MaleCNS contains the VNC: 12,967 `vnc_intrinsic`, 699 `vnc_motor`.
 - The **complete wing steering apparatus** is present, one motor neuron per
@@ -41,9 +89,7 @@ v1.0 and from NeuroMechFly's own model files, and each has a test.
 - **The walking steering readout does not transfer.** DNa02, which carries
   every steering result in `flyloop`, supplies **0.21%** of the descending
   drive onto wing motor neurons. DNa01 supplies 0.00%, DNp09 0.15%, DNa03
-  0.08%. Flight is driven by a different set: DNbe001 (4.1%), DNge107 (3.9%),
-  DNa08 (3.5%), DNa10 (3.2%), DNp63 and DNp49 (3.2% each), DNg02_a and
-  DNg02_b (~5.2% together).
+  0.08%.
 - **NeuroMechFly cannot fly and is not close.** Its built model has 48
   actuators and **none of them is a wing or haltere**; the wings are rigid
   geoms welded to the thorax with `contype=0`, so they do not even collide.

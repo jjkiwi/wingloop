@@ -152,3 +152,35 @@ def test_stroke_average_scales_with_wing_area():
     assert stroke_average_lift(big) / stroke_average_lift(small) == pytest.approx(
         2.0, rel=1e-6
     )
+
+
+def test_published_coefficients_are_unchanged():
+    """The verified fits, pinned.
+
+    These are the empirical coefficients for *Drosophila* from the
+    dynamically-scaled wing work, checked against the literature and recorded
+    as verified in docs/LITERATURE.md. Everything this project computes rests
+    on them, and a drifted constant would still return plausible forces, so the
+    published values are asserted rather than trusted to stay put.
+
+    The source states the phase offsets in degrees; the code carries radians.
+    Both forms are checked so a unit slip in either direction fails here.
+    """
+    from wingloop.aero.blade_element import DRAG_PHASE, LIFT_PHASE
+
+    assert LIFT_PHASE == pytest.approx(np.deg2rad(7.2))
+    assert DRAG_PHASE == pytest.approx(np.deg2rad(9.82))
+
+    for a_deg in (0.0, 15.0, 45.0, 90.0):
+        a = np.deg2rad(a_deg)
+        assert lift_coefficient(a) == pytest.approx(
+            0.225 + 1.58 * np.sin(2.13 * a - np.deg2rad(7.2)), rel=1e-6
+        )
+        assert drag_coefficient(a) == pytest.approx(
+            1.92 - 1.55 * np.cos(2.04 * a - np.deg2rad(9.82)), rel=1e-6
+        )
+
+    # Where the fit puts its maximum, which is the whole point of it.
+    a = np.deg2rad(np.linspace(0, 90, 9001))
+    peak = np.rad2deg(a[int(np.argmax(lift_coefficient(a)))])
+    assert peak == pytest.approx(45.6, abs=0.1)
