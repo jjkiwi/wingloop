@@ -35,6 +35,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+
 #: Joint suffixes, outermost last: stroke, then deviation, then rotation.
 #: Order is the nesting order in the kinematic chain, not a naming convention.
 HINGE_DOFS = ("stroke", "deviation", "rotation")
@@ -63,10 +65,29 @@ HINGE_AXES = {
 #: opposite local directions.
 SPAN_LOCAL = {"LWing": (0.0, 1.0, 0.0), "RWing": (0.0, -1.0, 0.0)}
 
+#: Stroke angle at which each wing sticks out sideways, ready to fly.
+#:
+#: **The model's rest pose is a resting fly**, wings folded back along the
+#: abdomen: both spans point down world -x. Flapping from there sweeps the
+#: wingtips side to side instead of fore and aft, and the giveaway is that both
+#: wings' drag then points the same way laterally instead of cancelling -- a
+#: measured net roll torque of 3.7 on a stroke that is symmetric by
+#: construction.
+#:
+#: Rotating the stroke joint a quarter turn swings the span out to the side,
+#: which is the flight posture: span along +-y, sweep along +-x, drag along the
+#: body axis where it belongs. The signs are opposite because the wings fold to
+#: the same side but must extend to different ones.
+STROKE_OFFSET = {"LWing": -np.pi / 2, "RWing": np.pi / 2}
+
+#: Which way a positive stroke command moves each wing, so that one command
+#: sweeps both wings forwards together rather than scissoring them.
+STROKE_SIGN = {"LWing": -1.0, "RWing": 1.0}
+
 #: Ranges in radians. Stroke is the wide one; rotation spans enough to flip the
 #: wing at both reversals, which is how a fly gets lift on the upstroke too.
 HINGE_RANGES = {
-    "stroke": (-1.6, 1.6),
+    "stroke": (-3.2, 3.2),
     "deviation": (-0.6, 0.6),
     "rotation": (-2.2, 2.2),
 }
@@ -207,6 +228,114 @@ def _absolutise_meshdir(root: ET.Element, source: Path) -> None:
     for m in root.iter("mesh"):
         if m.get("file"):
             m.set("file", Path(m.get("file")).name)
+
+
+def add_free_base(
+    source: str | Path,
+    destination: str | Path,
+    *,
+    root: str = "FlyBody",
+    dofs: str = "free",
+):
+    """Unweld the animal from the world so it can actually go somewhere.
+
+    The shipped model has no free joint anywhere: `nv` counts only the leg and
+    head joints, and the fly's root body is fixed. That is the right choice for
+    a walking simulation, where the ground carries the animal and contact does
+    the rest -- and it means every flight result measured on the unmodified
+    model is a force on a tether, not a trajectory.
+
+    ``dofs="free"`` gives all six degrees of freedom back. Note what that
+    exposes: a fly is passively unstable in pitch, so a free body driven by an
+    open-loop stroke lifts off and tips over within about ten milliseconds.
+    That is not a bug in the aerodynamics -- the vertical force is right, and
+    measured to be right at the generalised-force level -- it is the reason the
+    animal has halteres, and it is what a controller is for.
+
+    ``dofs="z"`` gives a single vertical slide instead. That is a real
+    preparation, not a dodge: a fly on a vertical rail can be asked whether it
+    generates enough force to climb without also being asked to balance, and
+    the two questions have different answers here. Use it to test the
+    aerodynamics; use ``"free"`` to test control.
+    """
+    source, destination = Path(source), Path(destination)
+    tree = ET.parse(source)
+    xml_root = tree.getroot()
+    bodies = {b.get("name"): b for b in xml_root.iter("body")}
+    if root not in bodies:
+        raise KeyError(f"{source.name} has no {root!r} body to free")
+    body = bodies[root]
+    if body.find("freejoint") is not None or any(
+        j.get("type") == "free" for j in body.findall("joint")
+    ):
+        raise ValueError(f"{root} is already free; this model has been freed already")
+    if dofs == "free":
+        body.insert(0, ET.Element("freejoint", {"name": f"free_{root}"}))
+    elif dofs == "z":
+        body.insert(
+            0,
+            ET.Element(
+                "joint",
+                {
+                    "name": f"slide_{root}_z",
+                    "type": "slide",
+                    "axis": "0 0 1",
+                    "pos": "0 0 0",
+                    "damping": "0.0",
+                    "limited": "false",
+                },
+            ),
+        )
+    else:
+        raise ValueError(f"dofs must be 'free' or 'z', not {dofs!r}")
+    _absolutise_meshdir(xml_root, source)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tree.write(destination, encoding="unicode")
+    return Path(destination)
+
+
+def tuck_legs(source: str | Path, destination: str | Path, *, keep: str = "Wing"):
+    """Make everything but the wings rigid, because a flying fly tucks its legs.
+
+    The shipped model's leg joints carry no actuators -- FlyGym adds those for
+    walking. Free the body without dealing with them and 60-odd unpowered
+    joints flail under gravity: the first free-flight run here diverged at
+    15 ms with "Inertia matrix is too close to singular at DOF 87", which is a
+    leg, and MuJoCo silently reset the simulation three times.
+
+    Removing the joints welds each segment to its parent, which is both the
+    numerically sound thing and the biologically right one for flight. The legs
+    keep their mass and their inertia; they simply stop being a pendulum.
+
+    Returns the path and how many joints were removed.
+    """
+    source, destination = Path(source), Path(destination)
+    tree = ET.parse(source)
+    xml_root = tree.getroot()
+    removed = 0
+    for body in xml_root.iter("body"):
+        for joint in list(body.findall("joint")):
+            if keep not in (joint.get("name") or ""):
+                body.remove(joint)
+                removed += 1
+    # Actuators whose joint just disappeared would fail to compile.
+    actuator = xml_root.find("actuator")
+    if actuator is not None:
+        names = {j.get("name") for j in xml_root.iter("joint")}
+        for act in list(actuator):
+            if act.get("joint") and act.get("joint") not in names:
+                actuator.remove(act)
+    # Without this the compiler fuses every jointless body into its parent,
+    # and the wings -- which have just lost their joints -- stop existing as
+    # addressable bodies. Their pose is computed rather than simulated, but
+    # something still has to report where they are mounted.
+    compiler = xml_root.find("compiler")
+    if compiler is not None:
+        compiler.set("fusestatic", "false")
+    _absolutise_meshdir(xml_root, source)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tree.write(destination, encoding="unicode")
+    return Path(destination), removed
 
 
 def neuromechfly_model() -> Path:

@@ -101,15 +101,55 @@ validating a blade-element model, and it is honest about what is tested:
 whether these kinematics produce these forces in this body, not whether a
 muscle could drive them.
 
+## It flies, and then it tips over
+
+`tuck_legs` welds everything but the root, `add_free_base` gives that root
+either all six degrees of freedom or a single vertical slide, and the blade
+elements now see the animal's own speed through the air as well as their own
+sweep.
+
+**On a vertical rail it climbs at the rate the force balance predicts**: 3523
+mm/s^2 observed against 3514 predicted, 0.3% apart, 11 mm of altitude in 80 ms.
+A rail is a real preparation rather than a dodge -- it asks whether the animal
+makes enough force to climb without also asking it to balance, and those turn
+out to have different answers.
+
+**Free in six degrees of freedom it lifts off and tumbles.** It gains height,
+pitches 32 degrees within 13 ms and is spinning at thousands of rad/s by 80 ms.
+That is not a failure of the model: the wing hinge sits about a quarter of a
+millimetre ahead of the centre of mass, vertical force there is a nose-down
+torque, and nothing in an open-loop stroke opposes it. A fly is passively
+unstable in pitch. This is what halteres are for, and what the controller is
+for.
+
+### The wings left the physics
+
+Prescribed kinematics and dynamic wing joints cannot both be true. A wing swept
+at 1792 rad/s carries Coriolis and centrifugal terms that the mass matrix
+couples straight into the body, so the body responds to accelerations the next
+command erases -- measured on the rail as -13804 mm/s^2 where the force balance
+said +4280. Lightening the wings to break the coupling only makes their own
+joints singular; every scaling tried diverged within one step.
+
+So the simulated model has no wing joints at all. The wing pose is composed
+from the commanded angles and **checked against MuJoCo's own kinematics on a
+hinged model, where it agrees to 3e-16**. What the simulator carries is a rigid
+body with a root joint, and the two wings' forces reach it as a single wrench
+about the centre of mass.
+
+The moment arm in that wrench is the steering mechanism, and it needed a test
+that could tell. A symmetric stroke cancels the lateral offsets, so applying
+the force at the hinge instead of the centre of pressure gives the same answer
+and nothing notices -- a sabotage check caught the first version of the test
+passing either way. Beating one wing at 60% rolls the animal at 7.4 with the
+real arm and 1.6 with the hinge, and the threshold now sits between them.
+
 ## What does not exist yet
 
-- **The fly is welded to the world.** The shipped model has no free joint, so
-  nothing here flies anywhere -- it is a tethered preparation that measures
-  force. Free flight needs a floating base and the body's own velocity added
-  to each blade element, which the force model does not yet see.
 - The power-muscle oscillator that would drive the stroke instead of imposing it
 - The descending readout, from the flight DNs rather than DNa02
-- Haltere feedback, which is how the animal stabilises
+- Haltere feedback, which is how the animal stabilises -- and, given the tumble
+  above, the thing standing between this and flight
 
 ## Running the tests
 

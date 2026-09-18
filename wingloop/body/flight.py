@@ -41,7 +41,7 @@ import numpy as np
 
 from ..aero.blade_element import StrokeState, blade_element_forces
 from ..aero.wing import AIR_DENSITY, Wing
-from .hinge import HINGE_DOFS, SPAN_LOCAL, WINGS
+from .hinge import HINGE_DOFS, SPAN_LOCAL, STROKE_OFFSET, STROKE_SIGN, WINGS
 
 _HINT = (
     "The flight body needs MuJoCo:\n    pip install mujoco\n"
@@ -78,6 +78,7 @@ class FlightBody:
         timestep: float = 2e-5,
         density: float = AIR_DENSITY,
         gravity: bool = True,
+        massless_wings: bool = True,
     ):
         try:
             import mujoco
@@ -106,19 +107,150 @@ class FlightBody:
         }
 
         self.body_id = {w: self._id(mujoco.mjtObj.mjOBJ_BODY, w) for w in WINGS}
-        self.joint_id = {
-            w: {d: self._id(mujoco.mjtObj.mjOBJ_JOINT, f"joint_{w}_{d}") for d in HINGE_DOFS}
-            for w in WINGS
-        }
-        self.actuator_id = {
-            f"joint_{w}_{d}": self._id(
-                mujoco.mjtObj.mjOBJ_ACTUATOR, f"actuator_position_joint_{w}_{d}"
-            )
-            for w in WINGS
-            for d in HINGE_DOFS
-        }
+        # Wing joints are optional: the pose is composed analytically, so the
+        # simulated model does not need them and is better off without them.
+        self.joint_id = {}
+        for w in WINGS:
+            found = {}
+            for d in HINGE_DOFS:
+                j = mujoco.mj_name2id(
+                    self.model, mujoco.mjtObj.mjOBJ_JOINT, f"joint_{w}_{d}"
+                )
+                if j >= 0:
+                    found[d] = j
+            if found:
+                self.joint_id[w] = found
+        #: The stroke currently commanded, which is what the forces are read
+        #: from. Set by :meth:`set_wings`.
+        self.wing_angles: dict[str, float] = {}
+        self.wing_rates: dict[str, float] = {}
+        # Where the root's linear velocity lives, if the model has a free joint.
+        # A free joint carries three translational DOFs first; a vertical
+        # slide rig carries one, and reading three from it would pick up wing
+        # angles as if they were body velocity.
+        free = [j for j in range(self.model.njnt) if self.model.jnt_type[j] == 0]
+        slide = [
+            j
+            for j in range(self.model.njnt)
+            if self.model.jnt_type[j] == 2 and "slide_" in (self._name(j) or "")
+        ]
+        if free:
+            root_joint = free[0]
+            self.root_dof, self.root_translation = int(self.model.jnt_dofadr[free[0]]), 3
+        elif slide:
+            root_joint = slide[0]
+            self.root_dof, self.root_translation = int(self.model.jnt_dofadr[slide[0]]), 1
+        else:
+            root_joint = None
+            self.root_dof, self.root_translation = None, 0
+        # The body the aerodynamic wrench is applied to. Without a root joint
+        # the animal is welded to the world and nothing can move it anyway.
+        self.root_body = (
+            int(self.model.jnt_bodyid[root_joint]) if root_joint is not None else None
+        )
+        self._capture_mounts()
+        if massless_wings and self.joint_id:
+            self._make_wings_massless()
         self.telemetry: dict[str, WingTelemetry] = {w: WingTelemetry() for w in WINGS}
         mujoco.mj_forward(self.model, self.data)
+
+    def _capture_mounts(self) -> None:
+        """The wings' rest orientation relative to the body, kept once.
+
+        With the pose computed rather than simulated, this is the only thing
+        the physics model still has to tell us about the wings.
+        """
+        self._mj.mj_forward(self.model, self.data)
+        root = self.data.xmat[self.root_body].reshape(3, 3) if self.root_body else np.eye(3)
+        self.mount = {
+            w: root.T @ self.data.xmat[self.body_id[w]].reshape(3, 3) for w in WINGS
+        }
+        self.hinge_local = {
+            w: root.T @ (self.data.xpos[self.body_id[w]] - self.data.xpos[self.root_body or 0])
+            for w in WINGS
+        }
+
+    @staticmethod
+    def _rot(axis: int, angle: float) -> np.ndarray:
+        c, s_ = np.cos(angle), np.sin(angle)
+        if axis == 0:
+            return np.array([[1, 0, 0], [0, c, -s_], [0, s_, c]])
+        if axis == 1:
+            return np.array([[c, 0, s_], [0, 1, 0], [-s_, 0, c]])
+        return np.array([[c, -s_, 0], [s_, c, 0], [0, 0, 1]])
+
+    def wing_pose(self, wing: str, angles: dict[str, float]):
+        """World rotation and hinge position of one wing, computed not simulated.
+
+        Prescribed kinematics and dynamic wing joints cannot both hold. A wing
+        swept at 1792 rad/s carries Coriolis and centrifugal terms that the mass
+        matrix couples straight into the body, so the body responds to
+        accelerations that the next ``prescribe`` erases -- measured on the
+        vertical rail as -13804 mm/s^2 where the force balance said +4280.
+        Lightening the wings to break the coupling only makes their own joints
+        singular; every scaling tried diverged within a step.
+
+        So the wings leave the physics entirely. Their pose is composed here
+        from the commanded angles about the axes ``hinge.HINGE_AXES`` names --
+        stroke about z, deviation about x, rotation about y -- and the only
+        thing the simulator still carries is a rigid body with a root joint.
+        :func:`test_the_analytic_pose_matches_the_simulated_one` checks this
+        composition against MuJoCo's own kinematics on a hinged model, so the
+        shortcut is verified rather than assumed.
+        """
+        root_rot = (
+            self.data.xmat[self.root_body].reshape(3, 3)
+            if self.root_body is not None
+            else np.eye(3)
+        )
+        local = (
+            self.mount[wing]
+            @ self._rot(2, angles.get(f"joint_{wing}_stroke", 0.0))
+            @ self._rot(0, angles.get(f"joint_{wing}_deviation", 0.0))
+            @ self._rot(1, angles.get(f"joint_{wing}_rotation", 0.0))
+        )
+        rot = root_rot @ local
+        root_pos = (
+            self.data.xpos[self.root_body]
+            if self.root_body is not None
+            else np.zeros(3)
+        )
+        return rot, root_pos + root_rot @ self.hinge_local[wing]
+
+    def _make_wings_massless(self) -> None:
+        """Take the wings out of the mass matrix, because their motion is given.
+
+        Prescribed kinematics and dynamic wings cannot both be true. A wing
+        swept at 1792 rad/s carries enormous Coriolis and centrifugal terms,
+        and the mass matrix couples them straight into the body's degrees of
+        freedom -- so the body responds to accelerations that the next
+        ``prescribe`` erases. Measured on the vertical rail: applied force
+        13.664, gravity 9.272, and a vertical acceleration of -13804 mm/s^2
+        where the force balance says +4280.
+
+        Zeroing the wings' mass makes the coupling vanish and leaves them as
+        what this model treats them as: massless surfaces whose position is
+        given and whose aerodynamic force is applied to the body. The physical
+        cost is the wings' own inertial reaction, which is the standard
+        approximation in flapping-flight models and a mild one here -- both
+        wings together are 0.24% of body mass.
+
+        It is a real approximation all the same. A model that needs the
+        inertial power of the stroke, rather than the aerodynamic force it
+        produces, must not use this.
+        """
+        for wing in WINGS:
+            bid = self.body_id[wing]
+            self.model.body_mass[bid] = 0.0
+            self.model.body_inertia[bid] = 0.0
+        # A joint with no inertia behind it is singular; armature gives the
+        # solver something to invert without giving the body anything to feel.
+        for wing in WINGS:
+            for jid in self.joint_id[wing].values():
+                self.model.dof_armature[self.model.jnt_dofadr[jid]] = 1e-9
+
+    def _name(self, jid: int):
+        return self._mj.mj_id2name(self.model, self._mj.mjtObj.mjOBJ_JOINT, jid)
 
     def _id(self, kind, name: str) -> int:
         i = self._mj.mj_name2id(self.model, kind, name)
@@ -151,7 +283,12 @@ class FlightBody:
         reversal gets lift on both half-strokes, and a model where the normal
         force flipped too would hover by accident on the average of nothing.
         """
-        a, v = self.angles(wing), self.rates(wing)
+        a = {
+            d: self.wing_angles.get(f"joint_{wing}_{d}", 0.0) for d in ("stroke", "rotation")
+        }
+        v = {
+            d: self.wing_rates.get(f"joint_{wing}_{d}", 0.0) for d in ("stroke", "rotation")
+        }
         # The coefficients are fits over angle of attack from zero to ninety.
         # Feed them a negative angle -- which the upstroke always does, since
         # the wing flips -- and CL comes back negative: at -45 degrees it
@@ -164,7 +301,19 @@ class FlightBody:
             phi_dot=v["stroke"],
             alpha_dot=v["rotation"],
         )
-        f = blade_element_forces(self.wing, state, density=self.density)
+        # The animal's own speed through the air, resolved along the direction
+        # this wing sweeps. Zero on a tether; the whole difference between
+        # hovering and flight once the body is free.
+        rot, _ = self.wing_pose(wing, self.wing_angles)
+        path = rot @ self.sweep_dir[wing]
+        path[2] = 0.0
+        norm = np.linalg.norm(path)
+        path = path / norm if norm > 1e-12 else np.zeros(3)
+        along = float(np.dot(self.body_velocity(), path))
+
+        f = blade_element_forces(
+            self.wing, state, density=self.density, body_velocity=along
+        )
 
         # Resolved in the stroke plane, not in the wing's own frame: lift is by
         # definition perpendicular to the wing's path and drag opposes it, and
@@ -172,13 +321,10 @@ class FlightBody:
         # Rotating a wing-frame normal into the world instead ties the force
         # direction to the pitch angle twice over -- once in the coefficient and
         # once in the frame -- and the two cancel over a cycle.
-        rot = self.data.xmat[self.body_id[wing]].reshape(3, 3)
-        path = rot @ self.sweep_dir[wing]
-        path[2] = 0.0
-        norm = np.linalg.norm(path)
-        path = path / norm if norm > 1e-12 else np.zeros(3)
         world = np.array([0.0, 0.0, f.total_normal], dtype=float)
-        world = world - np.sign(state.phi_dot) * f.drag * path
+        # path_force already carries its sign, summed per element, so the
+        # stroke direction must not be applied a second time.
+        world = world + f.path_force * path
 
         t = self.telemetry[wing]
         t.stroke, t.rotation = state.phi, state.alpha
@@ -188,38 +334,71 @@ class FlightBody:
         return world
 
     def apply_aerodynamics(self) -> None:
-        """Write both wings' forces into the simulation for this step.
+        """Write both wings' forces into the simulation as a wrench on the body.
 
-        Through ``qfrc_applied`` rather than ``xfrc_applied``: ``mj_applyFT``
-        converts a Cartesian force applied at a point into generalised forces,
-        which is what carries the moment arm from the centre of pressure into
-        the hinge and the body. Writing a force into ``xfrc_applied`` instead
-        would apply it at the wing's centre of mass and silently discard that
-        arm. Both accumulate, so the buffer is cleared each step.
+        **Not through the wing bodies.** The obvious implementation resolves
+        each wing's force at its centre of pressure with ``mj_applyFT``, which
+        distributes it into every generalised coordinate it touches -- the wing
+        joints included. With kinematics prescribed that is wrong twice over:
+        the wing's inertia about its hinge is 1.4e-5, so a torque of order 20
+        gives it 1e6 rad/s^2, and the next ``prescribe`` overwrites the result
+        anyway, leaving the body holding the reaction to an acceleration that
+        never happened. Measured on the vertical rail, the animal sank at three
+        times gravity while the static force balance said it should climb.
+
+        So the wings are treated as force generators attached to the body: the
+        two forces are summed with their moments about the body's centre of
+        mass and applied as a single wrench. This neglects the wings' own
+        inertial reaction on the body, which is the standard approximation in
+        flapping-flight models and a mild one here -- both wings together are
+        0.24% of body mass.
         """
         self.data.qfrc_applied[:] = 0.0
+        self.data.xfrc_applied[:] = 0.0
+        # A model welded to the world has nothing to apply a wrench to, but it
+        # is still a valid preparation -- the tether is where the force model
+        # gets measured -- so the forces and telemetry are computed either way
+        # and only the write is skipped.
+        com = (
+            self.data.xipos[self.root_body]
+            if self.root_body is not None
+            else self.data.subtree_com[0]
+        )
+        total = np.zeros(6)
         for wing in WINGS:
             force = self.wing_forces(wing)
-            bid = self.body_id[wing]
-            rot = self.data.xmat[bid].reshape(3, 3)
-            # Centre of pressure, out along the wing's own span axis.
-            point = self.data.xpos[bid] + rot @ (self.cop * self.span[wing])
-            self._mj.mj_applyFT(
-                self.model,
-                self.data,
-                force,
-                np.zeros(3),
-                point,
-                bid,
-                self.data.qfrc_applied,
-            )
+            rot, hinge = self.wing_pose(wing, self.wing_angles)
+            point = hinge + rot @ (self.cop * self.span[wing])
+            total[:3] += force
+            total[3:] += np.cross(point - com, force)
+        if self.root_body is not None:
+            self.data.xfrc_applied[self.root_body] = total
 
-    # -------------------------------------------------------------- stepping
+    def body_velocity(self) -> np.ndarray:
+        """World translational velocity of the root body, or zeros on a tether.
 
-    def command(self, targets: dict[str, float]) -> None:
-        """Set position targets for wing joints, by joint name."""
-        for name, value in targets.items():
-            self.data.ctrl[self.actuator_id[name]] = float(value)
+        A model without a free joint reports nothing to read here, and that is
+        the normal case for the shipped NeuroMechFly -- so this returns zeros
+        rather than failing, and the force model reduces to the hovering one.
+        """
+        if self.root_dof is None:
+            return np.zeros(3)
+        v = np.zeros(3)
+        n = self.root_translation
+        if n == 3:
+            v[:] = self.data.qvel[self.root_dof : self.root_dof + 3]
+        else:  # a vertical rail: the only motion is along z
+            v[2] = self.data.qvel[self.root_dof]
+        return v
+
+    def set_wings(
+        self, angles: dict[str, float], rates: dict[str, float] | None = None
+    ) -> None:
+        """Command the stroke. The wings are kinematic; nothing integrates them."""
+        self.wing_angles = dict(angles)
+        self.wing_rates = dict(rates or {})
+        if self.joint_id:  # keep a hinged model's joints in sync, for viewing
+            self.prescribe(angles, rates)
 
     def prescribe(
         self, angles: dict[str, float], rates: dict[str, float] | None = None
@@ -243,14 +422,16 @@ class FlightBody:
         """
         for name, value in angles.items():
             jid = self._joint_by_name(name)
+            if jid is None:
+                continue
             self.data.qpos[self.model.jnt_qposadr[jid]] = float(value)
             if rates is not None and name in rates:
                 self.data.qvel[self.model.jnt_dofadr[jid]] = float(rates[name])
         self._mj.mj_forward(self.model, self.data)
 
-    def _joint_by_name(self, name: str) -> int:
+    def _joint_by_name(self, name: str):
         wing, dof = name.replace("joint_", "").split("_")
-        return self.joint_id[wing][dof]
+        return self.joint_id.get(wing, {}).get(dof)
 
     def step(self, targets: dict[str, float] | None = None) -> None:
         if targets:
@@ -303,8 +484,11 @@ def harmonic_stroke(
     rot = alpha * np.tanh(SHARPNESS * np.cos(w * t)) / np.tanh(SHARPNESS)
     out = {}
     for wing in WINGS:
-        out[f"joint_{wing}_stroke"] = phi
-        out[f"joint_{wing}_rotation"] = rot
+        # Offset into the flight posture first: the model's rest pose has both
+        # wings folded back over the abdomen, and flapping from there sweeps
+        # them sideways.
+        out[f"joint_{wing}_stroke"] = STROKE_OFFSET[wing] + STROKE_SIGN[wing] * phi
+        out[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rot
         out[f"joint_{wing}_deviation"] = 0.0
     if not rates:
         return out
@@ -319,7 +503,7 @@ def harmonic_stroke(
     ) / np.tanh(SHARPNESS)
     drates = {}
     for wing in WINGS:
-        drates[f"joint_{wing}_stroke"] = phi_dot
-        drates[f"joint_{wing}_rotation"] = rot_dot
+        drates[f"joint_{wing}_stroke"] = STROKE_SIGN[wing] * phi_dot
+        drates[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rot_dot
         drates[f"joint_{wing}_deviation"] = 0.0
     return out, drates

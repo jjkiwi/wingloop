@@ -96,10 +96,17 @@ class Forces:
     """What one wing produced over one instant."""
 
     lift: float  # normal to the wing's path, positive up
-    drag: float  # opposing the wing's path
+    drag: float  # magnitude of the along-path force, always positive
     rotational: float
     added_mass: float
     torque: float  # about the hinge, from the translational terms
+    #: The along-path force as a *signed* component, positive along the
+    #: direction a positive stroke rate sweeps the wing. Separate from ``drag``
+    #: because once the body moves, different blade elements can travel in
+    #: opposite directions within one stroke -- the inner wing going backwards
+    #: while the animal flies forwards -- and a single magnitude cannot say
+    #: which way the sum points.
+    path_force: float = 0.0
 
     @property
     def total_normal(self) -> float:
@@ -112,6 +119,7 @@ def blade_element_forces(
     state: StrokeState,
     *,
     density: float = AIR_DENSITY,
+    body_velocity: float = 0.0,
     rotational_coefficient: float = 1.55,
     include_rotational: bool = True,
     include_added_mass: bool = True,
@@ -126,21 +134,32 @@ def blade_element_forces(
     ``rotational_coefficient`` is the Kramer coefficient, which depends on where
     along the chord the rotation axis sits; 1.55 corresponds to rotation about
     the quarter-chord.
+
+    ``body_velocity`` is the animal's own speed through the air resolved along
+    the wing's sweep direction, and it is what separates flight from hovering.
+    Added to every element, it makes one half-stroke faster than the other --
+    the asymmetry that produces net thrust, and the reason a hovering model
+    cannot be asked what happens when the fly moves. It can exceed the sweep
+    speed at the inner elements, which then travel backwards relative to the
+    air, so the along-path force is summed per element with its own sign rather
+    than taken from the stroke direction.
     """
     r = wing.stations
     c = wing.chords
     dr = wing.dr
 
-    # Velocity of each element through the air, from the sweep alone. A body
-    # velocity term belongs here too and is absent: this is a fly on a tether
-    # or hovering, and free flight needs the body's own velocity added.
-    u = r * state.phi_dot
+    # Velocity of each element through the air: its own sweep, plus whatever
+    # the animal is doing.
+    u = r * state.phi_dot + body_velocity
     q = 0.5 * density * u**2  # dynamic pressure per unit area
 
     cl = float(lift_coefficient(state.alpha))
     cd = float(drag_coefficient(state.alpha))
     lift = float(np.sum(q * cl * c) * dr)
     drag = float(np.sum(q * cd * c) * dr)
+    # Opposing each element's own motion, so the sum can cancel when parts of
+    # the wing travel in opposite directions.
+    path_force = float(-np.sum(q * cd * c * np.sign(u)) * dr)
     # Torque about the hinge: the same force weighted by its moment arm.
     torque = float(np.sum(q * cl * c * r) * dr)
 
@@ -152,7 +171,7 @@ def blade_element_forces(
             rotational_coefficient
             * density
             * state.alpha_dot
-            * np.sum(u * c**2) * dr
+            * np.sum(np.abs(u) * c**2) * dr
         )
 
     am = 0.0
@@ -162,7 +181,14 @@ def blade_element_forces(
             0.25 * np.pi * density * state.phi_ddot * np.sum(c**2 * r) * dr
         )
 
-    return Forces(lift=lift, drag=drag, rotational=rot, added_mass=am, torque=torque)
+    return Forces(
+        lift=lift,
+        drag=drag,
+        rotational=rot,
+        added_mass=am,
+        torque=torque,
+        path_force=path_force,
+    )
 
 
 def stroke_average_lift(
