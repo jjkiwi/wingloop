@@ -64,15 +64,52 @@ checked by putting the bad value back.
 It says the model is dimensionally sane. It does **not** say the coefficients
 are right; those are relayed and marked as such in `docs/LITERATURE.md`.
 
+## The wings move, and the forces reach the body
+
+`add_wing_hinges` rewrites the MJCF so each wing hangs off three joints --
+stroke, deviation and rotation -- and `FlightBody` reads those joints every
+step, computes the blade-element forces and writes them in through
+`mj_applyFT` at the centre of pressure.
+
+Driven with a harmonic stroke at 218 Hz, the wings lift **1.358 times body
+weight**, against 1.364 from the analytic model with no simulator involved.
+Two independent paths to the same number is the evidence that the frames and
+sign conventions in the body layer do not quietly undo the physics. Side
+forces cancel between the mirrored wings to within 1% of body weight.
+
+Three things went wrong on the way there, and each is now a test:
+
+- **The span is local y, not local z.** The wing mesh is longest along its own
+  axis 2, but the wing body carries a 90 degree rotation and the mesh sits
+  inside it. With the hinge axes as first written, the rotation joint pitched
+  the wing about a vertical axis. It still flapped; it produced -0.001 of body
+  weight.
+- **The coefficient fits are signed.** They run from 0 to 90 degrees, and the
+  upstroke always presents a negative pitch angle, where `CL` returns -1.31
+  instead of +1.31 -- the wing pushing the animal into the ground for half of
+  every cycle.
+- **An instantaneous wing flip is an infinite force.** The rotational term
+  scales with the rotation rate, so a `sign()` in the stroke profile is not
+  merely unrealistic. MuJoCo answered with "Nan, Inf or huge value in QACC".
+
+The wings are driven **kinematically**, not through the position servo. Drag
+on one wing peaks near four times body weight, and a servo stiff enough to win
+that fight needs a timestep nobody wants; when it loses, the joint rate
+disagrees in sign with the command, the drag term flips with it and the
+simulation diverges. Prescribed kinematics is the standard arrangement for
+validating a blade-element model, and it is honest about what is tested:
+whether these kinematics produce these forces in this body, not whether a
+muscle could drive them.
+
 ## What does not exist yet
 
-- Wing hinge joints and actuators added to the MJCF, and the forces applied
-  into MuJoCo each step
-- The power-muscle oscillator that produces the stroke
+- **The fly is welded to the world.** The shipped model has no free joint, so
+  nothing here flies anywhere -- it is a tethered preparation that measures
+  force. Free flight needs a floating base and the body's own velocity added
+  to each blade element, which the force model does not yet see.
+- The power-muscle oscillator that would drive the stroke instead of imposing it
 - The descending readout, from the flight DNs rather than DNa02
 - Haltere feedback, which is how the animal stabilises
-- Free flight: the force model currently sees only the wing's own sweep, not
-  the body's velocity through the air, so it describes hovering or a tether
 
 ## Running the tests
 
