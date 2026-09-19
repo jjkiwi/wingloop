@@ -234,17 +234,49 @@ The curve is sampled once and interpolated. That is not a shortcut: one pass
 through the rate model costs 0.16 s against a 4.6 ms wingbeat, and a fly's
 visual system does not resolve individual wingbeats either.
 
+## Closing the bearing loop, and the two things it exposed
+
+`SteeringController` now takes a `target` and recomputes the bearing from the
+animal's own heading every step. The sign convention is not the obvious one and
+is tested on its own: this fly faces +x and its **left is +y**, because the
+right wing's span points to -y.
+
+**The uncontrolled fly yaws left on its own.** With no steering command at all
+the heading wanders more than 10 degrees in 90 ms, and always the same way.
+Read as an absolute bearing that alone looks like fixation for objects on the
+left and avoidance for objects on the right -- the same confound the
+mirror-pair design exists to catch. So every steering number here is the
+difference between the command on and the command off, with the drift
+cancelled.
+
+**Amplitude asymmetry produces adverse yaw.** Commanding a right turn yaws the
+animal *left* for the first 50 ms -- by 46 degrees relative to the no-command
+run -- and only reverses once the bank has developed. The wing told to beat
+harder carries more drag, and the drag turns the animal the wrong way before
+the tilted lift vector turns it the right way.
+
+| | 60 ms | 90 ms |
+| --- | --- | --- |
+| bearings moved toward straight ahead | **0 of 8** | **7 of 8** |
+
+That sign reversal is the adverse-yaw phase and then the banked turn taking
+over. It is a real aerodynamic result, and it says something about the model
+rather than about the loop: **real flies do not steer on amplitude alone.**
+They shift the timing of wing rotation, which moves lift and drag differently
+and does not pay the drag penalty first. This model has only the amplitude
+knob, so it has only the adverse phase and then the recovery.
+
 ## What does not exist yet
 
+- **Rotation-timing control.** The knob a real fly steers with, and the one
+  that would remove the adverse-yaw phase above. The hinge already has the
+  rotation joint; nothing modulates its phase.
 - The power-muscle oscillator that would drive the stroke instead of imposing it
 - **Real stroke kinematics.** A pure harmonic sweep with a tanh flip and no
   deviation is what produces the within-stroke torque swings the controller
   cannot answer past 100 ms. Real strokes put their rotation at the reversals
   and trace a figure-of-eight; both should shrink those swings, and the
   steering runs above would then last longer than a tenth of a second.
-- Closed-loop bearing: the object's bearing is held fixed rather than recomputed
-  from the fly's own heading as it turns, so these are open-loop steering
-  responses, not fixation to convergence.
 
 ## Running the tests
 

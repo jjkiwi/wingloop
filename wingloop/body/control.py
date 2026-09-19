@@ -180,7 +180,7 @@ class HaltereController:
     def fly(self, body, seconds: float) -> dict[str, np.ndarray]:
         """Run the loop and report the trajectory."""
         steps = int(round(seconds / body.model.opt.timestep))
-        out = {k: [] for k in ("t", "x", "y", "z", "pitch", "roll", "tumble")}
+        out = {k: [] for k in ("t", "x", "y", "z", "pitch", "roll", "tumble", "bearing")}
         for _ in range(steps):
             angles, rates = self.command(body, body.t)
             body.set_wings(angles, rates)
@@ -195,6 +195,7 @@ class HaltereController:
             out["pitch"].append(pitch)
             out["roll"].append(roll)
             out["tumble"].append(float(np.linalg.norm(angular_rate(body))))
+            out["bearing"].append(float(getattr(self, "bearing", 0.0)))
         return {k: np.asarray(v) for k, v in out.items()}
 
 
@@ -218,15 +219,57 @@ class SteeringController(HaltereController):
     readout: object = None
     bearing: float = 0.0
     steer_gain: float = 1.0
+    #: World position of the thing being looked at, ``(x, y)``. Given one, the
+    #: bearing is recomputed from the animal's own heading every step and
+    #: ``bearing`` is ignored -- the loop is closed. Left as None, ``bearing``
+    #: is held fixed, which measures the open-loop steering response.
+    target: tuple | None = None
+    #: Treat the target as a direction rather than a place: the bearing then
+    #: depends on heading alone and never changes with position. That is a
+    #: distant landmark, and it separates turning from approaching.
+    distant: bool = False
 
-    def steering(self) -> float:
+    def current_bearing(self, body) -> float:
+        """Where the object is, in degrees, positive to the fly's right.
+
+        The sign convention has to match the readout's, and it is not the
+        obvious one: this fly faces +x and its **left is +y**, because the
+        right wing's span points to -y. So a counter-clockwise angle from the
+        heading puts the object on the left, and the bearing is its negation.
+        Getting this backwards gives an animal that turns smoothly away from
+        whatever it is looking at, which reads as a plausible avoidance
+        behaviour rather than as a bug.
+        """
+        if self.target is None or body.root_body is None:
+            return self.bearing
+        rot = body.data.xmat[body.root_body].reshape(3, 3)
+        heading = rot @ np.array([1.0, 0.0, 0.0])
+        heading = heading[:2]
+        norm = np.linalg.norm(heading)
+        if norm < 1e-9:  # nose straight up or down; hold the last command
+            return self.bearing
+        heading = heading / norm
+        if self.distant:
+            to_target = np.asarray(self.target, dtype=float)
+        else:
+            to_target = np.asarray(self.target, dtype=float) - body.data.qpos[:2]
+        span = np.linalg.norm(to_target)
+        if span < 1e-9:  # standing on it
+            return 0.0
+        to_target = to_target / span
+        cross = heading[0] * to_target[1] - heading[1] * to_target[0]
+        self.bearing = float(-np.degrees(np.arctan2(cross, float(heading @ to_target))))
+        return self.bearing
+
+    def steering(self, body=None) -> float:
         if self.readout is None:
             return 0.0
-        return self.steer_gain * self.readout.asymmetry(self.bearing)
+        bearing = self.bearing if body is None else self.current_bearing(body)
+        return self.steer_gain * self.readout.asymmetry(bearing)
 
     def command(self, body, t: float):
         angles, rates = super().command(body, t)
-        extra = self.steering()
+        extra = self.steering(body)
         if extra:
             # Re-issue the stroke with the steering asymmetry folded in. The
             # stabiliser's own asymmetry is already inside `angles`, so this is
