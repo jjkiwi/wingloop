@@ -58,6 +58,11 @@ ROLL_PER_ASYMMETRY = 38.2
 PITCH_INERTIA = 0.002014
 ROLL_INERTIA = 0.001502
 
+#: How far the rotation phase may be shifted, radians. Beyond about this the
+#: wing is flipping in the middle of the stroke rather than at its ends, which
+#: is no longer a phase shift of the same stroke.
+MAX_PHASE = np.deg2rad(45.0)
+
 #: Closed-loop bandwidth, rad/s. Well under the wingbeat's 1370 rad/s, because
 #: a loop that tries to act within a stroke is fighting the stroke.
 #:
@@ -228,6 +233,31 @@ class SteeringController(HaltereController):
     #: depends on heading alone and never changes with position. That is a
     #: distant landmark, and it separates turning from approaching.
     distant: bool = False
+    #: Which knob the steering command drives.
+    #:
+    #: ``"phase"`` shifts when the wings flip relative to the stroke, and it is
+    #: the default because it is the one that works: a commanded right turn
+    #: yaws right from 10 ms onward and never reverses. ``"amplitude"`` beats
+    #: one wing harder, which is the obvious knob and the wrong one -- the
+    #: extra drag yaws the animal *away* from the turn for the first 50 ms,
+    #: by 46 degrees, before the bank finally takes over. Kept so the
+    #: comparison stays runnable.
+    #:
+    #: Measured about the centre of mass: phase asymmetry is a yaw torque,
+    #: +-0.316 at +-30 degrees and antisymmetric, while amplitude asymmetry is
+    #: a roll torque of +-7.8 at +-0.2. They are different controls, not two
+    #: strengths of the same one.
+    steer_mode: str = "phase"
+    #: Radians of rotation-phase asymmetry per unit of readout command. The
+    #: readout spans about +-0.1, so this puts the full visual field at roughly
+    #: +-30 degrees of phase.
+    phase_gain: float = 5.2
+
+    def __post_init__(self):
+        if self.steer_mode not in ("phase", "amplitude"):
+            raise ValueError(
+                f"steer_mode must be 'phase' or 'amplitude', not {self.steer_mode!r}"
+            )
 
     def current_bearing(self, body) -> float:
         """Where the object is, in degrees, positive to the fly's right.
@@ -280,13 +310,21 @@ class SteeringController(HaltereController):
                 pitch, roll, angular_rate(body), float(body.model.opt.timestep)
             )
             bias = self.trim_bias + self.pitch_gain * pitch + self.pitch_rate_gain * rate[1]
-            asym = -self.roll_gain * roll - self.roll_rate_gain * rate[0] + extra
+            asym = -self.roll_gain * roll - self.roll_rate_gain * rate[0]
+            phase_asymmetry = 0.0
+            if self.steer_mode == "phase":
+                phase_asymmetry = float(
+                    np.clip(self.phase_gain * extra, -MAX_PHASE, MAX_PHASE)
+                )
+            else:
+                asym += extra
             angles, rates = harmonic_stroke(
                 t,
                 amplitude=self.amplitude,
                 frequency=self.frequency,
                 bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
                 asymmetry=float(np.clip(asym, -self.max_asymmetry, self.max_asymmetry)),
+                phase_asymmetry=phase_asymmetry,
                 rates=True,
             )
         return angles, rates

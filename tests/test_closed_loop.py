@@ -118,7 +118,7 @@ def test_the_uncontrolled_fly_yaws_on_its_own(rig):
 
 @needs_model
 def test_a_right_turn_command_yaws_left_first(rig):
-    """Adverse yaw, and the reason amplitude alone is the wrong steering knob.
+    """Adverse yaw, and the reason amplitude is not the steering knob.
 
     The wing told to beat harder carries more drag, and the drag yaws the
     animal *away* from the commanded turn. Only once the bank develops does the
@@ -138,7 +138,7 @@ def test_a_right_turn_command_yaws_left_first(rig):
     def yaw_at(ms: float, steering: bool) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
         controller = (
-            SteeringController(readout=flat, bearing=0.0)
+            SteeringController(readout=flat, bearing=0.0, steer_mode="amplitude")
             if steering
             else HaltereController()
         )
@@ -151,7 +151,7 @@ def test_a_right_turn_command_yaws_left_first(rig):
 
     # And it banks hard while doing it, which is what eventually turns it.
     body = FlightBody(free, wing, timestep=2e-5)
-    SteeringController(readout=flat, bearing=0.0).fly(body, 0.05)
+    SteeringController(readout=flat, bearing=0.0, steer_mode="amplitude").fly(body, 0.05)
     assert np.degrees(attitude(body)[1]) > 30.0
 
 
@@ -186,3 +186,129 @@ def test_closed_loop_steering_pulls_the_bearing_toward_zero_once_banked(rig):
         if (delta < 0) if start > 0 else (delta > 0):
             toward += 1
     assert toward >= 4, f"only {toward} of 5 bearings moved toward straight ahead"
+
+
+# ------------------------------------------------------- the other steering knob
+
+
+@needs_model
+def test_rotation_phase_is_a_yaw_control_and_amplitude_is_a_roll_control(rig):
+    """They are different controls, not two strengths of the same one.
+
+    Shifting when the wings flip acts through the rotational force term;
+    beating one harder acts through drag. Measured about the centre of mass,
+    the first is an antisymmetric yaw torque and the second an antisymmetric
+    roll torque, and neither is much of the other.
+    """
+    from wingloop.body.flight import harmonic_stroke
+
+    free, wing = rig
+    body = FlightBody(free, wing, timestep=2e-5)
+
+    def wrench(**kw) -> np.ndarray:
+        total, n = np.zeros(6), 400
+        for t in np.linspace(0, 1 / 218.0, n, endpoint=False):
+            angles, rates = harmonic_stroke(t, frequency=218.0, rates=True, **kw)
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            total += body.wrench_about_com()
+        return total / n
+
+    trim = np.deg2rad(-10.7)
+    left = wrench(bias=trim, phase_asymmetry=np.deg2rad(-30))
+    right = wrench(bias=trim, phase_asymmetry=np.deg2rad(30))
+    # Yaw reverses with the phase and is the dominant term.
+    assert left[5] > 0 > right[5]
+    assert abs(left[5] - right[5]) > 0.4
+    assert abs(left[5] - right[5]) > abs(left[4] - right[4])
+
+    roll_left = wrench(bias=trim, asymmetry=-0.2)
+    roll_right = wrench(bias=trim, asymmetry=0.2)
+    # Amplitude is a roll control, an order of magnitude stronger in roll than
+    # phase is, and it barely yaws at all.
+    assert roll_right[3] > 0 > roll_left[3]
+    assert abs(roll_right[3] - roll_left[3]) > 10 * abs(right[5] - left[5])
+
+
+@needs_model
+def test_phase_steering_turns_the_right_way_from_the_start(rig):
+    """The fix for adverse yaw, and the reason phase is the default knob.
+
+    Amplitude yaws the animal away from a commanded turn for the first 50 ms.
+    Phase yaws it the right way from 10 ms and never reverses.
+    """
+    from wingloop.body.flight import harmonic_stroke
+
+    free, wing = rig
+
+    def yaw_at(ms: float, **kw) -> float:
+        body = FlightBody(free, wing, timestep=2e-5)
+        controller = HaltereController()
+        dt = float(body.model.opt.timestep)
+        from wingloop.body.control import angular_rate
+
+        for _ in range(int(ms / 1000.0 / dt)):
+            pitch, roll = attitude(body)
+            pitch, roll, rate = controller._filtered(
+                pitch, roll, angular_rate(body), dt
+            )
+            bias = (
+                controller.trim_bias
+                + controller.pitch_gain * pitch
+                + controller.pitch_rate_gain * rate[1]
+            )
+            asym = -controller.roll_gain * roll - controller.roll_rate_gain * rate[0]
+            angles, rates = harmonic_stroke(
+                body.t,
+                amplitude=controller.amplitude,
+                frequency=controller.frequency,
+                bias=float(np.clip(bias, -controller.max_bias, controller.max_bias)),
+                asymmetry=float(np.clip(asym, -0.45, 0.45)),
+                rates=True,
+                **kw,
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            body._mj.mj_step(body.model, body.data)
+        return _yaw(body)
+
+    # A right turn is decreasing yaw. Phase gets the sign right immediately.
+    for ms in (20.0, 50.0):
+        delta = yaw_at(ms, phase_asymmetry=np.deg2rad(30)) - yaw_at(ms)
+        assert delta < 0.0, f"phase steering went the wrong way at {ms} ms: {delta}"
+
+
+@needs_model
+def test_phase_steering_fixates_from_the_first_forty_milliseconds(rig):
+    """What amplitude could not do: pull the bearing toward straight ahead
+    before the bank develops, from both sides, at every window tested."""
+    free, wing = rig
+    stored = dict(np.load(CURVE))
+
+    def final_bearing(start: float, gain: float, seconds: float) -> float:
+        readout = FlightReadout(
+            bearings=stored["bearings"], command=stored["command"], gain=gain
+        )
+        body = FlightBody(free, wing, timestep=2e-5)
+        a = np.radians(-start)
+        return SteeringController(
+            readout=readout,
+            target=(float(np.cos(a)), float(np.sin(a))),
+            distant=True,
+            bearing=start,
+            steer_mode="phase",
+        ).fly(body, seconds)["bearing"][-1]
+
+    for seconds in (0.04, 0.06):
+        for start in (-45.0, -30.0, 30.0, 45.0):
+            delta = final_bearing(start, 1.0, seconds) - final_bearing(
+                start, 0.0, seconds
+            )
+            toward = (delta < 0) if start > 0 else (delta > 0)
+            assert toward, f"{start} deg at {seconds * 1000:.0f} ms moved away: {delta}"
+
+
+def test_an_unknown_steer_mode_is_refused():
+    r = FlightReadout(bearings=np.array([-90.0, 90.0]), command=np.array([0.1, 0.1]))
+    with pytest.raises(ValueError, match="steer_mode"):
+        SteeringController(readout=r, bearing=0.0, steer_mode="telepathy")

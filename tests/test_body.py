@@ -430,14 +430,16 @@ def test_closing_the_loop_holds_attitude_at_first_and_then_does_not(
 def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path):
     """The whole point of the project, in a body that flies.
 
-    Vision reaches DNbe001, its right-minus-left difference becomes a wing
-    amplitude asymmetry, and the asymmetry rolls the animal. The fly ends up
-    displaced toward the side the object is on -- fixation, which is what the
-    walking version of this does too.
+    Vision reaches DNbe001, its right-minus-left difference shifts when the
+    wings flip, and the shift yaws the animal. It turns toward the side the
+    object is on -- fixation, which is what the walking version does too.
 
-    The control is the part that makes it a measurement: the same machinery run
-    with a flat curve carries no bearing information and must produce no
-    steering at all.
+    The heading is the thing to read, not the sideways displacement: rotation
+    phase is a yaw control. Amplitude steering banks instead, and is checked
+    that way in ``test_a_right_turn_command_yaws_left_first``.
+
+    The control is what makes it a measurement: the same machinery with a flat
+    curve carries no bearing information and must steer not at all.
     """
     from wingloop.body.control import HaltereController, SteeringController
     from wingloop.brain.readout import FlightReadout
@@ -448,47 +450,51 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
         bearings=stored["bearings"], command=np.zeros_like(stored["command"])
     )
 
-    def sideways(readout, bearing) -> float:
-        free = add_free_base(rigid[0], tmp_path / f"s{bearing:+.0f}.xml", dofs="free")
+    def heading(readout, bearing) -> float:
+        free = add_free_base(rigid[0], tmp_path / f"h{bearing:+.0f}.xml", dofs="free")
         body = FlightBody(free, wing, timestep=2e-5)
         SteeringController(readout=readout, bearing=bearing).fly(body, 0.10)
-        return float(body.data.qpos[1])
+        m = body.data.xmat[body.root_body].reshape(3, 3)
+        return float(np.degrees(np.arctan2(m[1, 0], m[0, 0])))
 
-    # The fly faces +x, so its left is +y: the right wing's span points to -y.
-    left_object = sideways(real, -45.0)
-    right_object = sideways(real, 45.0)
-    assert left_object > right_object + 20.0, (left_object, right_object)
+    # The fly faces +x and its left is +y, so turning left is increasing yaw.
+    left_object = heading(real, -45.0)
+    right_object = heading(real, 45.0)
+    assert left_object > right_object + 90.0, (left_object, right_object)
 
-    # Without bearing information, every bearing gives the same drift, and it
-    # is the drift the stabiliser has on its own.
-    blind_left = sideways(flat, -45.0)
-    blind_right = sideways(flat, 45.0)
+    # Without bearing information every bearing gives the same heading, and it
+    # is the one the stabiliser reaches on its own.
+    blind_left = heading(flat, -45.0)
+    blind_right = heading(flat, 45.0)
     assert blind_left == pytest.approx(blind_right, abs=1e-6)
 
     free = add_free_base(rigid[0], tmp_path / "bare.xml", dofs="free")
     bare = FlightBody(free, wing, timestep=2e-5)
     HaltereController().fly(bare, 0.10)
-    assert blind_left == pytest.approx(float(bare.data.qpos[1]), abs=1e-6)
+    m = bare.data.xmat[bare.root_body].reshape(3, 3)
+    assert blind_left == pytest.approx(
+        float(np.degrees(np.arctan2(m[1, 0], m[0, 0]))), abs=1e-6
+    )
 
-    # And the steering straddles that baseline rather than sitting to one side
-    # of it, which a drift dressed up as a command would not.
+    # And the steering straddles that baseline rather than sitting to one side.
     assert left_object > blind_left > right_object
 
 
 @needs_model
-def test_steering_displacement_follows_the_bearing_monotonically(rigid, wing, tmp_path):
-    """Not just two points: the command is graded, so the response should be."""
+def test_steering_response_follows_the_bearing_monotonically(rigid, wing, tmp_path):
+    """Not just two points: the command is graded, so the turn should be."""
     from wingloop.body.control import SteeringController
     from wingloop.brain.readout import FlightReadout
 
     stored = dict(np.load(Path(__file__).parent / "dnbe001_tuning.npz"))
     readout = FlightReadout(bearings=stored["bearings"], command=stored["command"])
 
-    lateral = []
+    headings = []
     for bearing in (-60.0, -30.0, 30.0):
         free = add_free_base(rigid[0], tmp_path / f"m{bearing:+.0f}.xml", dofs="free")
         body = FlightBody(free, wing, timestep=2e-5)
-        SteeringController(readout=readout, bearing=bearing).fly(body, 0.10)
-        lateral.append(float(body.data.qpos[1]))
+        SteeringController(readout=readout, bearing=bearing).fly(body, 0.06)
+        m = body.data.xmat[body.root_body].reshape(3, 3)
+        headings.append(float(np.degrees(np.arctan2(m[1, 0], m[0, 0]))))
 
-    assert lateral[0] > lateral[1] > lateral[2], lateral
+    assert headings[0] > headings[1] > headings[2], headings

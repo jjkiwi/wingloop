@@ -501,6 +501,8 @@ def harmonic_stroke(
     alpha: float = np.deg2rad(45.0),
     bias: float = 0.0,
     asymmetry: float = 0.0,
+    phase: float = 0.0,
+    phase_asymmetry: float = 0.0,
     rates: bool = False,
 ):
     """A textbook stroke: harmonic sweep, angle of attack flipped at reversal.
@@ -521,13 +523,24 @@ def harmonic_stroke(
     # moving the centre of pressure relative to the centre of mass, which is
     # pitch; an amplitude difference between the sides is roll.
     gain = {"LWing": 1.0 + asymmetry, "RWing": 1.0 - asymmetry}
+    # When the wing flips, relative to where it is in the stroke. Advancing the
+    # rotation puts the wing at a high angle of attack while it is still moving
+    # fast, which is extra lift; delaying it costs lift. Unlike amplitude, this
+    # works through the rotational force term rather than through drag, so a
+    # left-right difference should roll the animal without first yawing it the
+    # wrong way. That is the claim this parameter exists to test.
+    flip = {
+        "LWing": phase + phase_asymmetry,
+        "RWing": phase - phase_asymmetry,
+    }
     # Pitch the wing one way on the downstroke and the other on the upstroke.
     # Smoothed rather than a sign flip: a real wing takes a finite time to
     # rotate, and a step here is not merely unrealistic but unsimulable -- the
     # rotational force term is proportional to alpha_dot, so an instantaneous
     # flip is an infinite force. The first version of this used np.sign and
     # MuJoCo answered with "Nan, Inf or huge value in QACC".
-    rot = alpha * np.tanh(SHARPNESS * np.cos(w * t)) / np.tanh(SHARPNESS)
+    def rotation(p: float) -> float:
+        return alpha * np.tanh(SHARPNESS * np.cos(w * t + p)) / np.tanh(SHARPNESS)
     out = {}
     for wing in WINGS:
         # Offset into the flight posture first: the model's rest pose has both
@@ -536,7 +549,7 @@ def harmonic_stroke(
         out[f"joint_{wing}_stroke"] = (
             STROKE_OFFSET[wing] + STROKE_SIGN[wing] * (gain[wing] * phi + bias)
         )
-        out[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rot
+        out[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rotation(flip[wing])
         out[f"joint_{wing}_deviation"] = 0.0
     if not rates:
         return out
@@ -545,13 +558,18 @@ def harmonic_stroke(
     # than a finite difference that lags by half a step -- the rotational force
     # term is proportional to one of them.
     phi_dot = amplitude * w * np.cos(w * t)
-    c = np.cos(w * t)
-    rot_dot = (
-        alpha * SHARPNESS * (1.0 - np.tanh(SHARPNESS * c) ** 2) * (-w * np.sin(w * t))
-    ) / np.tanh(SHARPNESS)
+
+    def rotation_rate(p: float) -> float:
+        c = np.cos(w * t + p)
+        return (
+            alpha
+            * SHARPNESS
+            * (1.0 - np.tanh(SHARPNESS * c) ** 2)
+            * (-w * np.sin(w * t + p))
+        ) / np.tanh(SHARPNESS)
     drates = {}
     for wing in WINGS:
         drates[f"joint_{wing}_stroke"] = STROKE_SIGN[wing] * gain[wing] * phi_dot
-        drates[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rot_dot
+        drates[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rotation_rate(flip[wing])
         drates[f"joint_{wing}_deviation"] = 0.0
     return out, drates

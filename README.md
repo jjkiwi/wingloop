@@ -255,22 +255,36 @@ run -- and only reverses once the bank has developed. The wing told to beat
 harder carries more drag, and the drag turns the animal the wrong way before
 the tilted lift vector turns it the right way.
 
-| | 60 ms | 90 ms |
-| --- | --- | --- |
-| bearings moved toward straight ahead | **0 of 8** | **7 of 8** |
+## Rotation phase is the knob that works
 
-That sign reversal is the adverse-yaw phase and then the banked turn taking
-over. It is a real aerodynamic result, and it says something about the model
-rather than about the loop: **real flies do not steer on amplitude alone.**
-They shift the timing of wing rotation, which moves lift and drag differently
-and does not pay the drag penalty first. This model has only the amplitude
-knob, so it has only the adverse phase and then the recovery.
+Shifting *when* the wings flip, rather than how far they sweep, acts through
+the rotational force term instead of through drag. They are different controls,
+not two strengths of the same one:
+
+| knob | torque about the centre of mass |
+| --- | --- |
+| amplitude asymmetry, +-0.2 | **roll** +-7.8, almost no yaw |
+| rotation-phase asymmetry, +-30 deg | **yaw** +-0.32, almost no roll |
+
+And that changes everything about the steering:
+
+| bearings pulled toward straight ahead | 40 ms | 60 ms | 90 ms |
+| --- | --- | --- | --- |
+| amplitude | 0 of 6 | 0 of 6 | 5 of 6 |
+| **rotation phase** | **6 of 6** | **6 of 6** | **6 of 6** |
+
+Phase yaws the animal the right way from 10 ms and never reverses; amplitude
+spends 50 ms going the wrong way first. Over 100 ms an object 45 degrees to the
+left turns the fly 122 degrees left of where it would otherwise have gone, and
+one 45 degrees to the right turns it 113 degrees right, against a flat-curve
+control that lands on the same heading whatever the bearing.
+
+This is what real flies do, and the model now says why they do it: amplitude
+pays the drag penalty first, rotation timing does not. `steer_mode="amplitude"`
+is kept so the comparison stays runnable.
 
 ## What does not exist yet
 
-- **Rotation-timing control.** The knob a real fly steers with, and the one
-  that would remove the adverse-yaw phase above. The hinge already has the
-  rotation joint; nothing modulates its phase.
 - The power-muscle oscillator that would drive the stroke instead of imposing it
 - **Real stroke kinematics.** A pure harmonic sweep with a tanh flip and no
   deviation is what produces the within-stroke torque swings the controller
