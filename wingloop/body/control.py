@@ -1,0 +1,198 @@
+"""The feedback that makes flight possible, and the reason the animal needs it.
+
+An open-loop stroke lifts this fly off and tips it over within about thirteen
+milliseconds. That is not a defect of the force model -- the vertical force is
+right to 0.3% on a vertical rail -- it is that a fly is passively unstable in
+pitch. The wing hinge sits about a quarter of a millimetre ahead of the centre
+of mass, so the mean aerodynamic force is a nose-down torque, and nothing in a
+symmetric stroke opposes it.
+
+Real flies close that loop with their halteres: club-shaped organs beating
+antiphase to the wings, whose Coriolis deflection encodes body angular rate.
+The signal reaches the wing steering muscles fast enough to matter within a
+wingbeat. This is the functional stand-in -- body angular rate read straight
+from the simulator rather than through a modelled mechanoreceptor, which is the
+same simplification `flyloop` makes for vision and labels the same way.
+
+**The two knobs are the animal's own**, and their authority here is measured,
+not assumed:
+
+* a symmetric shift of the mean stroke angle swings both wings fore or aft and
+  moves the centre of pressure relative to the centre of mass -- **-0.33 of
+  pitch torque per degree**, linear from -10 to +10 degrees, with the trim
+  point at about +2 degrees
+* an amplitude difference between the sides is roll -- **38.7 per unit of
+  asymmetry**, linear through zero
+
+Yaw is not controlled. Nothing in this stroke produces much of it, and adding a
+third loop before the first two work would be tuning in the dark.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from .flight import harmonic_stroke
+
+#: Mean stroke offset at which the pitch torque about the centre of mass
+#: vanishes, radians. Measured by sweeping the bias and reading
+#: :meth:`~wingloop.body.flight.FlightBody.wrench_about_com`.
+#:
+#: The first value here was +2 degrees, read off the moment about the *model
+#: origin* -- which on this model is a millimetre below the animal and gives
+#: +0.66 where the moment about the centre of mass is -3.49. Wrong magnitude,
+#: wrong sign, and the controller trimmed on it pushed the animal over faster
+#: with the loop closed than without.
+TRIM_BIAS = np.deg2rad(-10.7)
+
+#: Control authority, measured about the centre of mass at the nominal stroke.
+#: Pitch torque per radian of stroke bias, and roll torque per unit of
+#: left-right amplitude asymmetry. The gains below are derived from these and
+#: the body's inertia rather than tuned by hand.
+PITCH_PER_BIAS = -18.85
+ROLL_PER_ASYMMETRY = 38.2
+
+#: Pitch and roll inertia of the whole animal, from the model's mass matrix.
+PITCH_INERTIA = 0.002014
+ROLL_INERTIA = 0.001502
+
+#: Closed-loop bandwidth, rad/s. Well under the wingbeat's 1370 rad/s, because
+#: a loop that tries to act within a stroke is fighting the stroke.
+#:
+#: **What closing the loop buys, measured.** Open loop the animal is past 84
+#: degrees of pitch and losing height by 40 ms. Closed, it holds pitch inside
+#: 13 degrees and roll inside 19 for the first 100 ms -- twenty-two wingbeats
+#: -- and over 300 ms it climbs 85 mm. That is flight.
+#:
+#: **It is not yet indefinite.** Past about 100 ms the attitude degrades and by
+#: 300 ms it has swung through 60-80 degrees, still airborne and still
+#: climbing. Raising or lowering the bandwidth and the filter moves this a
+#: little and does not fix it, which points away from tuning and towards the
+#: stroke: within one beat the torque about the centre of mass swings between
+#: -17 and +20 while its cycle mean is near zero, against a control authority
+#: of 8 in pitch and 17 in roll. The animal is kicked harder inside each stroke
+#: than the loop can answer between strokes.
+#:
+#: The suspicion, untested, is the idealised kinematics -- a pure harmonic
+#: sweep with a tanh flip and no deviation -- rather than the controller. Real
+#: strokes put their rotation at the reversals and trace a figure-of-eight,
+#: and both reduce the within-stroke excursion. Measuring that is the next
+#: thing to do, and it is a statement about the stroke, not about the loop.
+BANDWIDTH = 40.0
+
+
+def attitude(body) -> tuple[float, float]:
+    """Pitch and roll of the body, radians, from its rotation matrix.
+
+    Pitch is how far the body's long axis has tilted out of horizontal and roll
+    how far its lateral axis has. Both are zero in the model's rest pose, which
+    is what makes them usable as errors without a reference to subtract.
+    """
+    if body.root_body is None:
+        return 0.0, 0.0
+    r = body.data.xmat[body.root_body].reshape(3, 3)
+    return float(-np.arcsin(np.clip(r[2, 0], -1.0, 1.0))), float(
+        np.arcsin(np.clip(r[2, 1], -1.0, 1.0))
+    )
+
+
+def angular_rate(body) -> np.ndarray:
+    """Body angular velocity in world axes -- what a haltere reports.
+
+    MuJoCo stores a free joint's angular velocity in the body frame, so it is
+    rotated out here. Reading it raw gives a signal that is correct only while
+    the animal is upright, which is exactly when the controller is not needed.
+    """
+    if body.root_body is None or body.root_translation != 3:
+        return np.zeros(3)
+    r = body.data.xmat[body.root_body].reshape(3, 3)
+    return r @ np.asarray(body.data.qvel[body.root_dof + 3 : body.root_dof + 6])
+
+
+@dataclass
+class HaltereController:
+    """Proportional-derivative attitude hold on pitch and roll.
+
+    The derivative terms are the haltere part and they carry most of the work:
+    rate feedback is what a haltere actually provides, and it is what damps an
+    instability, while the proportional terms only decide what counts as level.
+    """
+
+    frequency: float = 218.0
+    amplitude: float = np.deg2rad(75.0)
+    trim_bias: float = TRIM_BIAS
+    # Critically damped at BANDWIDTH: a gain is inertia times the desired
+    # acceleration divided by the authority that produces it.
+    pitch_gain: float = PITCH_INERTIA * BANDWIDTH**2 / abs(PITCH_PER_BIAS)
+    pitch_rate_gain: float = PITCH_INERTIA * 2 * BANDWIDTH / abs(PITCH_PER_BIAS)
+    roll_gain: float = ROLL_INERTIA * BANDWIDTH**2 / ROLL_PER_ASYMMETRY
+    roll_rate_gain: float = ROLL_INERTIA * 2 * BANDWIDTH / ROLL_PER_ASYMMETRY
+    #: Bounds on what the loop may ask for, in the units of the two knobs. A
+    #: stroke bias beyond this is no longer a bias and an asymmetry beyond it
+    #: stops one wing entirely.
+    max_bias: float = np.deg2rad(25.0)
+    max_asymmetry: float = 0.45
+    #: Time constant of the low-pass on the sensed attitude and rate, seconds.
+    #:
+    #: Not a fudge factor. Within a single stroke the torque about the centre
+    #: of mass swings between -17 and +20 while its cycle mean is near zero, so
+    #: a loop reading instantaneous state responds mostly to the stroke rather
+    #: than to the animal's attitude, and feeds that straight back at stroke
+    #: frequency. One wingbeat is 4.6 ms; filtering over about two of them
+    #: leaves the signal and drops the beat. The haltere-to-muscle path is
+    #: itself low-pass, so this stands in for something real.
+    tau: float = 0.020
+
+    _state: dict = field(default_factory=dict)
+
+    def _filtered(self, pitch, roll, rate, dt):
+        a = dt / (self.tau + dt)
+        if not self._state:
+            self._state = {"pitch": pitch, "roll": roll, "rate": np.asarray(rate, float)}
+        else:
+            self._state["pitch"] += a * (pitch - self._state["pitch"])
+            self._state["roll"] += a * (roll - self._state["roll"])
+            self._state["rate"] += a * (np.asarray(rate, float) - self._state["rate"])
+        return self._state["pitch"], self._state["roll"], self._state["rate"]
+
+    def command(self, body, t: float):
+        """Stroke angles and rates for this instant, with the loop closed."""
+        pitch, roll = attitude(body)
+        rate = angular_rate(body)
+        pitch, roll, rate = self._filtered(
+            pitch, roll, rate, float(body.model.opt.timestep)
+        )
+        # Pitch authority is negative -- more bias is more nose-down torque --
+        # so correcting a positive pitch means *more* bias, not less.
+        bias = self.trim_bias + self.pitch_gain * pitch + self.pitch_rate_gain * rate[1]
+        asymmetry = -self.roll_gain * roll - self.roll_rate_gain * rate[0]
+        return harmonic_stroke(
+            t,
+            amplitude=self.amplitude,
+            frequency=self.frequency,
+            bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
+            asymmetry=float(np.clip(asymmetry, -self.max_asymmetry, self.max_asymmetry)),
+            rates=True,
+        )
+
+    def fly(self, body, seconds: float) -> dict[str, np.ndarray]:
+        """Run the loop and report the trajectory."""
+        steps = int(round(seconds / body.model.opt.timestep))
+        out = {k: [] for k in ("t", "x", "y", "z", "pitch", "roll", "tumble")}
+        for _ in range(steps):
+            angles, rates = self.command(body, body.t)
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            body._mj.mj_step(body.model, body.data)
+            pitch, roll = attitude(body)
+            q = body.data.qpos
+            out["t"].append(body.t)
+            out["x"].append(float(q[0]))
+            out["y"].append(float(q[1]))
+            out["z"].append(float(q[2]))
+            out["pitch"].append(pitch)
+            out["roll"].append(roll)
+            out["tumble"].append(float(np.linalg.norm(angular_rate(body))))
+        return {k: np.asarray(v) for k, v in out.items()}

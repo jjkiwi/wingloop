@@ -144,12 +144,61 @@ and nothing notices -- a sabotage check caught the first version of the test
 passing either way. Beating one wing at 60% rolls the animal at 7.4 with the
 real arm and 1.6 with the hinge, and the threshold now sits between them.
 
+## Closing the loop makes it fly
+
+`HaltereController` reads body attitude and angular rate -- the functional
+stand-in for what halteres measure -- and works the two knobs the animal has:
+a symmetric shift of the mean stroke angle for pitch, an amplitude difference
+between the sides for roll. Both authorities are measured, not assumed:
+**-18.9 of pitch torque per radian of bias** and **38.2 of roll per unit of
+asymmetry**, with the trim point at -10.7 degrees.
+
+| | open loop | loop closed |
+| --- | --- | --- |
+| pitch at 40 ms | **+84.7 deg** | inside 13 deg |
+| height at 40 ms | falling | climbing |
+| attitude over the first 100 ms | gone | pitch < 13 deg, roll < 19 deg |
+| after 300 ms | tumbling | **+85 mm of altitude** |
+
+Twenty-two wingbeats of attitude hold against a fly that is past 45 degrees
+within nine. It is not yet indefinite: past about 100 ms the attitude degrades
+and by 300 ms it has swung through 60-80 degrees, still airborne and still
+climbing. Moving the bandwidth and the filter changes that a little and does
+not fix it, which points at the stroke rather than the loop -- within one beat
+the torque about the centre of mass swings between -17 and +20 while its cycle
+mean is near zero, against an authority of 8 in pitch and 17 in roll.
+
+### The torque was being read in the wrong frame
+
+`xfrc_applied` acts at the root body's inertial point, and on this model that
+point is the world origin: `FlyBody` is a massless wrapper while the animal's
+mass sits a millimetre away. The wrench applied there is correct physics, but
+the moment it *reports* is about the origin -- **+0.66 in pitch where the
+moment about the centre of mass is -3.49**, different magnitude and opposite
+sign. Trimmed on the first number, the controller pushed the wrong way and the
+animal went over faster with the loop closed than without it.
+`wrench_about_com` is the fix and a test pins both frames.
+
+### Lift belongs to the animal's stroke plane, not to the world
+
+Held vertical regardless of attitude, a pitched fly still gets its whole weight
+straight up, and the controller is steering something that cannot be steered.
+Tying the normal to the body's own vertical is what makes attitude couple back
+into the forces -- and it is why the open-loop fly now loses height as well as
+tipping over.
+
 ## What does not exist yet
 
 - The power-muscle oscillator that would drive the stroke instead of imposing it
-- The descending readout, from the flight DNs rather than DNa02
-- Haltere feedback, which is how the animal stabilises -- and, given the tumble
-  above, the thing standing between this and flight
+- **Real stroke kinematics.** A pure harmonic sweep with a tanh flip and no
+  deviation is what produces the within-stroke torque swings the controller
+  cannot answer. Real strokes put their rotation at the reversals and trace a
+  figure-of-eight; both should shrink those swings. This is the next thing to
+  measure.
+- The descending readout, from the flight DNs rather than DNa02 -- and the
+  arithmetic for it is now in hand on both sides: DNg02 sets amplitude by
+  population coding over about 29 cells, and an amplitude asymmetry of 0.2
+  produces 7.6 of roll torque.
 
 ## Running the tests
 

@@ -305,8 +305,14 @@ class FlightBody:
         # this wing sweeps. Zero on a tether; the whole difference between
         # hovering and flight once the body is free.
         rot, _ = self.wing_pose(wing, self.wing_angles)
+        # The stroke plane belongs to the animal, not to the world. Its normal
+        # is the body's own vertical, so lift tilts when the body tilts --
+        # which is most of how attitude couples back into the forces, and
+        # without it a pitched fly still gets its full weight straight up and
+        # the controller is steering something that cannot be steered.
+        normal = self.body_axis()
         path = rot @ self.sweep_dir[wing]
-        path[2] = 0.0
+        path = path - np.dot(path, normal) * normal
         norm = np.linalg.norm(path)
         path = path / norm if norm > 1e-12 else np.zeros(3)
         along = float(np.dot(self.body_velocity(), path))
@@ -321,10 +327,9 @@ class FlightBody:
         # Rotating a wing-frame normal into the world instead ties the force
         # direction to the pitch angle twice over -- once in the coefficient and
         # once in the frame -- and the two cancel over a cycle.
-        world = np.array([0.0, 0.0, f.total_normal], dtype=float)
         # path_force already carries its sign, summed per element, so the
         # stroke direction must not be applied a second time.
-        world = world + f.path_force * path
+        world = f.total_normal * normal + f.path_force * path
 
         t = self.telemetry[wing]
         t.stroke, t.rotation = state.phi, state.alpha
@@ -373,6 +378,40 @@ class FlightBody:
             total[3:] += np.cross(point - com, force)
         if self.root_body is not None:
             self.data.xfrc_applied[self.root_body] = total
+
+    def body_axis(self) -> np.ndarray:
+        """The animal's own vertical: the normal of its stroke plane.
+
+        World +z while it is level, and it parts company with world +z exactly
+        when attitude starts to matter.
+        """
+        if self.root_body is None:
+            return np.array([0.0, 0.0, 1.0])
+        return self.data.xmat[self.root_body].reshape(3, 3) @ np.array([0.0, 0.0, 1.0])
+
+    def wrench_about_com(self) -> np.ndarray:
+        """The applied wrench referred to the animal's centre of mass.
+
+        ``xfrc_applied`` acts at the root body's own inertial point, and on
+        this model that point is the world origin: ``FlyBody`` is a massless
+        wrapper whose ``xipos`` is (0, 0, 0) while the animal's mass actually
+        sits at (-0.304, 0.007, 1.067). The wrench applied there is correct
+        physics -- a force and a moment about any one point describe the same
+        thing -- but the moment it reports is about the origin, and reading
+        that as a body torque is a mistake with a lever arm of a millimetre in
+        it.
+
+        It is not a small mistake. At the nominal stroke the moment about the
+        origin is +0.66 in pitch while the moment about the centre of mass is
+        **-3.49**: different magnitude and opposite sign. Trimmed on the first
+        number, the controller pushed the wrong way and the animal pitched over
+        faster with the loop closed than without it.
+        """
+        if self.root_body is None:
+            return np.zeros(6)
+        applied = np.asarray(self.data.xfrc_applied[self.root_body], dtype=float)
+        offset = self.data.xipos[self.root_body] - self.data.subtree_com[self.root_body]
+        return np.concatenate([applied[:3], applied[3:] + np.cross(offset, applied[:3])])
 
     def body_velocity(self) -> np.ndarray:
         """World translational velocity of the root body, or zeros on a tether.
@@ -460,6 +499,8 @@ def harmonic_stroke(
     amplitude: float = np.deg2rad(75.0),
     frequency: float = 218.0,
     alpha: float = np.deg2rad(45.0),
+    bias: float = 0.0,
+    asymmetry: float = 0.0,
     rates: bool = False,
 ):
     """A textbook stroke: harmonic sweep, angle of attack flipped at reversal.
@@ -475,6 +516,11 @@ def harmonic_stroke(
     """
     w = 2.0 * np.pi * frequency
     phi = amplitude * np.sin(w * t)
+    # The two control knobs a fly actually has, and the ones this model needs:
+    # a symmetric shift of the mean stroke angle swings both wings fore or aft,
+    # moving the centre of pressure relative to the centre of mass, which is
+    # pitch; an amplitude difference between the sides is roll.
+    gain = {"LWing": 1.0 + asymmetry, "RWing": 1.0 - asymmetry}
     # Pitch the wing one way on the downstroke and the other on the upstroke.
     # Smoothed rather than a sign flip: a real wing takes a finite time to
     # rotate, and a step here is not merely unrealistic but unsimulable -- the
@@ -487,7 +533,9 @@ def harmonic_stroke(
         # Offset into the flight posture first: the model's rest pose has both
         # wings folded back over the abdomen, and flapping from there sweeps
         # them sideways.
-        out[f"joint_{wing}_stroke"] = STROKE_OFFSET[wing] + STROKE_SIGN[wing] * phi
+        out[f"joint_{wing}_stroke"] = (
+            STROKE_OFFSET[wing] + STROKE_SIGN[wing] * (gain[wing] * phi + bias)
+        )
         out[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rot
         out[f"joint_{wing}_deviation"] = 0.0
     if not rates:
@@ -503,7 +551,7 @@ def harmonic_stroke(
     ) / np.tanh(SHARPNESS)
     drates = {}
     for wing in WINGS:
-        drates[f"joint_{wing}_stroke"] = STROKE_SIGN[wing] * phi_dot
+        drates[f"joint_{wing}_stroke"] = STROKE_SIGN[wing] * gain[wing] * phi_dot
         drates[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rot_dot
         drates[f"joint_{wing}_deviation"] = 0.0
     return out, drates

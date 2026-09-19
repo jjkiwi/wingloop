@@ -14,6 +14,11 @@ from wingloop.aero.wing import wing_from_mesh
 
 mujoco = pytest.importorskip("mujoco", reason="the flight body needs MuJoCo")
 
+from wingloop.body.control import (  # noqa: E402
+    PITCH_PER_BIAS,
+    TRIM_BIAS,
+    HaltereController,
+)
 from wingloop.body.flight import FlightBody, harmonic_stroke  # noqa: E402
 from wingloop.body.hinge import (  # noqa: E402
     HINGE_DOFS,
@@ -262,9 +267,14 @@ def test_free_in_six_degrees_it_lifts_off_and_tips_over(rigid, wing, tmp_path):
         body.apply_aerodynamics()
         body._mj.mj_step(body.model, body.data)
 
-    assert body.data.qpos[2] > 0, "it should still have gained height"
-    tumble = float(np.linalg.norm(body.data.qvel[3:6]))
-    assert tumble > 100.0, "open-loop flapping is not supposed to be stable"
+    from wingloop.body.control import attitude
+
+    pitch, _ = attitude(body)
+    assert abs(np.degrees(pitch)) > 45.0, "it is supposed to tip over"
+    # Once the stroke plane tilts with the body, a pitched fly stops getting
+    # its weight straight up, so it does not even hold height.
+    assert body.data.qpos[2] < 1.0
+    assert float(np.linalg.norm(body.data.qvel[3:6])) > 100.0
 
 
 @needs_model
@@ -302,3 +312,112 @@ def test_an_asymmetric_stroke_rolls_the_animal(rigid, wing, tmp_path):
     # the hinge. The threshold sits between them on purpose -- a loose one
     # passes either way, which a sabotage check caught it doing.
     assert abs(lopsided) > 4.0, f"the moment arm is too short: {lopsided}"
+
+
+# ------------------------------------------------------------------- control
+
+
+@needs_model
+def test_the_reported_torque_is_about_the_animal_not_the_origin(rigid, wing, tmp_path):
+    """The bug that made the first controller push the wrong way.
+
+    ``xfrc_applied`` acts at the root body's inertial point, and on this model
+    that point is the world origin -- ``FlyBody`` is a massless wrapper -- while
+    the animal's mass sits a millimetre away. The wrench applied there is
+    correct physics, but the moment it reports is about the origin, and reading
+    that as a body torque gets both the magnitude and the sign wrong.
+    """
+    free = add_free_base(rigid[0], tmp_path / "com.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+    assert np.allclose(body.data.xipos[body.root_body], 0.0, atol=1e-9)
+    assert np.linalg.norm(body.data.subtree_com[body.root_body]) > 0.5
+
+    raw, about_com = np.zeros(6), np.zeros(6)
+    n = 400
+    for t in np.linspace(0, 1.0 / FREQUENCY, n, endpoint=False):
+        angles, rates = harmonic_stroke(t, frequency=FREQUENCY, rates=True)
+        body.set_wings(angles, rates)
+        body.apply_aerodynamics()
+        raw += body.data.xfrc_applied[body.root_body]
+        about_com += body.wrench_about_com()
+    raw, about_com = raw / n, about_com / n
+
+    assert np.allclose(raw[:3], about_com[:3]), "the force must not change"
+    # Opposite signs in pitch: +0.66 about the origin, -3.49 about the animal.
+    assert raw[4] > 0 and about_com[4] < 0
+    assert abs(about_com[4]) > 3.0
+
+
+@needs_model
+def test_the_trim_bias_nulls_the_pitch_torque(rigid, wing, tmp_path):
+    """What TRIM_BIAS is, measured rather than asserted from theory."""
+    free = add_free_base(rigid[0], tmp_path / "trim.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+
+    def pitch_torque(bias: float) -> float:
+        total, n = 0.0, 400
+        for t in np.linspace(0, 1.0 / FREQUENCY, n, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, frequency=FREQUENCY, bias=bias, rates=True
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            total += float(body.wrench_about_com()[4])
+        return total / n
+
+    assert abs(pitch_torque(TRIM_BIAS)) < 0.2, "trim should leave no pitch torque"
+    assert pitch_torque(0.0) < -3.0, "untrimmed, it pitches nose-down hard"
+    # Authority, and its sign: more bias is more nose-down.
+    slope = (pitch_torque(np.deg2rad(5)) - pitch_torque(np.deg2rad(-5))) / np.deg2rad(10)
+    assert slope == pytest.approx(PITCH_PER_BIAS, rel=0.15)
+
+
+@needs_model
+def test_the_stroke_plane_follows_the_body(rigid, wing, tmp_path):
+    """Lift is normal to the animal's stroke plane, not to the world.
+
+    Kept vertical regardless of attitude, a pitched fly still gets its whole
+    weight straight up and the controller is steering something that cannot be
+    steered.
+    """
+    free = add_free_base(rigid[0], tmp_path / "plane.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+    assert np.allclose(body.body_axis(), [0, 0, 1], atol=1e-6)
+
+    # Roll the body a quarter turn about its long axis and look again.
+    body.data.qpos[3:7] = [np.cos(np.pi / 8), np.sin(np.pi / 8), 0.0, 0.0]
+    body._mj.mj_forward(body.model, body.data)
+    tilted = body.body_axis()
+    assert tilted[2] == pytest.approx(np.cos(np.pi / 4), abs=1e-3)
+    assert abs(tilted[1]) > 0.5
+
+
+@needs_model
+def test_closing_the_loop_holds_attitude_at_first_and_then_does_not(
+    rigid, wing, tmp_path
+):
+    """The honest state of the controller, pinned so it cannot drift unnoticed.
+
+    Four wingbeats of genuine attitude hold, then the within-stroke torque
+    wins. This asserts both halves: that the loop does something real early,
+    and that it does not yet do the thing it is for. When the stroke kinematics
+    improve, the second assertion is the one that should start failing.
+    """
+    free = add_free_base(rigid[0], tmp_path / "loop.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+    trace = HaltereController().fly(body, 0.30)
+
+    # Twenty-two wingbeats of attitude hold, against an open-loop fly that is
+    # past 45 degrees within nine.
+    early = trace["t"] < 0.100
+    assert np.degrees(np.abs(trace["pitch"][early])).max() < 20.0
+    assert np.degrees(np.abs(trace["roll"][early])).max() < 25.0
+
+    assert trace["t"][-1] > 0.29, "it should stay in the air"
+    assert trace["z"][-1] > 50.0, "and climb while it does"
+
+    # And the part that is not finished. When the stroke kinematics improve
+    # this should start failing, which is the point of asserting it.
+    assert np.degrees(np.abs(trace["pitch"])).max() > 30.0, (
+        "attitude hold now lasts the whole run -- update this claim"
+    )
