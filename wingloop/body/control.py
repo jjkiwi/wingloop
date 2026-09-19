@@ -196,3 +196,54 @@ class HaltereController:
             out["roll"].append(roll)
             out["tumble"].append(float(np.linalg.norm(angular_rate(body))))
         return {k: np.asarray(v) for k, v in out.items()}
+
+
+@dataclass
+class SteeringController(HaltereController):
+    """Attitude hold, with the connectome deciding which way to go.
+
+    The stabiliser keeps the animal upright; this adds the one thing it is not
+    doing, which is choosing a heading. The steering command is a wing amplitude
+    asymmetry -- the same knob the roll loop uses -- so the two simply add, and
+    the stabiliser fights the roll that steering deliberately creates. That is
+    the arrangement in the animal too: the haltere loop does not know the
+    difference between a disturbance and an intention.
+
+    ``readout`` is a :class:`~wingloop.brain.readout.FlightReadout`, and
+    ``bearing`` is where the object sits relative to the fly's heading,
+    positive to the right. Nothing here recomputes the brain: the readout is a
+    lookup over a curve measured once, for the reason its module explains.
+    """
+
+    readout: object = None
+    bearing: float = 0.0
+    steer_gain: float = 1.0
+
+    def steering(self) -> float:
+        if self.readout is None:
+            return 0.0
+        return self.steer_gain * self.readout.asymmetry(self.bearing)
+
+    def command(self, body, t: float):
+        angles, rates = super().command(body, t)
+        extra = self.steering()
+        if extra:
+            # Re-issue the stroke with the steering asymmetry folded in. The
+            # stabiliser's own asymmetry is already inside `angles`, so this is
+            # recomputed rather than patched -- editing the joint dictionary
+            # would leave the rates describing a different stroke.
+            pitch, roll = attitude(body)
+            pitch, roll, rate = self._filtered(
+                pitch, roll, angular_rate(body), float(body.model.opt.timestep)
+            )
+            bias = self.trim_bias + self.pitch_gain * pitch + self.pitch_rate_gain * rate[1]
+            asym = -self.roll_gain * roll - self.roll_rate_gain * rate[0] + extra
+            angles, rates = harmonic_stroke(
+                t,
+                amplitude=self.amplitude,
+                frequency=self.frequency,
+                bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
+                asymmetry=float(np.clip(asym, -self.max_asymmetry, self.max_asymmetry)),
+                rates=True,
+            )
+        return angles, rates

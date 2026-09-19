@@ -187,18 +187,64 @@ Tying the normal to the body's own vertical is what makes attitude couple back
 into the forces -- and it is why the open-loop fly now loses height as well as
 tipping over.
 
+## The connectome steers it
+
+Vision reaches a descending neuron, its right-minus-left difference becomes a
+wing amplitude asymmetry, and the asymmetry rolls the animal. Over 100 ms:
+
+| object | command | sideways |
+| ---: | ---: | --- |
+| 60 deg left | -0.079 | **28 mm to the left** |
+| 30 deg left | -0.051 | 16 mm to the left |
+| no bearing information | 0.000 | -9.9 mm (the stabiliser's own drift) |
+| 30 deg right | +0.058 | 32 mm to the right |
+| 60 deg right | +0.096 | 34 mm to the right |
+
+The fly ends up displaced toward the side the object is on, which is fixation
+-- the same behaviour the walking version shows. The control is what makes it a
+measurement rather than a demo: the identical machinery run with a **flat**
+curve gives -9.851 mm at every bearing, exactly what the stabiliser does with
+no readout at all. All of the steering comes from the connectome.
+
+### Which neuron, and why not the obvious one
+
+`flyloop` steers on DNa02. That does not transfer -- DNa02 supplies 0.21% of
+the descending drive onto the wing steering muscles -- so the candidate had to
+be measured.
+
+| | drive onto wing muscles | visual input | bearing tuning |
+| --- | ---: | ---: | ---: |
+| **DNg02** | **9.07%** | 1.48% | **0.000000** |
+| **DNbe001** | 4.06% | 20.4% | **0.186** |
+| DNa10 | 3.20% | 29.8% | 0.134 |
+| DNge107 | 3.88% | 20.3% | 0.042, inverted |
+
+**DNg02 is the actuator and it is blind.** It is the largest single descending
+input to the wing steering muscles by more than a factor of two, about 29 cells
+across seven subtypes -- population-coded amplitude control, exactly as the
+physiology says -- and its right-minus-left difference is *exactly zero at
+every bearing from -90 to +90*. Nothing about where an object is reaches it.
+
+**DNbe001 is the one that sees**, with the steepest tuning of any candidate and
+the sign a fixating fly needs. So the command path is vision → DNbe001 → wing
+amplitude asymmetry → roll, and the last arrow is the measured 38.2 of roll
+torque per unit of asymmetry.
+
+The curve is sampled once and interpolated. That is not a shortcut: one pass
+through the rate model costs 0.16 s against a 4.6 ms wingbeat, and a fly's
+visual system does not resolve individual wingbeats either.
+
 ## What does not exist yet
 
 - The power-muscle oscillator that would drive the stroke instead of imposing it
 - **Real stroke kinematics.** A pure harmonic sweep with a tanh flip and no
   deviation is what produces the within-stroke torque swings the controller
-  cannot answer. Real strokes put their rotation at the reversals and trace a
-  figure-of-eight; both should shrink those swings. This is the next thing to
-  measure.
-- The descending readout, from the flight DNs rather than DNa02 -- and the
-  arithmetic for it is now in hand on both sides: DNg02 sets amplitude by
-  population coding over about 29 cells, and an amplitude asymmetry of 0.2
-  produces 7.6 of roll torque.
+  cannot answer past 100 ms. Real strokes put their rotation at the reversals
+  and trace a figure-of-eight; both should shrink those swings, and the
+  steering runs above would then last longer than a tenth of a second.
+- Closed-loop bearing: the object's bearing is held fixed rather than recomputed
+  from the fly's own heading as it turns, so these are open-loop steering
+  responses, not fixation to convergence.
 
 ## Running the tests
 

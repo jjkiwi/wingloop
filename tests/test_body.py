@@ -421,3 +421,74 @@ def test_closing_the_loop_holds_attitude_at_first_and_then_does_not(
     assert np.degrees(np.abs(trace["pitch"])).max() > 30.0, (
         "attitude hold now lasts the whole run -- update this claim"
     )
+
+
+# --------------------------------------------------- the connectome steering
+
+
+@needs_model
+def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path):
+    """The whole point of the project, in a body that flies.
+
+    Vision reaches DNbe001, its right-minus-left difference becomes a wing
+    amplitude asymmetry, and the asymmetry rolls the animal. The fly ends up
+    displaced toward the side the object is on -- fixation, which is what the
+    walking version of this does too.
+
+    The control is the part that makes it a measurement: the same machinery run
+    with a flat curve carries no bearing information and must produce no
+    steering at all.
+    """
+    from wingloop.body.control import HaltereController, SteeringController
+    from wingloop.brain.readout import FlightReadout
+
+    stored = dict(np.load(Path(__file__).parent / "dnbe001_tuning.npz"))
+    real = FlightReadout(bearings=stored["bearings"], command=stored["command"])
+    flat = FlightReadout(
+        bearings=stored["bearings"], command=np.zeros_like(stored["command"])
+    )
+
+    def sideways(readout, bearing) -> float:
+        free = add_free_base(rigid[0], tmp_path / f"s{bearing:+.0f}.xml", dofs="free")
+        body = FlightBody(free, wing, timestep=2e-5)
+        SteeringController(readout=readout, bearing=bearing).fly(body, 0.10)
+        return float(body.data.qpos[1])
+
+    # The fly faces +x, so its left is +y: the right wing's span points to -y.
+    left_object = sideways(real, -45.0)
+    right_object = sideways(real, 45.0)
+    assert left_object > right_object + 20.0, (left_object, right_object)
+
+    # Without bearing information, every bearing gives the same drift, and it
+    # is the drift the stabiliser has on its own.
+    blind_left = sideways(flat, -45.0)
+    blind_right = sideways(flat, 45.0)
+    assert blind_left == pytest.approx(blind_right, abs=1e-6)
+
+    free = add_free_base(rigid[0], tmp_path / "bare.xml", dofs="free")
+    bare = FlightBody(free, wing, timestep=2e-5)
+    HaltereController().fly(bare, 0.10)
+    assert blind_left == pytest.approx(float(bare.data.qpos[1]), abs=1e-6)
+
+    # And the steering straddles that baseline rather than sitting to one side
+    # of it, which a drift dressed up as a command would not.
+    assert left_object > blind_left > right_object
+
+
+@needs_model
+def test_steering_displacement_follows_the_bearing_monotonically(rigid, wing, tmp_path):
+    """Not just two points: the command is graded, so the response should be."""
+    from wingloop.body.control import SteeringController
+    from wingloop.brain.readout import FlightReadout
+
+    stored = dict(np.load(Path(__file__).parent / "dnbe001_tuning.npz"))
+    readout = FlightReadout(bearings=stored["bearings"], command=stored["command"])
+
+    lateral = []
+    for bearing in (-60.0, -30.0, 30.0):
+        free = add_free_base(rigid[0], tmp_path / f"m{bearing:+.0f}.xml", dofs="free")
+        body = FlightBody(free, wing, timestep=2e-5)
+        SteeringController(readout=readout, bearing=bearing).fly(body, 0.10)
+        lateral.append(float(body.data.qpos[1]))
+
+    assert lateral[0] > lateral[1] > lateral[2], lateral
