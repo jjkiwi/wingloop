@@ -498,3 +498,126 @@ def test_steering_response_follows_the_bearing_monotonically(rigid, wing, tmp_pa
         headings.append(float(np.degrees(np.arctan2(m[1, 0], m[0, 0]))))
 
     assert headings[0] > headings[1] > headings[2], headings
+
+
+# ------------------------------------------------------------ stroke shape
+
+
+def test_the_stroke_shape_knobs_have_exact_rates():
+    """Everything downstream reads velocities, and the rotational force term
+    is proportional to one of them, so a finite-difference approximation here
+    would show up as a force error rather than as a kinematics error."""
+    from wingloop.body.flight import harmonic_stroke
+
+    for kwargs in (
+        {},
+        {"sharpness": 0.8},
+        {"deviation": np.deg2rad(15)},
+        {"sharpness": 0.8, "deviation": np.deg2rad(15), "deviation_phase": 0.7},
+    ):
+        for t in np.linspace(0, 1 / 218.0, 17):
+            h = 1e-8
+            before, _ = harmonic_stroke(t - h, frequency=218.0, rates=True, **kwargs)
+            after, _ = harmonic_stroke(t + h, frequency=218.0, rates=True, **kwargs)
+            _, rates = harmonic_stroke(t, frequency=218.0, rates=True, **kwargs)
+            for joint, value in rates.items():
+                finite = (after[joint] - before[joint]) / (2 * h)
+                assert abs(finite - value) / max(abs(value), 1.0) < 1e-6, (
+                    joint,
+                    kwargs,
+                )
+
+
+def test_sharpness_bends_the_sweep_toward_a_triangle():
+    """At 0 it is a sinusoid; as it rises the wing spends more of the cycle at
+    near-constant speed with the turn-around squeezed into the ends."""
+    from wingloop.body.flight import harmonic_stroke
+
+    def speeds(sharpness):
+        out = []
+        for t in np.linspace(0, 1 / 218.0, 200, endpoint=False):
+            _, rates = harmonic_stroke(
+                t, frequency=218.0, sharpness=sharpness, rates=True
+            )
+            out.append(abs(rates["joint_RWing_stroke"]))
+        return np.asarray(out)
+
+    sinusoid, triangular = speeds(0.0), speeds(0.9)
+    # A triangle wave holds its speed; a sinusoid's is peaked in mid-stroke.
+    assert triangular.std() / triangular.mean() < sinusoid.std() / sinusoid.mean()
+
+
+def test_deviation_moves_the_wing_out_of_the_stroke_plane_twice_a_beat():
+    """What makes a real wingtip trace a figure-of-eight rather than an arc."""
+    from wingloop.body.flight import harmonic_stroke
+
+    flat = [
+        harmonic_stroke(t, frequency=218.0)["joint_RWing_deviation"]
+        for t in np.linspace(0, 1 / 218.0, 64, endpoint=False)
+    ]
+    assert max(abs(v) for v in flat) == pytest.approx(0.0)
+
+    wavy = np.asarray(
+        [
+            harmonic_stroke(t, frequency=218.0, deviation=np.deg2rad(15))[
+                "joint_RWing_deviation"
+            ]
+            for t in np.linspace(0, 1 / 218.0, 256, endpoint=False)
+        ]
+    )
+    assert np.abs(wavy).max() == pytest.approx(np.deg2rad(15), rel=1e-3)
+    # Two full cycles of deviation per wingbeat: four sign changes.
+    crossings = int((np.diff(np.sign(wavy)) != 0).sum())
+    assert crossings == 4, crossings
+
+
+@needs_model
+def test_realistic_kinematics_cut_the_torque_swing_and_still_fly_worse(
+    rigid, wing, tmp_path
+):
+    """A hypothesis of this project's own, refuted with the controls attached.
+
+    The reasoning was that the within-stroke torque swing -- which runs from
+    -28 to +27 about a near-zero mean, against a control authority of 8 -- is
+    what ends the flight, and that a more realistic stroke would shrink it.
+    The first half is right: a sharper sweep cuts the swing by 20%. The second
+    half is wrong in the opposite direction. Attitude hold goes from 187 ms to
+    20.
+
+    Two confounds were ruled out rather than argued away. The trim was
+    re-measured for each stroke shape and moves by less than half a degree.
+    The lost lift was restored by raising the amplitude to 79.4 degrees, which
+    recovers the force exactly and the attitude hold not at all -- 19 ms.
+
+    So the swing is not what limits the flight, and what does is still open.
+    """
+    from wingloop.body.control import HaltereController
+    from wingloop.body.flight import harmonic_stroke
+
+    free = add_free_base(rigid[0], tmp_path / "shape.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+
+    def swing(**kwargs) -> float:
+        torques = []
+        for t in np.linspace(0, 1 / 218.0, 300, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, frequency=218.0, bias=np.deg2rad(-10.7), rates=True, **kwargs
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            torques.append(body.wrench_about_com()[4])
+        return float(np.ptp(torques))
+
+    assert swing(sharpness=0.9) < 0.85 * swing()
+
+    def holds_until(**kwargs) -> float:
+        b = FlightBody(free, wing, timestep=2e-5)
+        trace = HaltereController(**kwargs).fly(b, 0.25)
+        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
+        over = np.flatnonzero(bad > 30.0)
+        return float(trace["t"][over[0]] * 1000) if len(over) else 250.0
+
+    plain = holds_until()
+    sharp = holds_until(sharpness=0.9)
+    assert plain > 100.0, plain
+    assert sharp < 0.5 * plain, (plain, sharp)

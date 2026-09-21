@@ -503,6 +503,9 @@ def harmonic_stroke(
     asymmetry: float = 0.0,
     phase: float = 0.0,
     phase_asymmetry: float = 0.0,
+    sharpness: float = 0.0,
+    deviation: float = 0.0,
+    deviation_phase: float = 0.0,
     rates: bool = False,
 ):
     """A textbook stroke: harmonic sweep, angle of attack flipped at reversal.
@@ -517,7 +520,21 @@ def harmonic_stroke(
     model.
     """
     w = 2.0 * np.pi * frequency
-    phi = amplitude * np.sin(w * t)
+    # Stroke position. `sharpness` bends a sinusoid toward a triangle wave:
+    # 0 is the sinusoid, and as it approaches 1 the wing spends more of the
+    # cycle at near-constant velocity with the turn-around compressed into the
+    # ends. A real stroke is closer to the triangle, and the reason matters
+    # here -- a sinusoid's velocity, and so its force, is peaked in the middle
+    # of every half-stroke, which is where the within-stroke torque swings
+    # this model cannot control come from.
+    if sharpness > 0.0:
+        k = float(np.clip(sharpness, 0.0, 0.999))
+        phi = amplitude * np.arcsin(k * np.sin(w * t)) / np.arcsin(k)
+    else:
+        phi = amplitude * np.sin(w * t)
+    # Out-of-plane deviation at twice the wingbeat frequency, which is what
+    # makes a real wingtip trace a figure-of-eight rather than an arc.
+    dev = deviation * np.cos(2.0 * w * t + deviation_phase)
     # The two control knobs a fly actually has, and the ones this model needs:
     # a symmetric shift of the mean stroke angle swings both wings fore or aft,
     # moving the centre of pressure relative to the centre of mass, which is
@@ -550,14 +567,20 @@ def harmonic_stroke(
             STROKE_OFFSET[wing] + STROKE_SIGN[wing] * (gain[wing] * phi + bias)
         )
         out[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rotation(flip[wing])
-        out[f"joint_{wing}_deviation"] = 0.0
+        out[f"joint_{wing}_deviation"] = STROKE_SIGN[wing] * dev
     if not rates:
         return out
 
     # Analytic derivatives, so prescribed kinematics carry exact rates rather
     # than a finite difference that lags by half a step -- the rotational force
     # term is proportional to one of them.
-    phi_dot = amplitude * w * np.cos(w * t)
+    if sharpness > 0.0:
+        k = float(np.clip(sharpness, 0.0, 0.999))
+        c = k * np.cos(w * t) * w
+        phi_dot = amplitude * c / (np.arcsin(k) * np.sqrt(1.0 - (k * np.sin(w * t)) ** 2))
+    else:
+        phi_dot = amplitude * w * np.cos(w * t)
+    dev_dot = -2.0 * w * deviation * np.sin(2.0 * w * t + deviation_phase)
 
     def rotation_rate(p: float) -> float:
         c = np.cos(w * t + p)
@@ -571,5 +594,5 @@ def harmonic_stroke(
     for wing in WINGS:
         drates[f"joint_{wing}_stroke"] = STROKE_SIGN[wing] * gain[wing] * phi_dot
         drates[f"joint_{wing}_rotation"] = STROKE_SIGN[wing] * rotation_rate(flip[wing])
-        drates[f"joint_{wing}_deviation"] = 0.0
+        drates[f"joint_{wing}_deviation"] = STROKE_SIGN[wing] * dev_dot
     return out, drates

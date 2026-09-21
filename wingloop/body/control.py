@@ -149,8 +149,54 @@ class HaltereController:
     #: leaves the signal and drops the beat. The haltere-to-muscle path is
     #: itself low-pass, so this stands in for something real.
     tau: float = 0.020
+    #: Stroke shape, passed through to :func:`harmonic_stroke`. ``sharpness``
+    #: bends the sweep from a sinusoid toward a triangle and ``deviation``
+    #: adds the out-of-plane motion that makes a wingtip trace a
+    #: figure-of-eight. Both default to off, which is the sinusoid every
+    #: earlier result was measured on.
+    sharpness: float = 0.0
+    deviation: float = 0.0
+    deviation_phase: float = 0.0
+    #: Integral gains, per second. **Off by default, because they were measured
+    #: not to help.**
+    #:
+    #: The reasoning for adding them was sound and the diagnosis behind it is
+    #: still true: proportional-derivative alone leaves a steady-state offset
+    #: against a constant disturbance, there is one -- the pitch trim
+    #: cross-couples into roll by +0.6 -- and the roll loop does settle about
+    #: 10 degrees off level and stay there, without ever saturating (the
+    #: commanded asymmetry sits at 0.03 against a limit of 0.45).
+    #:
+    #: Closing that offset changes nothing. At gain 4 the animal holds attitude
+    #: for 179 ms against 187 without, which is slightly worse. So the standing
+    #: roll offset is not what ends the flight, and the integral is kept
+    #: available and disabled rather than quietly left in.
+    pitch_integral_gain: float = 0.0
+    roll_integral_gain: float = 0.0
+    #: Bound on the accumulated terms, in the units of each knob, so a period
+    #: of saturation or a tumble cannot wind them up into a command that
+    #: outlives the error that produced it.
+    max_integral: float = 0.25
 
     _state: dict = field(default_factory=dict)
+
+    def _integrate(self, pitch, roll, dt):
+        """Accumulate the attitude error, bounded."""
+        self._state["i_pitch"] = float(
+            np.clip(
+                self._state.get("i_pitch", 0.0) + self.pitch_integral_gain * pitch * dt,
+                -self.max_integral,
+                self.max_integral,
+            )
+        )
+        self._state["i_roll"] = float(
+            np.clip(
+                self._state.get("i_roll", 0.0) + self.roll_integral_gain * roll * dt,
+                -self.max_integral,
+                self.max_integral,
+            )
+        )
+        return self._state["i_pitch"], self._state["i_roll"]
 
     def _filtered(self, pitch, roll, rate, dt):
         a = dt / (self.tau + dt)
@@ -171,16 +217,32 @@ class HaltereController:
         )
         # Pitch authority is negative -- more bias is more nose-down torque --
         # so correcting a positive pitch means *more* bias, not less.
-        bias = self.trim_bias + self.pitch_gain * pitch + self.pitch_rate_gain * rate[1]
-        asymmetry = -self.roll_gain * roll - self.roll_rate_gain * rate[0]
+        i_pitch, i_roll = self._integrate(pitch, roll, float(body.model.opt.timestep))
+        bias = (
+            self.trim_bias
+            + self.pitch_gain * pitch
+            + self.pitch_rate_gain * rate[1]
+            + i_pitch
+        )
+        asymmetry = -self.roll_gain * roll - self.roll_rate_gain * rate[0] - i_roll
         return harmonic_stroke(
             t,
             amplitude=self.amplitude,
             frequency=self.frequency,
             bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
             asymmetry=float(np.clip(asymmetry, -self.max_asymmetry, self.max_asymmetry)),
-            rates=True,
+            **self.shape,
         )
+
+    @property
+    def shape(self) -> dict:
+        """Stroke-shape arguments, so every call site stays in step."""
+        return {
+            "sharpness": self.sharpness,
+            "deviation": self.deviation,
+            "deviation_phase": self.deviation_phase,
+            "rates": True,
+        }
 
     def fly(self, body, seconds: float) -> dict[str, np.ndarray]:
         """Run the loop and report the trajectory."""
@@ -309,8 +371,15 @@ class SteeringController(HaltereController):
             pitch, roll, rate = self._filtered(
                 pitch, roll, angular_rate(body), float(body.model.opt.timestep)
             )
-            bias = self.trim_bias + self.pitch_gain * pitch + self.pitch_rate_gain * rate[1]
-            asym = -self.roll_gain * roll - self.roll_rate_gain * rate[0]
+            i_pitch = self._state.get("i_pitch", 0.0)
+            i_roll = self._state.get("i_roll", 0.0)
+            bias = (
+                self.trim_bias
+                + self.pitch_gain * pitch
+                + self.pitch_rate_gain * rate[1]
+                + i_pitch
+            )
+            asym = -self.roll_gain * roll - self.roll_rate_gain * rate[0] - i_roll
             phase_asymmetry = 0.0
             if self.steer_mode == "phase":
                 phase_asymmetry = float(
@@ -325,6 +394,6 @@ class SteeringController(HaltereController):
                 bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
                 asymmetry=float(np.clip(asym, -self.max_asymmetry, self.max_asymmetry)),
                 phase_asymmetry=phase_asymmetry,
-                rates=True,
+                **self.shape,
             )
         return angles, rates

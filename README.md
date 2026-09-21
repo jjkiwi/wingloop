@@ -283,14 +283,43 @@ This is what real flies do, and the model now says why they do it: amplitude
 pays the drag penalty first, rotation timing does not. `steer_mode="amplitude"`
 is kept so the comparison stays runnable.
 
+## A hypothesis of ours, refuted
+
+The reasoning was that the within-stroke torque swing is what ends the flight
+-- it runs from -28 to +27 about a near-zero mean, against a control authority
+of 8 in pitch -- and that a more realistic stroke would shrink it. So
+`harmonic_stroke` grew two knobs: `sharpness`, bending the sweep from a
+sinusoid toward a triangle, and `deviation`, the out-of-plane motion at twice
+the wingbeat that makes a real wingtip trace a figure-of-eight.
+
+The first half of the reasoning is right. The second is wrong, and in the
+opposite direction:
+
+| stroke | torque swing | holds attitude until | altitude at 300 ms |
+| --- | ---: | ---: | ---: |
+| **sinusoid** | 55.2 | **187 ms** | **+79 mm** |
+| sharpness 0.6 | 51.1 | 152 ms | +39 mm |
+| sharpness 0.9 | 44.1 | 20 ms | -70 mm |
+| deviation 15 deg | 48.8 | 60 ms | -61 mm |
+
+Two confounds were ruled out rather than argued away. The **trim** was
+re-measured for every stroke shape and moves by less than half a degree
+(-10.67 to -11.13). The **lost lift** was restored by raising the amplitude to
+79.4 degrees, which recovers the force to the last decimal and the attitude
+hold not at all: 19 ms against 20.
+
+So the swing is not what limits the flight. The diagnosis of what does is
+still open, and one more candidate has been eliminated: roll is the axis that
+fails, the controller never saturates -- it commands 0.03 against a limit of
+0.45 -- and it sits about 10 degrees off level, which is a textbook
+steady-state offset. Adding an integral term closes that offset and makes the
+flight slightly *shorter*, 179 ms against 187. The offset is not the problem
+either. Both knobs and the integral are kept, defaulted off, with the
+measurements in their docstrings.
+
 ## What does not exist yet
 
 - The power-muscle oscillator that would drive the stroke instead of imposing it
-- **Real stroke kinematics.** A pure harmonic sweep with a tanh flip and no
-  deviation is what produces the within-stroke torque swings the controller
-  cannot answer past 100 ms. Real strokes put their rotation at the reversals
-  and trace a figure-of-eight; both should shrink those swings, and the
-  steering runs above would then last longer than a tenth of a second.
 
 ## Running the tests
 
