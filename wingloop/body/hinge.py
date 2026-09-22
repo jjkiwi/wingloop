@@ -230,6 +230,22 @@ def _absolutise_meshdir(root: ET.Element, source: Path) -> None:
             m.set("file", Path(m.get("file")).name)
 
 
+def _centre_of_mass(source: Path, root: str) -> tuple[float, float, float]:
+    """Centre of mass of the whole animal, in ``root``'s own frame.
+
+    Compiled and read rather than assumed: it is 1.07 mm above the model
+    origin and 0.30 mm behind it, which is the whole reason a pitch tether
+    needs to be told where to put its pin.
+    """
+    import mujoco
+
+    model = mujoco.MjModel.from_xml_path(str(source))
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    body = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, root)
+    return tuple(float(v) for v in (data.subtree_com[body] - data.xpos[body]))
+
+
 def add_free_base(
     source: str | Path,
     destination: str | Path,
@@ -257,6 +273,22 @@ def add_free_base(
     generates enough force to climb without also being asked to balance, and
     the two questions have different answers here. Use it to test the
     aerodynamics; use ``"free"`` to test control.
+
+    ``dofs="pitch"`` gives a single hinge about the body's lateral axis: the
+    animal may pitch and nothing else. That is the classic tether, and it
+    exists here to measure the pitch loop's frequency response without the
+    roll and heave motion that a free body mixes into it. A phase margin read
+    off a free flight is a phase margin read through three coupled loops.
+
+    **The pin goes through the centre of mass, and that is not a detail.**
+    Pinned at the model origin -- which on this model is 1.07 mm below the
+    centre of mass and 0.30 mm ahead of it -- the net aerodynamic force no
+    longer accelerates the animal and instead torques it about the pin, with
+    an arm the trim knob cannot reach. The tethered fly then simply spins:
+    measured, a continuous rotation at 80-107 Hz, at every filter setting,
+    which looks like a control failure and is a rig failure. Through the
+    centre of mass the lift passes through the pivot and the hinge sees the
+    pitch dynamics the free animal has.
     """
     source, destination = Path(source), Path(destination)
     tree = ET.parse(source)
@@ -286,8 +318,23 @@ def add_free_base(
                 },
             ),
         )
+    elif dofs == "pitch":
+        body.insert(
+            0,
+            ET.Element(
+                "joint",
+                {
+                    "name": f"hinge_{root}_pitch",
+                    "type": "hinge",
+                    "axis": "0 1 0",
+                    "pos": " ".join(f"{v:.6f}" for v in _centre_of_mass(source, root)),
+                    "damping": "0.0",
+                    "limited": "false",
+                },
+            ),
+        )
     else:
-        raise ValueError(f"dofs must be 'free' or 'z', not {dofs!r}")
+        raise ValueError(f"dofs must be 'free', 'z' or 'pitch', not {dofs!r}")
     _absolutise_meshdir(xml_root, source)
     destination.parent.mkdir(parents=True, exist_ok=True)
     tree.write(destination, encoding="unicode")

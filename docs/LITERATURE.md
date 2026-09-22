@@ -152,7 +152,8 @@ on a vertical rail:
 The hover point lands near three-quarter command. That is a consequence of the
 connectome curve and the calibration rather than something aimed at, and it is
 why the calibration was left where it is. Free flight at full command holds
-attitude for 227.5 ms and climbs 151 mm.
+attitude for 338 ms and climbs 239 mm (re-measured after the sensing change
+below; it was 227.5 ms and 151 mm through the first-order filter).
 
 ### The altitude loop's two constants
 
@@ -172,6 +173,47 @@ once the muscle has settled:
 **hover command of 0.695**. That is not the same as the break-even on a 200 ms
 rail run, which is nearer 0.75: that one starts from rest and spends its first
 wingbeats falling while the muscle spins up, so it has height to make back.
+
+### How the loop senses, and the spike that nearly hid it
+
+Flight time against sensor-filter lag, first-order filter at bandwidth 40:
+
+| tau (ms) | 3.0 | 4.0 | 4.5 | 4.8 | 5.0 | 5.2 | 5.5 | 6.0 | 7.0 | 10 | 20 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| holds 30 deg | 146 | 193 | 214 | 249 | **353** | **379** | 256 | 236 | 221 | 204 | 187 |
+
+The peak is a spike, not the shape of the curve. A 1% change in stroke
+amplitude moves it: best at 4.8 ms for 74.25 degrees, 5.2 for 75.00, 5.5 for
+75.75. The trend under the spike is about 240 ms, and the project's quoted
+"353 ms at 5 ms of lag" was the spike. Flight times are otherwise repeatable
+to a millisecond against initial-condition nudges, so it is a real feature of
+a chaotic landscape rather than numerical noise.
+
+Sensed pitch-rate power, by band, in free flight: **75.4% at 200-240 Hz** (the
+wingbeat), 17.8% above 500 (harmonics, peak at 654 = 3x), and under 4%
+anywhere below 200. The disturbance is the stroke, almost entirely.
+
+Flight against loop bandwidth, at three stroke amplitudes (median):
+
+| rad/s | 30 | 40 | 50 | 55 | 60 | 70 | 80 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| first-order, 6 ms | 160 | 236 | 209 | 183 | 163 | 146 | 134 |
+| one-wingbeat boxcar | 162 | 237 | 277 | 295 | **320** | 260 | 154 |
+
+A 229-sample boxcar at this timestep is 56 dB down at 218 Hz against the
+first-order filter's 26, with a group delay of 2.29 ms against 5.
+
+### The pitch tether, and where its pin goes
+
+The centre of mass sits **1.07 mm above the model origin and 0.30 mm behind
+it**. A pitch tether pinned at the origin therefore converts the net
+aerodynamic force into a torque about the pin that no trim can cancel, and the
+tethered animal spins continuously at 80-107 Hz at every gain and every filter.
+Pinned through the centre of mass it does not.
+
+Even correct, the tether holds only 30-90 ms where the free animal holds 350:
+constraining the translation removes something that stabilises the free
+flight, so a tether is the harder preparation here, not the cleaner one.
 
 ### The rest
 

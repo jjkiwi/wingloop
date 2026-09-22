@@ -325,25 +325,86 @@ decimals, torque swing 4% different and in the wrong direction. **It changes
 the flight enormously** -- 300 ms down to 104. Same forces, added delay, and
 the delay sits inside the attitude feedback loop.
 
-That is what identified the limit. Sweeping the sensor filter against loop
-bandwidth:
+That is what identified the limit, and the direction has survived everything
+since: inside this loop, delay costs flight. It cannot go to zero either --
+within a stroke the torque swings between -28 and +27 about a near-zero mean,
+and an unfiltered loop chases the beat.
 
-| filter lag | 3 ms | **5 ms** | 10 ms | 20 ms | 30 ms |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| controlled flight | 146 ms | **353 ms** | 204 ms | 187 ms | 145 ms |
+**The size of the prize, though, was wrong, and the way it was wrong is worth
+keeping.** The sweep that chose the filter reported 353 ms at 5 ms of lag
+against 187 at 20, and that 353 went into this README as what the filter was
+worth. Swept finely, it is a spike:
 
-At every bandwidth tried, more lag is worse -- and it cannot go to zero,
-because within a stroke the torque swings between -28 and +27 about a
-near-zero mean and an unfiltered loop chases the beat. The filter trades
-stroke noise against phase margin, and 5 ms is where that trade sits.
+| tau (ms) | 4.0 | 4.5 | 4.8 | **5.0** | **5.2** | 5.5 | 6.0 | 7.0 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| controlled flight | 193 | 214 | 249 | **353** | **379** | 256 | 236 | 221 |
 
-**With it there, the whole 300 ms run stays inside 11 degrees of pitch and 17
-of roll, climbing 148 mm.** The fly flies.
+Change the stroke amplitude by 1% -- which has nothing to do with the sensing
+-- and the peak moves to a different time constant: 4.8 ms at an amplitude of
+74.25 degrees, 5.2 at 75.00, 5.5 at 75.75. There is always a spike near
+350-380 ms somewhere and **where it lands is a coincidence**. The honest
+number for that filter is the trend under it, about 240 ms. Flight times here
+are repeatable to a millisecond -- nudging the initial pitch rate changes
+nothing -- so the spike is real; it is just not a property of the filter.
 
-And it corrects the refutation above. Most of the stroke-kinematics penalty
-was the filter: measured at 20 ms the sharp stroke held 20 ms against 187, a
-factor of nine; at 5 ms it is 171 against 250, a factor of 1.5. The first
-measurement had the sign right and the size wrong by six times.
+## Spending the phase margin on gain instead of lag
+
+A first-order filter rejects the stroke beat by lagging everything, and the
+lag is inside the loop. That is the whole trade. But the disturbance is not
+broadband: **75% of the power in the sensed pitch rate is at the wingbeat**,
+with most of the rest at its harmonics. Something that rejects one frequency
+and its harmonics specifically should cost far less phase.
+
+A running mean over exactly one wingbeat does that. Its nulls are exact, at
+the stroke frequency and every harmonic -- 56 dB down at 218 Hz for the
+229-sample window this timestep gives, against 26 dB for the filter it
+replaces -- and its group delay is half a period, **2.29 ms against 5**.
+
+At first it looked worse: 237 ms against 353. That comparison was against the
+spike. Against the trend the two are level, and the difference shows up where
+it should, in the bandwidth the loop can afford. Three stroke amplitudes, so a
+coincidence would show:
+
+| bandwidth (rad/s) | 30 | 40 | 50 | 55 | **60** | 70 | 80 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| first-order, 6 ms | 160 | **236** | 209 | 183 | 163 | 146 | 134 |
+| stroke boxcar | 162 | 237 | 277 | 295 | **320** | 260 | 154 |
+
+Identical where the old default sat, and separating above it. The first-order
+filter peaks at 40 rad/s and falls away; the boxcar keeps climbing to 60.
+**236 ms to 320, and the usable bandwidth from 40 to 60** -- the phase margin,
+spent on loop gain instead of on lag. Both are now the defaults.
+
+It shows in the attitude, not just in how long the flight lasts. The 300 ms
+run that used to stay inside 11 degrees of pitch and 17 of roll while climbing
+148 mm now stays inside **3.2 degrees of pitch and 9.9 of roll, climbing
+154 mm**. Every flight number quoted before this section was measured through
+the first-order filter at bandwidth 40; the ones after it were re-measured.
+
+And this corrects the refutation above a second time. The stroke-kinematics
+penalty has shrunk every time the sensing improved, always for the same
+reason: at 20 ms of lag the sharp stroke held 20 ms against 187, a factor of
+nine; at 5 ms, 171 against 250, a factor of 1.5; under the boxcar at bandwidth
+60, 254 against 320, a factor of 1.25. The sign has survived all three and the
+size has not, so what the tests assert now is the sign.
+
+### A rig that was wrong, and what it cost to find out
+
+The clean way to do all of this would be to measure the loop's phase margin
+directly rather than infer it from flight times, which needs a preparation
+that pitches and nothing else. `add_free_base(dofs="pitch")` is that tether,
+and the first version of it pinned the animal at the model origin -- **1.07 mm
+below the centre of mass and 0.30 ahead of it**. The net aerodynamic force
+then no longer accelerates the animal; it torques it about the pin, with an
+arm no trim can reach, and the tethered fly simply spins: a continuous
+rotation at 80-107 Hz, at every filter setting and every gain. That looks
+exactly like a control failure and is a rig failure.
+
+Pinned through the centre of mass it stops spinning -- and still holds only
+30-90 ms where the free animal holds 350. A tether is a *harder* problem here
+than free flight, not a cleaner one, so the phase margin in this README is
+still inferred from flight time rather than read off a Bode plot. The tether
+is kept because the spinning is worth having as a test.
 
 Two bugs were written on the way, and both are now tests. Lagging the *force*
 rather than the circulation holds the mid-stroke peak through the reversal --
@@ -379,9 +440,10 @@ synchronous muscle would do the opposite. The stiffness *is* calibrated -- it
 was chosen to put the resonance at the observed 218 Hz -- so that number is an
 input, and `stiffness_for` exists so it cannot be mistaken for a derivation.
 
-Driven this way the fly flies: attitude held past 200 ms and **181 mm of
-altitude**, against 148 for the prescribed sine, because the muscle settles on
-a larger stroke than the sine was told to make. Rotation is still commanded,
+Driven this way the fly flies: attitude held for the whole 300 ms inside 4.1
+degrees of pitch and 10.8 of roll, and **240 mm of altitude**, against 154 for
+the prescribed sine, because the muscle settles on a larger stroke than the
+sine was told to make. Rotation is still commanded,
 which is the division the animal has -- power muscles asynchronous, steering
 muscles synchronous.
 
@@ -426,7 +488,7 @@ vertical rail, 200 ms:
 
 **The fly hovers at three-quarter throttle** -- a consequence of the connectome
 curve and the calibration, not a target. At full command in free flight it
-holds attitude for 227.5 ms and climbs 151 mm.
+holds attitude for 338 ms and climbs 239 mm.
 
 ### Two claims this cost
 
@@ -487,11 +549,10 @@ tests, so the constant cannot rot quietly behind a loop that still looks like
 it works.
 
 And it does not buy flight time. Free, with both loops closed, attitude holds
-216.7 ms against 227.5 at a held full command -- the limit is still phase
-margin in the attitude loop, as it has been since that was identified, and
-closing a loop on height was never going to move it. What changes is that at
-200 ms the animal is at 41.7 mm on its way to a commanded 50, instead of 95 on
-its way to wherever.
+276 ms against 338 at a held full command -- the limit is still phase margin
+in the attitude loop, and closing a loop on height was never going to move it.
+What changes is where the animal ends up: at 300 ms it is at 45 mm, on its way
+to the 50 it was asked for, instead of 239 on its way to wherever.
 
 One more claim measurement took back. The filter on the sensed climb rate was
 written up as *not optional* -- by analogy with the attitude loop, where it is

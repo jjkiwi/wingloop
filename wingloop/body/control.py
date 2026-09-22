@@ -35,9 +35,9 @@ the animal points against how hard it flies -- and because the wings serve
 both, the two add on the same stroke, exactly as steering and roll do.
 
 It does not extend the flight. Free, with both loops closed, the animal holds
-attitude for 216.7 ms against 227.5 at a held full command: the limit is still
-the attitude loop's phase margin, and closing a loop on height was never going
-to move it. What it changes is that the height stops being a side effect of
+attitude for 276 ms against 338 at a held full command: the limit is still the
+attitude loop's phase margin, and closing a loop on height was never going to
+move it. What it changes is that the height stops being a side effect of
 whichever command was typed.
 """
 
@@ -80,25 +80,78 @@ MAX_PHASE = np.deg2rad(45.0)
 #: a loop that tries to act within a stroke is fighting the stroke.
 #:
 #: **What closing the loop buys, measured.** Open loop the animal is past 84
-#: degrees of pitch and losing height by 40 ms. Closed, it holds pitch inside
-#: 13 degrees and roll inside 19 for the first 100 ms -- twenty-two wingbeats
-#: -- and over 300 ms it climbs 85 mm. That is flight.
+#: degrees of pitch and losing height by 40 ms. Closed, and with the sensing
+#: below, it holds the whole 300 ms inside 3.2 degrees of pitch and 9.9 of
+#: roll -- sixty-five wingbeats -- climbing 154 mm. That is flight.
 #:
-#: **It is not yet indefinite.** Past about 100 ms the attitude degrades and by
-#: 300 ms it has swung through 60-80 degrees, still airborne and still
-#: climbing. Raising or lowering the bandwidth and the filter moves this a
-#: little and does not fix it, which points away from tuning and towards the
-#: stroke: within one beat the torque about the centre of mass swings between
-#: -17 and +20 while its cycle mean is near zero, against a control authority
-#: of 8 in pitch and 17 in roll. The animal is kicked harder inside each stroke
-#: than the loop can answer between strokes.
+#: **It is not yet indefinite**, and how far it goes is set by how the loop
+#: senses. 40 rad/s was right while the loop read through a first-order
+#: filter, which is what every result before :data:`SENSING` was measured on:
+#: above 40 the lag in that filter cost more than the gain bought, and flight
+#: fell away monotonically. Averaging over a wingbeat instead removes the lag
+#: without the stroke ripple, and the ceiling moves with it -- measured across
+#: three stroke amplitudes, so a coincidence would show:
 #:
-#: The suspicion, untested, is the idealised kinematics -- a pure harmonic
-#: sweep with a tanh flip and no deviation -- rather than the controller. Real
-#: strokes put their rotation at the reversals and trace a figure-of-eight,
-#: and both reduce the within-stroke excursion. Measuring that is the next
-#: thing to do, and it is a statement about the stroke, not about the loop.
-BANDWIDTH = 40.0
+#: ======  =================  ==============
+#: rad/s   first-order 6 ms   stroke boxcar
+#: ======  =================  ==============
+#: 30            160 ms           162 ms
+#: 40            236 ms           237 ms
+#: 50            209 ms           277 ms
+#: 55            183 ms           295 ms
+#: 60            163 ms           320 ms
+#: 70            146 ms           260 ms
+#: 80            134 ms           154 ms
+#: ======  =================  ==============
+#:
+#: The two agree exactly where the old default sat and diverge above it. That
+#: is the phase margin, spent on loop gain instead of on lag: **236 ms to 320,
+#: and the usable bandwidth from 40 to 60.**
+BANDWIDTH = 60.0
+
+#: What the sensing change is worth, and the measurement that nearly hid it.
+#:
+#: **A warning about this project's own numbers first.** Flight time against
+#: filter lag is a smooth hump with a *spike* on it. Swept finely, the
+#: first-order filter gives 193 ms at 4.0, 214 at 4.5, 249 at 4.8 -- then 353
+#: at 5.0 and 379 at 5.2 -- then 256 at 5.5 and 236 at 6.0. The old default
+#: was chosen at the top of that spike and the project quoted 353 ms as what
+#: the filter was worth.
+#:
+#: It is not. Change the stroke amplitude by 1%, which has nothing to do with
+#: the filter, and the spike moves: at 74.25 degrees the peak is at 4.8 ms,
+#: at 75.00 it is at 5.2, at 75.75 it is at 5.5. There is always a spike
+#: somewhere near 350-380 ms and where it lands is a coincidence. The honest
+#: number for the first-order filter is the trend it sits on, about 240 ms,
+#: and every comparison against 353 was a comparison against luck.
+#:
+#: Which is how the boxcar first looked worse: 237 ms against 353. Against the
+#: trend it is level, and above the old bandwidth it is ahead, which is the
+#: table on :data:`BANDWIDTH`. Single-run flight times are repeatable here to
+#: within a millisecond -- nudging the initial pitch rate changes nothing --
+#: so the spike is real. It is just not a property of the filter.
+SENSING = ("lowpass", "stroke")
+
+
+#: The bandwidth the first-order filter tops out at, for comparisons against
+#: it. :data:`BANDWIDTH` is the boxcar's, and running the low-pass at that is
+#: running it past where it works.
+LOWPASS_BANDWIDTH = 40.0
+
+
+def gains_for(bandwidth: float) -> dict:
+    """The four attitude gains for a bandwidth, critically damped.
+
+    A gain is inertia times the desired closed-loop dynamics divided by the
+    measured control authority -- the same formula the defaults use, exposed
+    so that anything comparing bandwidths states the one it means.
+    """
+    return {
+        "pitch_gain": PITCH_INERTIA * bandwidth**2 / abs(PITCH_PER_BIAS),
+        "pitch_rate_gain": PITCH_INERTIA * 2 * bandwidth / abs(PITCH_PER_BIAS),
+        "roll_gain": ROLL_INERTIA * bandwidth**2 / ROLL_PER_ASYMMETRY,
+        "roll_rate_gain": ROLL_INERTIA * 2 * bandwidth / ROLL_PER_ASYMMETRY,
+    }
 
 
 def attitude(body) -> tuple[float, float]:
@@ -208,20 +261,42 @@ class HaltereController:
     #: itself low-pass, so this stands in for something real.
     #: Time constant of the low-pass on the sensed attitude and rate.
     #:
-    #: **5 ms, and the value matters more than anything else here.** Swept
-    #: against loop bandwidth, controlled flight lasts 353 ms at 5 ms of filter
-    #: lag and 187 at 20 -- and at every bandwidth tried, more lag is worse.
-    #: That is what finally identified the limit: the loop is close to its
-    #: phase margin, and everything inside it that adds delay costs flight
-    #: time. It explains the integral term making things slightly worse, and
-    #: the circulation lag in :mod:`wingloop.aero.wake` making them much worse.
+    #: **Only read when ``sensing`` is ``"lowpass"``**, which is no longer the
+    #: default. It is kept because every result before the boxcar was measured
+    #: through it, and those should stay reproducible.
     #:
-    #: It cannot go to zero. Within a stroke the torque about the centre of
-    #: mass swings between -28 and +27 while its cycle mean is near zero, so an
-    #: unfiltered loop responds mostly to the beat; at 3 ms the flight is back
-    #: down to 146 ms. The filter is trading stroke noise against phase margin
-    #: and 5 ms is where that trade sits, measured rather than assumed.
+    #: The direction this identified is right and still is: the loop sits near
+    #: its phase margin, and everything inside it that adds delay costs flight
+    #: time. It is why the integral term made things slightly worse and the
+    #: circulation lag in :mod:`wingloop.aero.wake` made them much worse.
+    #:
+    #: The filter cannot go to zero -- within a stroke the torque about the
+    #: centre of mass swings between -28 and +27 about a near-zero mean, so an
+    #: unfiltered loop chases the beat, and at 3 ms the flight is 146 ms. So
+    #: this trades stroke noise against phase margin, and 5 ms is roughly
+    #: where that trade sits.
+    #:
+    #: **What was wrong was the size of the prize.** 5 ms was quoted as worth
+    #: 353 ms of flight against 187 at 20. The 353 is a spike that moves when
+    #: an unrelated parameter moves; the trend under it is about 240. See
+    #: :data:`SENSING`. A boxcar over one wingbeat gets the same rejection
+    #: without the lag, which is why it is now the default.
     tau: float = 0.005
+    #: How the sensed attitude and rate are cleaned up before the loop reads
+    #: them. ``"lowpass"`` is the first-order filter :attr:`tau` sets, which
+    #: every result before this was measured on. ``"stroke"`` is a running
+    #: mean over exactly one wingbeat.
+    #:
+    #: **The reason to prefer the second is not tuning, it is where the zeros
+    #: are.** A boxcar of exactly one period has an exact null at the stroke
+    #: frequency *and at every harmonic of it*, which is precisely the
+    #: disturbance the filter is there to reject -- and its group delay is half
+    #: a period, 2.29 ms at 218 Hz, against the 5 ms of the first-order lag it
+    #: replaces. Better rejection of the one thing that needs rejecting, for
+    #: less than half the phase cost. What that is worth is measured in
+    #: :data:`SENSING`, not asserted here.
+    sensing: str = "stroke"
+
     #: Stroke shape, passed through to :func:`harmonic_stroke`. ``sharpness``
     #: bends the sweep from a sinusoid toward a triangle and ``deviation``
     #: adds the out-of-plane motion that makes a wingtip trace a
@@ -285,6 +360,8 @@ class HaltereController:
         return self._state["i_pitch"], self._state["i_roll"]
 
     def _filtered(self, pitch, roll, rate, dt):
+        if self.sensing == "stroke":
+            return self._stroke_averaged(pitch, roll, rate, dt)
         a = dt / (self.tau + dt)
         if not self._state:
             self._state = {"pitch": pitch, "roll": roll, "rate": np.asarray(rate, float)}
@@ -293,6 +370,30 @@ class HaltereController:
             self._state["roll"] += a * (roll - self._state["roll"])
             self._state["rate"] += a * (np.asarray(rate, float) - self._state["rate"])
         return self._state["pitch"], self._state["roll"], self._state["rate"]
+
+    def _stroke_averaged(self, pitch, roll, rate, dt):
+        """A running mean over exactly one wingbeat, held in a ring buffer.
+
+        Kept as a running mean rather than one sample per beat on purpose: the
+        nulls are the same either way, and holding the command for a whole
+        cycle would add another half period of delay for nothing.
+        """
+        n = max(1, int(round(1.0 / (self.frequency * dt))))
+        if not self._state:
+            self._state = {
+                "ring": np.zeros((n, 5)),
+                "sum": np.zeros(5),
+                "i": 0,
+                "filled": 0,
+            }
+        st = self._state
+        sample = np.array([pitch, roll, *np.asarray(rate, float)[:3]])
+        st["sum"] += sample - st["ring"][st["i"]]
+        st["ring"][st["i"]] = sample
+        st["i"] = (st["i"] + 1) % n
+        st["filled"] = min(st["filled"] + 1, n)
+        mean = st["sum"] / st["filled"]
+        return float(mean[0]), float(mean[1]), mean[2:5]
 
     def command(self, body, t: float):
         """Stroke angles and rates for this instant, with the loop closed."""

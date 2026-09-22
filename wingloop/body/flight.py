@@ -136,12 +136,25 @@ class FlightBody:
             for j in range(self.model.njnt)
             if self.model.jnt_type[j] == 2 and "slide_" in (self._name(j) or "")
         ]
+        tether = [
+            j
+            for j in range(self.model.njnt)
+            if self.model.jnt_type[j] == 3 and "hinge_" in (self._name(j) or "")
+        ]
         if free:
             root_joint = free[0]
             self.root_dof, self.root_translation = int(self.model.jnt_dofadr[free[0]]), 3
         elif slide:
             root_joint = slide[0]
             self.root_dof, self.root_translation = int(self.model.jnt_dofadr[slide[0]]), 1
+        elif tether:
+            # A pitch tether: the animal rotates and does not translate, so it
+            # has a root body for the wrench to act on and no position to read.
+            root_joint = tether[0]
+            self.root_dof, self.root_translation = (
+                int(self.model.jnt_dofadr[tether[0]]),
+                0,
+            )
         else:
             root_joint = None
             self.root_dof, self.root_translation = None, 0

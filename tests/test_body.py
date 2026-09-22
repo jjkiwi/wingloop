@@ -18,6 +18,7 @@ from wingloop.body.control import (  # noqa: E402
     PITCH_PER_BIAS,
     TRIM_BIAS,
     HaltereController,
+    attitude,
 )
 from wingloop.body.flight import FlightBody, harmonic_stroke  # noqa: E402
 from wingloop.body.hinge import (  # noqa: E402
@@ -613,20 +614,22 @@ def test_realistic_kinematics_cut_the_torque_swing_and_still_fly_worse(
 
     def holds_until(**kwargs) -> float:
         b = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(**kwargs).fly(b, 0.25)
+        trace = HaltereController(**kwargs).fly(b, 0.60)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 250.0
+        return float(trace["t"][over[0]] * 1000) if len(over) else 600.0
 
     plain = holds_until()
     sharp = holds_until(sharpness=0.9)
     assert plain > 200.0, plain
-    # Still a penalty, and much smaller than it first looked. Measured with
-    # the 20 ms sensor filter the sharp stroke held for 20 ms against 187 --
-    # a factor of nine. Most of that was the filter: at 5 ms it is 171
-    # against 250, a factor of 1.5. The first measurement was right about the
-    # sign and wrong about the size by six times.
-    assert sharp < 0.85 * plain, (plain, sharp)
+    # Still a penalty, and it has shrunk twice, both times for the same
+    # reason: the sensing, not the stroke. With the 20 ms filter the sharp
+    # stroke held 20 ms against 187, a factor of nine. At 5 ms it was 171
+    # against 250, a factor of 1.5. Under the stroke boxcar at bandwidth 60 it
+    # is 254 against 320, a factor of 1.25. The sign has survived every
+    # improvement in how the loop senses and the size has not, so what is
+    # asserted here is the sign.
+    assert sharp < plain, (plain, sharp)
 
 
 @needs_model
@@ -696,28 +699,86 @@ def test_wake_memory_changes_the_forces_barely_and_the_flight_a_lot(
 
 @needs_model
 def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
-    """The answer the wake detour produced, and the reason it is the answer.
+    """The direction is right: inside the loop, delay costs flight.
 
-    Swept against loop bandwidth, controlled flight lasts 353 ms at 5 ms of
-    filter lag and 187 at 20, and at every bandwidth tried more lag is worse.
-    It cannot go to zero either -- within a stroke the torque swings between
-    -28 and +27 about a near-zero mean, so an unfiltered loop chases the beat,
-    and at 3 ms the flight is back to 146 ms. The filter trades stroke noise
-    against phase margin, and the default sits where that trade was measured.
+    Measured on the first-order filter this was found with. It cannot go to
+    zero either -- within a stroke the torque swings between -28 and +27 about
+    a near-zero mean, so an unfiltered loop chases the beat, and at 3 ms the
+    flight is back to 146 ms.
+
+    What this deliberately does **not** assert is a size. The version of this
+    test that did said 5 ms beats 20 ms by more than 1.5x, which passed on a
+    353 ms measurement that turns out to be a spike; on the trend the ratio is
+    1.26 and the assertion would have failed. See ``test_the_filter_optimum_is
+    _a_spike_that_moves``.
     """
-    from wingloop.body.control import HaltereController
+    from wingloop.body.control import (
+        LOWPASS_BANDWIDTH,
+        HaltereController,
+        gains_for,
+    )
 
     free = add_free_base(rigid[0], tmp_path / "lag.xml", dofs="free")
 
     def holds_until(tau: float) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(tau=tau).fly(body, 0.40)
+        trace = HaltereController(
+            sensing="lowpass", tau=tau, **gains_for(LOWPASS_BANDWIDTH)
+        ).fly(body, 0.40)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
         return float(trace["t"][over[0]] * 1000) if len(over) else 400.0
 
-    assert holds_until(0.005) > 1.5 * holds_until(0.020)
-    assert holds_until(0.005) > holds_until(0.003)
+    assert holds_until(0.006) > holds_until(0.020)
+    assert holds_until(0.006) > holds_until(0.003)
+
+
+@needs_model
+def test_the_filter_optimum_is_a_spike_that_moves(rigid, wing, tmp_path):
+    """The measurement that corrected this project's headline number.
+
+    Flight time against filter lag is a smooth hump with a narrow spike on it,
+    and the old default sat on the spike: 249 ms at 4.8, **353 at 5.0, 379 at
+    5.2**, 256 at 5.5. The project quoted the 353 as what the filter bought.
+
+    It is not a property of the filter. Change the stroke amplitude by 1% --
+    which has nothing to do with the sensing -- and the peak moves to a
+    different time constant. There is always a spike near 350-380 ms and where
+    it lands is a coincidence, so the honest figure is the trend under it,
+    about 240 ms.
+
+    This asserts the moving, which is the part that matters: two amplitudes
+    put their best at different time constants.
+    """
+    from wingloop.body.control import (
+        LOWPASS_BANDWIDTH,
+        HaltereController,
+        gains_for,
+    )
+
+    free = add_free_base(rigid[0], tmp_path / "spike.xml", dofs="free")
+    taus = (0.0048, 0.0052)
+
+    def holds_until(tau: float, amplitude: float) -> float:
+        body = FlightBody(free, wing, timestep=2e-5)
+        trace = HaltereController(
+            sensing="lowpass",
+            tau=tau,
+            amplitude=np.deg2rad(amplitude),
+            **gains_for(LOWPASS_BANDWIDTH),
+        ).fly(body, 0.60)
+        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
+        over = np.flatnonzero(bad > 30.0)
+        return float(trace["t"][over[0]] * 1000) if len(over) else 600.0
+
+    best = [
+        max(taus, key=lambda tau: holds_until(tau, amplitude))
+        for amplitude in (74.25, 75.75)
+    ]
+    assert best[0] != best[1], (
+        "a 1% amplitude change should move which filter wins; if it no longer "
+        "does, the spike story needs re-measuring rather than this relaxing"
+    )
 
 
 @needs_model
@@ -971,3 +1032,124 @@ def test_a_mis_measured_hover_point_costs_exactly_what_it_should(
         settled = float(controller.fly(body, 0.6)["z"][-1])
         predicted = (assumed - HOVER_COMMAND) * CLIMB_PER_COMMAND / ALTITUDE_BANDWIDTH**2
         assert settled == pytest.approx(predicted, abs=0.15), (assumed, settled, predicted)
+
+
+@needs_model
+def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
+    rigid, wing, tmp_path
+):
+    """What the phase margin was actually spent on, and what buying it back got.
+
+    A first-order filter rejects the stroke beat by lagging everything, and
+    the lag is inside the loop. A boxcar over exactly one wingbeat has an
+    exact null at the stroke frequency and at every harmonic of it -- 56 dB
+    down at 218 Hz for the 229-sample window this timestep gives -- with a
+    group delay of half a period, 2.29 ms against 5.
+
+    The two are level at the bandwidth the old default used and separate
+    above it, which is what a phase margin looks like when it is spent on
+    gain instead of lag. Measured across three stroke amplitudes so that a
+    coincidence of the kind ``test_the_filter_optimum_is_a_spike_that_moves``
+    found would show up as disagreement:
+
+    ======  =================  ==============
+    rad/s   first-order 6 ms   stroke boxcar
+    ======  =================  ==============
+    40            236 ms           237 ms
+    60            163 ms           320 ms
+    ======  =================  ==============
+    """
+    from wingloop.body.control import HaltereController, gains_for
+
+    free = add_free_base(rigid[0], tmp_path / "sensing.xml", dofs="free")
+
+    def holds_until(bandwidth: float, **kwargs) -> float:
+        body = FlightBody(free, wing, timestep=2e-5)
+        trace = HaltereController(**kwargs, **gains_for(bandwidth)).fly(body, 0.60)
+        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
+        over = np.flatnonzero(bad > 30.0)
+        return float(trace["t"][over[0]] * 1000) if len(over) else 600.0
+
+    low = dict(sensing="lowpass", tau=0.006)
+    box = dict(sensing="stroke")
+
+    # Level where the old default sat: the boxcar is not simply a better filter.
+    assert holds_until(40.0, **low) == pytest.approx(holds_until(40.0, **box), rel=0.1)
+
+    # And ahead where the lag would have started costing.
+    assert holds_until(60.0, **box) > 1.5 * holds_until(60.0, **low)
+    assert holds_until(60.0, **box) > holds_until(40.0, **box)
+
+
+@needs_model
+def test_the_boxcar_nulls_the_wingbeat_rather_than_smearing_it(rigid, wing):
+    """The property the choice rests on, checked on the filter itself.
+
+    Not a flight test: a one-period boxcar either has its null at the stroke
+    frequency or it does not, and that is arithmetic on the window length.
+    The first-order filter it replaces is 26 dB down at the same frequency
+    while costing nearly twice the group delay.
+    """
+    from wingloop.body.control import HaltereController
+
+    dt, frequency = 2e-5, 218.0
+    n = int(round(1.0 / (frequency * dt)))
+    assert n == 229, n
+
+    # Response of the running mean at the wingbeat, and at its third harmonic.
+    def boxcar_gain(f):
+        x = np.pi * f * dt
+        return abs(np.sin(n * x) / (n * np.sin(x)))
+
+    assert boxcar_gain(frequency) < 0.01, boxcar_gain(frequency)
+    assert boxcar_gain(3 * frequency) < 0.01, boxcar_gain(3 * frequency)
+
+    # The first-order filter it replaces, for comparison, at tau = 5 ms.
+    first_order = 1.0 / np.hypot(1.0, 2 * np.pi * frequency * 0.005)
+    assert first_order > 10 * boxcar_gain(frequency)
+
+    # And it really is what the controller runs: a constant survives it and a
+    # signal at the wingbeat does not.
+    c = HaltereController(sensing="stroke", frequency=frequency)
+    steady = [c._filtered(0.3, 0.0, np.zeros(3), dt)[0] for _ in range(3 * n)][-1]
+    assert steady == pytest.approx(0.3, abs=1e-12)
+
+    c = HaltereController(sensing="stroke", frequency=frequency)
+    out = [
+        c._filtered(np.sin(2 * np.pi * frequency * i * dt), 0.0, np.zeros(3), dt)[0]
+        for i in range(4 * n)
+    ]
+    assert max(abs(v) for v in out[2 * n :]) < 0.02
+
+
+@needs_model
+def test_the_pitch_tether_pins_through_the_centre_of_mass(rigid, wing, tmp_path):
+    """A rig failure that reads exactly like a control failure.
+
+    The centre of mass is 1.07 mm above the model origin and 0.30 mm behind
+    it. Pinned at the origin, the net aerodynamic force stops accelerating the
+    animal and starts torquing it about the pin with an arm the trim knob
+    cannot reach, and the tethered fly spins -- continuously, at 80-107 Hz, at
+    every filter setting and every gain that was tried. It took a sweep that
+    failed everywhere to notice the rig rather than the loop.
+
+    So this asserts where the pin is, which is the thing that was wrong.
+    """
+    from wingloop.body.hinge import _centre_of_mass
+
+    com = _centre_of_mass(Path(rigid[0]), "FlyBody")
+    assert com[2] == pytest.approx(1.0666, abs=0.01), com
+    assert com[0] == pytest.approx(-0.3040, abs=0.01), com
+
+    tether = add_free_base(rigid[0], tmp_path / "tether.xml", dofs="pitch")
+    body = FlightBody(tether, wing, timestep=2e-5)
+    assert body.model.nv == 1, "a pitch tether leaves exactly one freedom"
+    assert body.root_body is not None, "and the wrench still has a body to act on"
+    assert body.root_translation == 0, "but there is no position to read"
+
+    # The hinge is the pitch axis and only the pitch axis.
+    body.data.qpos[body.root_dof] = 0.1
+    mujoco.mj_forward(body.model, body.data)
+    pitch, roll = attitude(body)
+    assert np.degrees(pitch) == pytest.approx(5.73, abs=0.01)
+    assert np.degrees(roll) == pytest.approx(0.0, abs=1e-9)
