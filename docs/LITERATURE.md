@@ -42,6 +42,11 @@ forms so a later edit cannot drift them silently. The lift coefficient peaks at
 
 - **Wingbeat frequency 218 Hz** and **stroke amplitude ~75 degrees** for
   hovering *D. melanogaster*, used by `stroke_average_lift`.
+- **Circulation reaches most of its steady value within a couple of chord
+  lengths of travel** -- `wake.RISE_CHORDS`. The direction and timescale of
+  the Wagner effect; the true Wagner function is a sum of exponentials and
+  this is one, which is enough to test whether wake memory matters here and
+  not enough to predict forces from.
 - **Reynolds number ~150** at this scale, and the attached leading-edge vortex
   that follows from it.
 

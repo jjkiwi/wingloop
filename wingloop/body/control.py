@@ -148,7 +148,22 @@ class HaltereController:
     #: frequency. One wingbeat is 4.6 ms; filtering over about two of them
     #: leaves the signal and drops the beat. The haltere-to-muscle path is
     #: itself low-pass, so this stands in for something real.
-    tau: float = 0.020
+    #: Time constant of the low-pass on the sensed attitude and rate.
+    #:
+    #: **5 ms, and the value matters more than anything else here.** Swept
+    #: against loop bandwidth, controlled flight lasts 353 ms at 5 ms of filter
+    #: lag and 187 at 20 -- and at every bandwidth tried, more lag is worse.
+    #: That is what finally identified the limit: the loop is close to its
+    #: phase margin, and everything inside it that adds delay costs flight
+    #: time. It explains the integral term making things slightly worse, and
+    #: the circulation lag in :mod:`wingloop.aero.wake` making them much worse.
+    #:
+    #: It cannot go to zero. Within a stroke the torque about the centre of
+    #: mass swings between -28 and +27 while its cycle mean is near zero, so an
+    #: unfiltered loop responds mostly to the beat; at 3 ms the flight is back
+    #: down to 146 ms. The filter is trading stroke noise against phase margin
+    #: and 5 ms is where that trade sits, measured rather than assumed.
+    tau: float = 0.005
     #: Stroke shape, passed through to :func:`harmonic_stroke`. ``sharpness``
     #: bends the sweep from a sinusoid toward a triangle and ``deviation``
     #: adds the out-of-plane motion that makes a wingtip trace a
@@ -179,6 +194,8 @@ class HaltereController:
     max_integral: float = 0.25
 
     _state: dict = field(default_factory=dict)
+    #: Where a run stopped because the simulation diverged, seconds, or None.
+    diverged_at: float | None = None
 
     def _integrate(self, pitch, roll, dt):
         """Accumulate the attitude error, bounded."""
@@ -247,8 +264,26 @@ class HaltereController:
     def fly(self, body, seconds: float) -> dict[str, np.ndarray]:
         """Run the loop and report the trajectory."""
         steps = int(round(seconds / body.model.opt.timestep))
-        out = {k: [] for k in ("t", "x", "y", "z", "pitch", "roll", "tumble", "bearing")}
+        out = {
+            k: []
+            for k in ("t", "x", "y", "z", "pitch", "roll", "tumble", "bearing", "heading")
+        }
+        # Heading is accumulated rather than read from atan2 each step. With the
+        # loop tuned, a steering command can carry the animal past half a turn
+        # inside 100 ms, and a wrapped angle then reports a hard left as a
+        # right -- which is exactly how a working steering test starts failing.
+        turned = 0.0
+        previous = None
+        # MuJoCo resets the whole state when it detects a divergence, and the
+        # clock goes back to zero with it. Carrying on past that point
+        # silently appends a second flight to the first, and any statistic
+        # taken over "the first 200 ms" then mixes the two. Stop instead.
+        last_time = -1.0
         for _ in range(steps):
+            if body.t < last_time:
+                self.diverged_at = last_time
+                break
+            last_time = body.t
             angles, rates = self.command(body, body.t)
             body.set_wings(angles, rates)
             body.apply_aerodynamics()
@@ -263,6 +298,13 @@ class HaltereController:
             out["roll"].append(roll)
             out["tumble"].append(float(np.linalg.norm(angular_rate(body))))
             out["bearing"].append(float(getattr(self, "bearing", 0.0)))
+            m = body.data.xmat[body.root_body].reshape(3, 3) if body.root_body else None
+            raw = float(np.arctan2(m[1, 0], m[0, 0])) if m is not None else 0.0
+            if previous is not None:
+                step = (raw - previous + np.pi) % (2 * np.pi) - np.pi
+                turned += step
+            previous = raw
+            out["heading"].append(np.degrees(turned))
         return {k: np.asarray(v) for k, v in out.items()}
 
 

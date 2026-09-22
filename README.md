@@ -308,14 +308,49 @@ re-measured for every stroke shape and moves by less than half a degree
 79.4 degrees, which recovers the force to the last decimal and the attitude
 hold not at all: 19 ms against 20.
 
-So the swing is not what limits the flight. The diagnosis of what does is
-still open, and one more candidate has been eliminated: roll is the axis that
-fails, the controller never saturates -- it commands 0.03 against a limit of
-0.45 -- and it sits about 10 degrees off level, which is a textbook
-steady-state offset. Adding an integral term closes that offset and makes the
-flight slightly *shorter*, 179 ms against 187. The offset is not the problem
-either. Both knobs and the integral are kept, defaulted off, with the
-measurements in their docstrings.
+So the swing is not what limits the flight, and neither is the standing roll
+offset -- the controller never saturates, commanding 0.03 against a limit of
+0.45, and adding an integral term to close the offset makes the flight
+slightly *shorter*, 179 ms against 187.
+
+## What actually limited it: phase margin
+
+The next suspect was wake memory. A quasi-steady model applies the
+steady-state force at every instant, while real circulation takes a couple of
+chord lengths to build and carries across a reversal -- so `wingloop.aero.wake`
+adds a lag on circulation, in the travelled-distance domain.
+
+It changes the aerodynamics almost not at all: mean lift identical to two
+decimals, torque swing 4% different and in the wrong direction. **It changes
+the flight enormously** -- 300 ms down to 104. Same forces, added delay, and
+the delay sits inside the attitude feedback loop.
+
+That is what identified the limit. Sweeping the sensor filter against loop
+bandwidth:
+
+| filter lag | 3 ms | **5 ms** | 10 ms | 20 ms | 30 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| controlled flight | 146 ms | **353 ms** | 204 ms | 187 ms | 145 ms |
+
+At every bandwidth tried, more lag is worse -- and it cannot go to zero,
+because within a stroke the torque swings between -28 and +27 about a
+near-zero mean and an unfiltered loop chases the beat. The filter trades
+stroke noise against phase margin, and 5 ms is where that trade sits.
+
+**With it there, the whole 300 ms run stays inside 11 degrees of pitch and 17
+of roll, climbing 148 mm.** The fly flies.
+
+And it corrects the refutation above. Most of the stroke-kinematics penalty
+was the filter: measured at 20 ms the sharp stroke held 20 ms against 187, a
+factor of nine; at 5 ms it is 171 against 250, a factor of 1.5. The first
+measurement had the sign right and the size wrong by six times.
+
+Two bugs were written on the way, and both are now tests. Lagging the *force*
+rather than the circulation holds the mid-stroke peak through the reversal --
+a peak-hold, not a memory -- and inflated mean lift 8.6-fold. And unpacking
+`lift, drag, path = wake.update(...)` shadowed `path`, the unit vector the
+force is applied along, a few lines above: a vector times a scalar, broadcast
+across three axes, reported as 364 of lift where the wing was making 27.
 
 ## What does not exist yet
 

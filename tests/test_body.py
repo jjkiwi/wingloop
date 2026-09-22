@@ -393,34 +393,24 @@ def test_the_stroke_plane_follows_the_body(rigid, wing, tmp_path):
 
 
 @needs_model
-def test_closing_the_loop_holds_attitude_at_first_and_then_does_not(
-    rigid, wing, tmp_path
-):
-    """The honest state of the controller, pinned so it cannot drift unnoticed.
+def test_closing_the_loop_holds_attitude_for_the_whole_run(rigid, wing, tmp_path):
+    """What the loop does now that the filter lag was measured, not guessed.
 
-    Four wingbeats of genuine attitude hold, then the within-stroke torque
-    wins. This asserts both halves: that the loop does something real early,
-    and that it does not yet do the thing it is for. When the stroke kinematics
-    improve, the second assertion is the one that should start failing.
+    The earlier version of this test asserted the opposite -- that attitude
+    hold lasted about 20 ms and then failed -- with a note saying the
+    assertion should start failing if the controller ever got better. It did.
+    Dropping the sensor filter from 20 ms to 5 took controlled flight from
+    187 ms to 353 and brought the whole 300 ms run inside 20 degrees.
     """
     free = add_free_base(rigid[0], tmp_path / "loop.xml", dofs="free")
     body = FlightBody(free, wing, timestep=2e-5)
-    trace = HaltereController().fly(body, 0.30)
+    controller = HaltereController()
+    trace = controller.fly(body, 0.30)
 
-    # Twenty-two wingbeats of attitude hold, against an open-loop fly that is
-    # past 45 degrees within nine.
-    early = trace["t"] < 0.100
-    assert np.degrees(np.abs(trace["pitch"][early])).max() < 20.0
-    assert np.degrees(np.abs(trace["roll"][early])).max() < 25.0
-
-    assert trace["t"][-1] > 0.29, "it should stay in the air"
-    assert trace["z"][-1] > 50.0, "and climb while it does"
-
-    # And the part that is not finished. When the stroke kinematics improve
-    # this should start failing, which is the point of asserting it.
-    assert np.degrees(np.abs(trace["pitch"])).max() > 30.0, (
-        "attitude hold now lasts the whole run -- update this claim"
-    )
+    assert controller.diverged_at is None, "it should not blow up inside 300 ms"
+    assert np.degrees(np.abs(trace["pitch"])).max() < 20.0
+    assert np.degrees(np.abs(trace["roll"])).max() < 25.0
+    assert trace["z"][-1] > 100.0, "and climb the whole way"
 
 
 # --------------------------------------------------- the connectome steering
@@ -451,16 +441,26 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
     )
 
     def heading(readout, bearing) -> float:
+        """Cumulative turn, not the wrapped angle.
+
+        With the loop properly tuned a steering command carries the animal
+        past half a turn inside 100 ms, and a wrapped atan2 then reports a
+        hard left as a right -- which is how a working steering test starts
+        failing for a reason that has nothing to do with steering.
+        """
         free = add_free_base(rigid[0], tmp_path / f"h{bearing:+.0f}.xml", dofs="free")
         body = FlightBody(free, wing, timestep=2e-5)
-        SteeringController(readout=readout, bearing=bearing).fly(body, 0.10)
-        m = body.data.xmat[body.root_body].reshape(3, 3)
-        return float(np.degrees(np.arctan2(m[1, 0], m[0, 0])))
+        return float(
+            SteeringController(readout=readout, bearing=bearing).fly(body, 0.10)[
+                "heading"
+            ][-1]
+        )
 
-    # The fly faces +x and its left is +y, so turning left is increasing yaw.
+    # The fly faces +x and its left is +y, so turning left is a positive turn.
     left_object = heading(real, -45.0)
     right_object = heading(real, 45.0)
-    assert left_object > right_object + 90.0, (left_object, right_object)
+    assert left_object > 100.0, left_object
+    assert right_object < 0.0, right_object
 
     # Without bearing information every bearing gives the same heading, and it
     # is the one the stabiliser reaches on its own.
@@ -470,11 +470,8 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
 
     free = add_free_base(rigid[0], tmp_path / "bare.xml", dofs="free")
     bare = FlightBody(free, wing, timestep=2e-5)
-    HaltereController().fly(bare, 0.10)
-    m = bare.data.xmat[bare.root_body].reshape(3, 3)
-    assert blind_left == pytest.approx(
-        float(np.degrees(np.arctan2(m[1, 0], m[0, 0]))), abs=1e-6
-    )
+    bare_turn = HaltereController().fly(bare, 0.10)["heading"][-1]
+    assert blind_left == pytest.approx(float(bare_turn), abs=1e-6)
 
     # And the steering straddles that baseline rather than sitting to one side.
     assert left_object > blind_left > right_object
@@ -493,9 +490,13 @@ def test_steering_response_follows_the_bearing_monotonically(rigid, wing, tmp_pa
     for bearing in (-60.0, -30.0, 30.0):
         free = add_free_base(rigid[0], tmp_path / f"m{bearing:+.0f}.xml", dofs="free")
         body = FlightBody(free, wing, timestep=2e-5)
-        SteeringController(readout=readout, bearing=bearing).fly(body, 0.06)
-        m = body.data.xmat[body.root_body].reshape(3, 3)
-        headings.append(float(np.degrees(np.arctan2(m[1, 0], m[0, 0]))))
+        headings.append(
+            float(
+                SteeringController(readout=readout, bearing=bearing).fly(body, 0.06)[
+                    "heading"
+                ][-1]
+            )
+        )
 
     assert headings[0] > headings[1] > headings[2], headings
 
@@ -619,5 +620,101 @@ def test_realistic_kinematics_cut_the_torque_swing_and_still_fly_worse(
 
     plain = holds_until()
     sharp = holds_until(sharpness=0.9)
-    assert plain > 100.0, plain
-    assert sharp < 0.5 * plain, (plain, sharp)
+    assert plain > 200.0, plain
+    # Still a penalty, and much smaller than it first looked. Measured with
+    # the 20 ms sensor filter the sharp stroke held for 20 ms against 187 --
+    # a factor of nine. Most of that was the filter: at 5 ms it is 171
+    # against 250, a factor of 1.5. The first measurement was right about the
+    # sign and wrong about the size by six times.
+    assert sharp < 0.85 * plain, (plain, sharp)
+
+
+@needs_model
+def test_wake_memory_changes_the_forces_barely_and_the_flight_a_lot(
+    rigid, wing, tmp_path
+):
+    """The wake suspicion, refuted -- and the thing it led to instead.
+
+    The suspicion was that a quasi-steady model, which applies the steady-state
+    force at every instant, is missing what a sharper stroke needs: circulation
+    that takes a couple of chord lengths to build and carries across a
+    reversal. It is missing that, and it does not matter. Over a cycle the mean
+    lift is identical to two decimals and the torque swing moves 4%, in the
+    wrong direction.
+
+    What it does do is end the flight, and that is the informative part: the
+    lag sits inside the attitude feedback loop. Adding delay there costs phase
+    margin, and the flight collapses from 300 ms to under 50 -- while the
+    aerodynamics it changed are the same aerodynamics. That is what identified
+    the real limit, and dropping the sensor filter from 20 ms to 5 then nearly
+    doubled the controlled flight.
+    """
+    from wingloop.body.control import HaltereController
+    from wingloop.body.flight import harmonic_stroke
+
+    free = add_free_base(rigid[0], tmp_path / "wake.xml", dofs="free")
+
+    def cycle_mean_lift(wake: bool) -> tuple[float, float]:
+        body = FlightBody(free, wing, timestep=2e-5, wake_memory=wake)
+        vertical, torque = [], []
+        for t in np.linspace(0, 3 / 218.0, 900, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, frequency=218.0, bias=np.deg2rad(-10.7), rates=True
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            if t > 1 / 218.0:  # let the lag settle
+                w = body.wrench_about_com()
+                vertical.append(w[2])
+                torque.append(w[4])
+        return float(np.mean(vertical)), float(np.ptp(torque))
+
+    plain_lift, plain_swing = cycle_mean_lift(False)
+    lagged_lift, lagged_swing = cycle_mean_lift(True)
+
+    # The aerodynamics barely notice.
+    assert lagged_lift == pytest.approx(plain_lift, rel=0.02)
+    assert lagged_swing == pytest.approx(plain_swing, rel=0.10)
+    # And it is not the reduction the suspicion predicted.
+    assert lagged_swing > plain_swing
+
+    def holds_until(wake: bool) -> float:
+        body = FlightBody(free, wing, timestep=2e-5, wake_memory=wake)
+        trace = HaltereController().fly(body, 0.30)
+        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
+        over = np.flatnonzero(bad > 30.0)
+        return float(trace["t"][over[0]] * 1000) if len(over) else 300.0
+
+    # The flight, however, notices a great deal: same forces, added delay.
+    # Measured 300 ms against 104 with the filter at its tuned 5 ms, and
+    # 187 against 27 back when the filter itself was costing most of the
+    # margin -- the ratio survives the retuning, which is the point.
+    plain_flight = holds_until(False)
+    assert plain_flight > 250.0
+    assert holds_until(True) < 0.5 * plain_flight
+
+
+@needs_model
+def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
+    """The answer the wake detour produced, and the reason it is the answer.
+
+    Swept against loop bandwidth, controlled flight lasts 353 ms at 5 ms of
+    filter lag and 187 at 20, and at every bandwidth tried more lag is worse.
+    It cannot go to zero either -- within a stroke the torque swings between
+    -28 and +27 about a near-zero mean, so an unfiltered loop chases the beat,
+    and at 3 ms the flight is back to 146 ms. The filter trades stroke noise
+    against phase margin, and the default sits where that trade was measured.
+    """
+    from wingloop.body.control import HaltereController
+
+    free = add_free_base(rigid[0], tmp_path / "lag.xml", dofs="free")
+
+    def holds_until(tau: float) -> float:
+        body = FlightBody(free, wing, timestep=2e-5)
+        trace = HaltereController(tau=tau).fly(body, 0.40)
+        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
+        over = np.flatnonzero(bad > 30.0)
+        return float(trace["t"][over[0]] * 1000) if len(over) else 400.0
+
+    assert holds_until(0.005) > 1.5 * holds_until(0.020)
+    assert holds_until(0.005) > holds_until(0.003)

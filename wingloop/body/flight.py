@@ -39,7 +39,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..aero.blade_element import StrokeState, blade_element_forces
+from ..aero.blade_element import Forces, StrokeState, blade_element_forces
+from ..aero.wake import WakeMemory, reference_speed
 from ..aero.wing import AIR_DENSITY, Wing
 from .hinge import HINGE_DOFS, SPAN_LOCAL, STROKE_OFFSET, STROKE_SIGN, WINGS
 
@@ -79,6 +80,7 @@ class FlightBody:
         density: float = AIR_DENSITY,
         gravity: bool = True,
         massless_wings: bool = True,
+        wake_memory: bool = False,
     ):
         try:
             import mujoco
@@ -151,6 +153,11 @@ class FlightBody:
         self._capture_mounts()
         if massless_wings and self.joint_id:
             self._make_wings_massless()
+        # Off by default: every earlier result in this project was measured
+        # without it, and turning it on silently would invalidate them all.
+        self.wake = (
+            {w: WakeMemory(chord=wing.mean_chord) for w in WINGS} if wake_memory else None
+        )
         self.telemetry: dict[str, WingTelemetry] = {w: WingTelemetry() for w in WINGS}
         mujoco.mj_forward(self.model, self.data)
 
@@ -320,6 +327,27 @@ class FlightBody:
         f = blade_element_forces(
             self.wing, state, density=self.density, body_velocity=along
         )
+        if self.wake is not None:
+            # Only the translational terms lag. The rotational force and the
+            # added mass are genuinely instantaneous -- they are responses to
+            # what the wing is doing right now, not to circulation it has had
+            # time to build.
+            speed = reference_speed(self.wing, state.phi_dot, along)
+            # Not `path`: that name already holds the unit vector the force is
+            # applied along, a few lines up. Shadowing it multiplied a vector
+            # by a scalar force and broadcast the result across all three axes,
+            # which showed up as 364 of lift where the wing was making 27.
+            lagged_lift, lagged_drag, lagged_path = self.wake[wing].update(
+                f.lift, f.drag, f.path_force, speed, float(self.model.opt.timestep)
+            )
+            f = Forces(
+                lift=lagged_lift,
+                drag=lagged_drag,
+                rotational=f.rotational,
+                added_mass=f.added_mass,
+                torque=f.torque,
+                path_force=lagged_path,
+            )
 
         # Resolved in the stroke plane, not in the wing's own frame: lift is by
         # definition perpendicular to the wing's path and drag opposes it, and
