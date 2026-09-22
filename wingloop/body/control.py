@@ -24,8 +24,23 @@ not assumed:
 * an amplitude difference between the sides is roll -- **38.7 per unit of
   asymmetry**, linear through zero
 
-Yaw is not controlled. Nothing in this stroke produces much of it, and adding a
-third loop before the first two work would be tuning in the dark.
+**Yaw is the third loop, and it turned out to be the one that mattered.** It
+was left out because nothing in a symmetric stroke produces much of it --
+true, and beside the point: yaw is the light axis, inertia 0.000591 against
+0.002014 in pitch, so the little it gets is enough. A normal flight reached
++40 degrees of heading by 100 ms and -86 by 300, at up to 1587 deg/s, while
+pitch and roll stayed inside ten.
+
+The knob is the left-right *rotation phase* asymmetry, which is the only one
+that yaws the animal at all: see :data:`YAW_PER_PHASE`. Closing it takes the
+flight from 320 ms to 1004, holding the heading inside ten degrees the whole
+way. Everything above it -- the sensor filter, the loop bandwidth, the whole
+phase-margin argument -- was worth tens of milliseconds against that.
+
+What ends the flight now is not a tumble but a **flat spin**: past about 950
+ms the heading departs, and because the phase knob saturates at 45 degrees it
+is out of authority beyond 12 degrees of heading error. That is the next
+thing to measure.
 
 **A second loop, on a second variable.** :class:`Throttle` closes altitude the
 same way, through the connectome's power channel rather than these two knobs:
@@ -67,9 +82,33 @@ TRIM_BIAS = np.deg2rad(-10.7)
 PITCH_PER_BIAS = -18.85
 ROLL_PER_ASYMMETRY = 38.2
 
-#: Pitch and roll inertia of the whole animal, from the model's mass matrix.
+#: Pitch, roll and yaw inertia of the whole animal, from the model's mass
+#: matrix. **Yaw is the light axis**, a third of pitch, which is why an
+#: uncontrolled yaw runs away faster than either of the others.
 PITCH_INERTIA = 0.002014
 ROLL_INERTIA = 0.001502
+YAW_INERTIA = 0.000591
+
+#: Yaw torque per radian of left-right *rotation phase* asymmetry: the two
+#: wings flipping at slightly different points in the stroke.
+#:
+#: Measured by sweeping the knob and averaging the torque about the centre of
+#: mass over a stroke. Odd in the knob and linear to 3.6% of full scale from
+#: -0.45 to +0.45 rad. Negative because advancing the left wing's flip yaws
+#: the animal right.
+#:
+#: **This is the only knob that makes any yaw at all.** The amplitude
+#: asymmetry that rolls the animal makes exactly 0.0000 of it, and the
+#: symmetric phase shift makes 0.0004. That is why the steering work found
+#: rotation phase to be a yaw control and amplitude a roll control, and it is
+#: what this loop is built on.
+#:
+#: It is not clean: the same knob also makes roll, 0.58 to 1.50 across that
+#: range and mostly *even* in the knob, so it does not cancel between sides.
+#: The roll loop absorbs it -- against a roll authority of 38.2 per unit of
+#: amplitude asymmetry, the worst of it costs 0.04 of a knob that saturates at
+#: 0.45 -- but the two loops are coupled through it, in that direction only.
+YAW_PER_PHASE = -0.5666
 
 #: How far the rotation phase may be shifted, radians. Beyond about this the
 #: wing is flipping in the middle of the stroke rather than at its ends, which
@@ -151,6 +190,8 @@ def gains_for(bandwidth: float) -> dict:
         "pitch_rate_gain": PITCH_INERTIA * 2 * bandwidth / abs(PITCH_PER_BIAS),
         "roll_gain": ROLL_INERTIA * bandwidth**2 / ROLL_PER_ASYMMETRY,
         "roll_rate_gain": ROLL_INERTIA * 2 * bandwidth / ROLL_PER_ASYMMETRY,
+        "yaw_gain": YAW_INERTIA * bandwidth**2 / abs(YAW_PER_PHASE),
+        "yaw_rate_gain": YAW_INERTIA * 2 * bandwidth / abs(YAW_PER_PHASE),
     }
 
 
@@ -195,6 +236,19 @@ HOVER_COMMAND = 0.695
 #: downwards has a floor to hit.
 ALTITUDE_BANDWIDTH = 20.0
 ALTITUDE_DAMPING = 1.0
+
+
+def heading(body) -> float:
+    """Which way the animal is pointing, radians, wrapped to (-pi, pi].
+
+    Read from the simulator like :func:`attitude`. In the animal yaw is sensed
+    by the same halteres -- their Coriolis deflection encodes all three axes --
+    so unlike altitude this needs no second sense to be plausible.
+    """
+    if body.root_body is None:
+        return 0.0
+    m = body.data.xmat[body.root_body].reshape(3, 3)
+    return float(np.arctan2(m[1, 0], m[0, 0]))
 
 
 def altitude(body) -> tuple[float, float]:
@@ -245,6 +299,14 @@ class HaltereController:
     pitch_rate_gain: float = PITCH_INERTIA * 2 * BANDWIDTH / abs(PITCH_PER_BIAS)
     roll_gain: float = ROLL_INERTIA * BANDWIDTH**2 / ROLL_PER_ASYMMETRY
     roll_rate_gain: float = ROLL_INERTIA * 2 * BANDWIDTH / ROLL_PER_ASYMMETRY
+    #: Yaw, through the rotation-phase asymmetry. Set both to zero for the
+    #: uncontrolled yaw every result before this was measured with.
+    yaw_gain: float = YAW_INERTIA * BANDWIDTH**2 / abs(YAW_PER_PHASE)
+    yaw_rate_gain: float = YAW_INERTIA * 2 * BANDWIDTH / abs(YAW_PER_PHASE)
+    #: Heading to hold, radians, accumulated rather than wrapped so that a
+    #: turn past half a circle is a large error and not a small one of the
+    #: wrong sign.
+    target_heading: float = 0.0
     #: Bounds on what the loop may ask for, in the units of the two knobs. A
     #: stroke bias beyond this is no longer a bias and an asymmetry beyond it
     #: stops one wing entirely.
@@ -327,6 +389,7 @@ class HaltereController:
     max_integral: float = 0.25
 
     _state: dict = field(default_factory=dict)
+    _turn: dict = field(default_factory=dict)
     #: Where a run stopped because the simulation diverged, seconds, or None.
     diverged_at: float | None = None
     #: An optional stroke generator. Given one -- a
@@ -359,19 +422,47 @@ class HaltereController:
         )
         return self._state["i_pitch"], self._state["i_roll"]
 
-    def _filtered(self, pitch, roll, rate, dt):
+    def _filtered(self, pitch, roll, yaw, rate, dt):
         if self.sensing == "stroke":
-            return self._stroke_averaged(pitch, roll, rate, dt)
+            return self._stroke_averaged(pitch, roll, yaw, rate, dt)
         a = dt / (self.tau + dt)
         if not self._state:
-            self._state = {"pitch": pitch, "roll": roll, "rate": np.asarray(rate, float)}
+            self._state = {
+                "pitch": pitch,
+                "roll": roll,
+                "yaw": yaw,
+                "rate": np.asarray(rate, float),
+            }
         else:
             self._state["pitch"] += a * (pitch - self._state["pitch"])
             self._state["roll"] += a * (roll - self._state["roll"])
+            self._state["yaw"] += a * (yaw - self._state["yaw"])
             self._state["rate"] += a * (np.asarray(rate, float) - self._state["rate"])
-        return self._state["pitch"], self._state["roll"], self._state["rate"]
+        return (
+            self._state["pitch"],
+            self._state["roll"],
+            self._state["yaw"],
+            self._state["rate"],
+        )
 
-    def _stroke_averaged(self, pitch, roll, rate, dt):
+    def _turned(self, body) -> float:
+        """Heading, accumulated across the wrap.
+
+        Kept apart from the filter state because it has to be unwrapped
+        *before* anything averages it: a mean taken across the +pi/-pi seam is
+        not a heading, and with the loop tuned this animal can be carried past
+        half a turn inside 100 ms.
+        """
+        raw = heading(body)
+        if "raw" in self._turn:
+            step = (raw - self._turn["raw"] + np.pi) % (2 * np.pi) - np.pi
+            self._turn["total"] += step
+        else:
+            self._turn["total"] = raw
+        self._turn["raw"] = raw
+        return self._turn["total"]
+
+    def _stroke_averaged(self, pitch, roll, yaw, rate, dt):
         """A running mean over exactly one wingbeat, held in a ring buffer.
 
         Kept as a running mean rather than one sample per beat on purpose: the
@@ -381,32 +472,40 @@ class HaltereController:
         n = max(1, int(round(1.0 / (self.frequency * dt))))
         if not self._state:
             self._state = {
-                "ring": np.zeros((n, 5)),
-                "sum": np.zeros(5),
+                "ring": np.zeros((n, 6)),
+                "sum": np.zeros(6),
                 "i": 0,
                 "filled": 0,
             }
         st = self._state
-        sample = np.array([pitch, roll, *np.asarray(rate, float)[:3]])
+        sample = np.array([pitch, roll, yaw, *np.asarray(rate, float)[:3]])
         st["sum"] += sample - st["ring"][st["i"]]
         st["ring"][st["i"]] = sample
         st["i"] = (st["i"] + 1) % n
         st["filled"] = min(st["filled"] + 1, n)
         mean = st["sum"] / st["filled"]
-        return float(mean[0]), float(mean[1]), mean[2:5]
+        return float(mean[0]), float(mean[1]), float(mean[2]), mean[3:6]
 
-    def command(self, body, t: float):
-        """Stroke angles and rates for this instant, with the loop closed."""
+    def knobs(self, body) -> dict:
+        """The three stroke knobs the stabiliser wants this instant.
+
+        Called **once per step**, because it advances the sensor filter and
+        the heading unwrap. An earlier version had the steering controller
+        recompute this after calling it, which ran the filter twice a step and
+        quietly halved the time constant that everything else here argues
+        about.
+        """
+        dt = float(body.model.opt.timestep)
         if self.throttle is not None:
-            self.throttle.update(body, float(body.model.opt.timestep))
+            self.throttle.update(body, dt)
         pitch, roll = attitude(body)
-        rate = angular_rate(body)
-        pitch, roll, rate = self._filtered(
-            pitch, roll, rate, float(body.model.opt.timestep)
+        pitch, roll, yaw, rate = self._filtered(
+            pitch, roll, self._turned(body), angular_rate(body), dt
         )
         # Pitch authority is negative -- more bias is more nose-down torque --
-        # so correcting a positive pitch means *more* bias, not less.
-        i_pitch, i_roll = self._integrate(pitch, roll, float(body.model.opt.timestep))
+        # so correcting a positive pitch means *more* bias, not less. Yaw is
+        # the same sign story through the phase knob.
+        i_pitch, i_roll = self._integrate(pitch, roll, dt)
         bias = (
             self.trim_bias
             + self.pitch_gain * pitch
@@ -414,12 +513,20 @@ class HaltereController:
             + i_pitch
         )
         asymmetry = -self.roll_gain * roll - self.roll_rate_gain * rate[0] - i_roll
-        return self._stroke(
-            t,
-            body,
-            bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
-            asymmetry=float(np.clip(asymmetry, -self.max_asymmetry, self.max_asymmetry)),
-        )
+        phase_asymmetry = self.yaw_gain * (
+            yaw - self.target_heading
+        ) + self.yaw_rate_gain * rate[2]
+        return {
+            "bias": float(np.clip(bias, -self.max_bias, self.max_bias)),
+            "asymmetry": float(
+                np.clip(asymmetry, -self.max_asymmetry, self.max_asymmetry)
+            ),
+            "phase_asymmetry": float(np.clip(phase_asymmetry, -MAX_PHASE, MAX_PHASE)),
+        }
+
+    def command(self, body, t: float):
+        """Stroke angles and rates for this instant, with the loop closed."""
+        return self._stroke(t, body, **self.knobs(body))
 
     def _stroke(self, t, body, **knobs):
         """The stroke, from a generator when there is one and a sine otherwise."""
@@ -525,6 +632,20 @@ class SteeringController(HaltereController):
     readout: object = None
     bearing: float = 0.0
     steer_gain: float = 1.0
+    #: Commanded turn rate per unit of steering command, rad/s.
+    #:
+    #: **This is what the steering command means once yaw is stabilised.** With
+    #: the yaw loop closed, adding the command to the phase knob no longer
+    #: turns the animal: the stabiliser is holding a heading and simply undoes
+    #: it, measured at -14.6 degrees by 90 ms and back to -1.3 by 250. So the
+    #: command moves the *setpoint* instead -- bearing error into turn rate,
+    #: which is the fixation law -- and the yaw loop flies it.
+    #:
+    #: Set to 0.0 to get the old behaviour, where the command is added to the
+    #: knob directly. That is what every steering result before the yaw loop
+    #: was measured with, and it only turns because nothing was holding the
+    #: heading.
+    turn_rate_gain: float = 20.0
     #: World position of the thing being looked at, ``(x, y)``. Given one, the
     #: bearing is recomputed from the animal's own heading every step and
     #: ``bearing`` is ignored -- the loop is closed. Left as None, ``bearing``
@@ -599,41 +720,51 @@ class SteeringController(HaltereController):
         return self.steer_gain * self.readout.asymmetry(bearing)
 
     def command(self, body, t: float):
-        angles, rates = super().command(body, t)
+        """The stabiliser's knobs with the steering command added to one.
+
+        Which one is the whole point of ``steer_mode``: a steering intention
+        and a yaw disturbance arrive at the same knob and the loop cannot tell
+        them apart, exactly as the roll loop cannot tell a roll disturbance
+        from a commanded turn. That is the animal's arrangement too.
+        """
         extra = self.steering(body)
-        if extra:
-            # Re-issue the stroke with the steering asymmetry folded in. The
-            # stabiliser's own asymmetry is already inside `angles`, so this is
-            # recomputed rather than patched -- editing the joint dictionary
-            # would leave the rates describing a different stroke.
-            pitch, roll = attitude(body)
-            pitch, roll, rate = self._filtered(
-                pitch, roll, angular_rate(body), float(body.model.opt.timestep)
+        # The setpoint moves before the knobs are computed, so the yaw loop
+        # sees this step's intention rather than the previous one's.
+        if extra and self.turn_rate_gain and self.yaw_gain:
+            self.target_heading -= (
+                self.turn_rate_gain * extra * float(body.model.opt.timestep)
             )
-            i_pitch = self._state.get("i_pitch", 0.0)
-            i_roll = self._state.get("i_roll", 0.0)
-            bias = (
-                self.trim_bias
-                + self.pitch_gain * pitch
-                + self.pitch_rate_gain * rate[1]
-                + i_pitch
+            # And it is not allowed to run away from the animal. Without this
+            # the setpoint ramps at the commanded rate whatever the body does,
+            # the yaw error saturates the phase knob, and the roll the knob
+            # cross-couples takes the flight down -- measured, a sustained
+            # command at gain 55 ended it at 138 ms instead of flying. Holding
+            # the setpoint a bounded lead ahead makes the turn rate whatever
+            # the loop can actually deliver, which is the point of having one.
+            lead = MAX_PHASE / self.yaw_gain
+            here = self._turn.get("total", 0.0)
+            self.target_heading = float(
+                np.clip(self.target_heading, here - lead, here + lead)
             )
-            asym = -self.roll_gain * roll - self.roll_rate_gain * rate[0] - i_roll
-            phase_asymmetry = 0.0
+        knobs = self.knobs(body)
+        if extra and not (self.turn_rate_gain and self.yaw_gain):
             if self.steer_mode == "phase":
-                phase_asymmetry = float(
-                    np.clip(self.phase_gain * extra, -MAX_PHASE, MAX_PHASE)
+                knobs["phase_asymmetry"] = float(
+                    np.clip(
+                        knobs["phase_asymmetry"] + self.phase_gain * extra,
+                        -MAX_PHASE,
+                        MAX_PHASE,
+                    )
                 )
             else:
-                asym += extra
-            angles, rates = self._stroke(
-                t,
-                body,
-                bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
-                asymmetry=float(np.clip(asym, -self.max_asymmetry, self.max_asymmetry)),
-                phase_asymmetry=phase_asymmetry,
-            )
-        return angles, rates
+                knobs["asymmetry"] = float(
+                    np.clip(
+                        knobs["asymmetry"] + extra,
+                        -self.max_asymmetry,
+                        self.max_asymmetry,
+                    )
+                )
+        return self._stroke(t, body, **knobs)
 
 
 @dataclass

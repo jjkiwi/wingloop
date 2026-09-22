@@ -564,6 +564,82 @@ pitch does not is not established; the obvious guess -- that the body's mass
 integrates the ripple away -- is wrong, since heave velocity ripples *more*
 against its own mean than pitch rate does, 3.5 against 1.7.
 
+## The third loop, which was the one that mattered
+
+Yaw was left uncontrolled through all of the above, on the reasoning that a
+symmetric stroke does not produce much of it. That is true and it is beside
+the point. **Yaw is the light axis** -- inertia 0.000591 against 0.002014 in
+pitch and 0.001502 in roll -- so the little it gets is plenty. Measured on an
+ordinary flight, the heading reached +40 degrees by 100 ms and -86 by 300, at
+up to 1587 deg/s, while pitch and roll stayed inside ten.
+
+The knob is the left-right rotation-phase asymmetry, and it is the only one
+that yaws this animal at all:
+
+| knob | roll | pitch | yaw |
+| --- | ---: | ---: | ---: |
+| amplitude asymmetry 0.2 | 7.63 | -1.21 | **0.0000** |
+| symmetric phase 0.2 | 0.15 | 0.04 | 0.0004 |
+| **phase asymmetry 0.3** | 0.51 | 0.03 | **-0.164** |
+
+0.5666 per radian, odd in the knob and linear to 3.6% of full scale. It is the
+same division the steering work found from the other end -- rotation phase
+yaws, amplitude rolls -- and the gains come from it and the yaw inertia the
+same way the pitch and roll gains do.
+
+**Closing it roughly triples the flight: 320 ms to 1004**, with the heading
+inside ten degrees at 200, 400, 600 and 800 ms. Everything above this section
+-- the sensor filter, the loop bandwidth, the whole phase-margin argument --
+was worth tens of milliseconds against that. With yaw held, every sensing and
+bandwidth combination tried flies between 0.5 and 1.3 seconds, and the boxcar's
+advantage does not survive:
+
+| bandwidth | first-order 6 ms | stroke boxcar |
+| --- | ---: | ---: |
+| 40 | 1236 ms | 1246 ms |
+| 60 | 1063 ms | 1004 ms |
+| 80 | **1287 ms** | 534 ms |
+
+So that table was a measurement of the yaw-uncontrolled regime, and the tests
+for it now say so by switching the yaw loop off explicitly.
+
+### Two things it broke, and one it found
+
+**Steering had to change.** With the yaw loop holding a heading, adding a
+steering command to the phase knob no longer turns the animal -- the
+stabiliser simply undoes it, measured at -14.6 degrees by 90 ms and back to
+-1.3 by 250. So the command moves the *setpoint* instead: bearing error into
+turn rate, which is the fixation law, and the yaw loop flies it. The setpoint
+is not allowed to run more than a bounded lead ahead of the animal, because
+without that it ramps at the commanded rate whatever the body does, saturates
+the phase knob, and the roll that knob cross-couples takes the flight down at
+138 ms. Turns are now physiological rather than a spin: a left object turns
++2.4 degrees in 100 ms and a right one -11.4, against a -0.9 baseline, where
+the old code reported over 100 and that number was the spin.
+
+**And the phase knob meant two different things.** `PowerStroke` added
+`phase_asymmetry` to a saturating velocity proxy where `harmonic_stroke`
+rotates it inside the cosine -- the same name for a different physical
+quantity, **opposite in sign and thirty times larger**. Nothing had noticed,
+because nothing before the yaw loop read the knob's sign. A loop with gains
+measured on one generator was positive feedback on the other: the
+muscle-driven flight went from 338 ms to 54. `PowerStroke` now recovers the
+oscillator's cycle phase properly, from the envelope
+`sqrt(phi^2 + (phi_dot/w)^2)`, and both generators agree in sign and to within
+a factor of two in size.
+
+The flight no longer ends in a tumble. It ends in a **flat spin**: past about
+950 ms the heading departs while pitch and roll are still inside thirty, and
+the phase knob saturates at 45 degrees, which is only 12 degrees of heading
+error. That is the next thing.
+
+*(A measuring note. The 9000 degrees of spin this first appeared to show was
+an artifact: MuJoCo resets its clock when it diverges, so post-divergence
+samples carry small times and pass a `t <= held` mask while the recorded
+heading keeps accumulating. The trace has to be cut by index, at the point
+time runs backwards. This project has now been bitten by that clock reset
+twice.)*
+
 ## What does not exist yet
 
 

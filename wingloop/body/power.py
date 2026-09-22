@@ -242,12 +242,34 @@ class PowerStroke:
         phi, phi_dot = self.oscillator.angle, self.oscillator.rate
         # Rotation is still commanded, and still keyed to where the sweep is:
         # the wing flips at the ends of the stroke, so the phase reference is
-        # the stroke's own velocity rather than a clock.
-        amplitude = max(abs(phi), 1e-9)
-        reference = amplitude * 2.0 * np.pi * self.oscillator.frequency
-        s = float(np.clip(phi_dot / reference, -1.0, 1.0))
+        # the stroke's own state rather than a clock.
+        #
+        # **Where in the cycle the oscillator is**, as a genuine phase rather
+        # than a proxy. For motion near a single frequency the envelope is
+        # ``sqrt(phi^2 + (phi_dot/w)^2)``, and that gives sine and cosine of
+        # the cycle phase directly and stays well conditioned everywhere --
+        # including mid-stroke, where ``phi`` passes through zero.
+        w = 2.0 * np.pi * self.oscillator.frequency
+        envelope = float(np.hypot(phi, phi_dot / w)) or 1e-12
+        sin_theta = float(phi / envelope)
+        cos_theta = float(phi_dot / (envelope * w))
         gain = {"LWing": 1.0 + asymmetry, "RWing": 1.0 - asymmetry}
         flip = {"LWing": phase + phase_asymmetry, "RWing": phase - phase_asymmetry}
+
+        def shifted(p: float) -> float:
+            """``cos(theta + p)``, which is what the phase knob means.
+
+            It has to be this and not ``cos(theta) + p``. An earlier version
+            added the knob to the velocity proxy instead, which made
+            ``phase_asymmetry`` a different physical quantity here than in
+            :func:`~wingloop.body.flight.harmonic_stroke` -- **opposite in
+            sign and thirty times larger**. A yaw loop with gains measured on
+            one generator was positive feedback on the other, and the
+            muscle-driven flight it had been flying for 338 ms ended at 54.
+            """
+            return float(
+                np.clip(cos_theta * np.cos(p) - sin_theta * np.sin(p), -1.0, 1.0)
+            )
 
         angles, rates = {}, {}
         for wing in WINGS:
@@ -256,7 +278,11 @@ class PowerStroke:
                 STROKE_OFFSET[wing] + sign * (gain[wing] * phi + bias)
             )
             rates[f"joint_{wing}_stroke"] = sign * gain[wing] * phi_dot
-            rot = self.alpha * np.tanh(SHARPNESS * (s + flip[wing])) / np.tanh(SHARPNESS)
+            rot = (
+                self.alpha
+                * np.tanh(SHARPNESS * shifted(flip[wing]))
+                / np.tanh(SHARPNESS)
+            )
             angles[f"joint_{wing}_rotation"] = sign * rot
             # The rotation follows the sweep, so its rate follows the sweep's
             # acceleration; a finite difference across the step is honest here

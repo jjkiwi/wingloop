@@ -215,6 +215,37 @@ Even correct, the tether holds only 30-90 ms where the free animal holds 350:
 constraining the translation removes something that stabilises the free
 flight, so a tether is the harder preparation here, not the cleaner one.
 
+### Yaw: the axis with no loop on it
+
+Inertia about the three body axes, from the model's mass matrix: **roll
+0.001502, pitch 0.002014, yaw 0.000591**. Yaw is the light one by a factor of
+three, which is why it ran away first.
+
+Stroke-averaged torque about the centre of mass, by knob, at 75 degrees of
+amplitude:
+
+| knob | roll | pitch | yaw |
+| --- | ---: | ---: | ---: |
+| amplitude asymmetry 0.2 | 7.63 | -1.21 | 0.0000 |
+| symmetric phase 0.2 | 0.15 | 0.04 | 0.0004 |
+| phase asymmetry 0.3 | 0.51 | 0.03 | -0.164 |
+
+**YAW_PER_PHASE = -0.5666 per radian**, odd in the knob and linear to 3.6% of
+full scale from -0.45 to +0.45. The rotation-phase asymmetry is the only knob
+in this model that yaws the animal; the amplitude asymmetry makes exactly
+none. It is not clean in the other direction -- the same knob makes 0.58 to
+1.50 of roll, mostly even in the knob so it does not cancel between sides --
+but against a roll authority of 38.2 per unit of amplitude asymmetry the roll
+loop answers it with 0.04 of a knob that saturates at 0.45.
+
+Closing the yaw loop takes free flight from 320 ms to **1004 ms**, heading
+held inside ten degrees at 200, 400, 600 and 800 ms. With it closed, sensing
+and bandwidth stop mattering much: every combination tried flies 0.5-1.3 s.
+
+The remaining failure is a flat spin rather than a tumble. The phase knob
+saturates at 45 degrees, which the loop reaches at **12 degrees of heading
+error**, so beyond that it has no authority left.
+
 ### The rest
 
 - MaleCNS contains the VNC: 12,967 `vnc_intrinsic`, 699 `vnc_motor`.

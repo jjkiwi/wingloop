@@ -34,6 +34,16 @@ from wingloop.body.hinge import (  # noqa: E402
 MESH = Path(__file__).parent / "rwing_vertices.npy"
 FREQUENCY = 218.0
 
+#: Switches the yaw loop off.
+#:
+#: Every sensing and filter comparison below uses it, and deliberately. Those
+#: were measured before there was a yaw loop, in a regime where flight ended
+#: at 150-350 ms and the metric could tell settings apart. With yaw held the
+#: same settings all fly for a second or more and the comparison saturates --
+#: which is itself the finding, recorded in
+#: ``test_holding_yaw_is_worth_more_than_any_of_the_sensor_tuning``.
+YAW_OFF = {"yaw_gain": 0.0, "yaw_rate_gain": 0.0}
+
 try:
     SOURCE = neuromechfly_model()
 except Exception:  # pragma: no cover - FlyGym absent
@@ -458,10 +468,16 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
         )
 
     # The fly faces +x and its left is +y, so turning left is a positive turn.
+    #
+    # This asked for more than 100 degrees in 100 ms until yaw was stabilised,
+    # which it reached because nothing was holding the heading and the phase
+    # command simply span the animal. With the yaw loop closed the steering
+    # command moves the heading *setpoint* instead and the same 100 ms turns
+    # +2.4 left and -11.4 right against a -0.9 baseline. The claim was always
+    # the paired difference; the absolute number was the spin.
     left_object = heading(real, -45.0)
     right_object = heading(real, 45.0)
-    assert left_object > 100.0, left_object
-    assert right_object < 0.0, right_object
+    assert left_object > right_object + 5.0, (left_object, right_object)
 
     # Without bearing information every bearing gives the same heading, and it
     # is the one the stabiliser reaches on its own.
@@ -614,7 +630,7 @@ def test_realistic_kinematics_cut_the_torque_swing_and_still_fly_worse(
 
     def holds_until(**kwargs) -> float:
         b = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(**kwargs).fly(b, 0.60)
+        trace = HaltereController(**kwargs, **YAW_OFF).fly(b, 0.60)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
         return float(trace["t"][over[0]] * 1000) if len(over) else 600.0
@@ -723,7 +739,7 @@ def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
     def holds_until(tau: float) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
         trace = HaltereController(
-            sensing="lowpass", tau=tau, **gains_for(LOWPASS_BANDWIDTH)
+            sensing="lowpass", tau=tau, **{**gains_for(LOWPASS_BANDWIDTH), **YAW_OFF}
         ).fly(body, 0.40)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
@@ -765,7 +781,7 @@ def test_the_filter_optimum_is_a_spike_that_moves(rigid, wing, tmp_path):
             sensing="lowpass",
             tau=tau,
             amplitude=np.deg2rad(amplitude),
-            **gains_for(LOWPASS_BANDWIDTH),
+            **{**gains_for(LOWPASS_BANDWIDTH), **YAW_OFF},
         ).fly(body, 0.60)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
@@ -1065,7 +1081,9 @@ def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
 
     def holds_until(bandwidth: float, **kwargs) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(**kwargs, **gains_for(bandwidth)).fly(body, 0.60)
+        trace = HaltereController(**kwargs, **{**gains_for(bandwidth), **YAW_OFF}).fly(
+            body, 0.60
+        )
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
         return float(trace["t"][over[0]] * 1000) if len(over) else 600.0
@@ -1111,12 +1129,14 @@ def test_the_boxcar_nulls_the_wingbeat_rather_than_smearing_it(rigid, wing):
     # And it really is what the controller runs: a constant survives it and a
     # signal at the wingbeat does not.
     c = HaltereController(sensing="stroke", frequency=frequency)
-    steady = [c._filtered(0.3, 0.0, np.zeros(3), dt)[0] for _ in range(3 * n)][-1]
+    steady = [c._filtered(0.3, 0.0, 0.0, np.zeros(3), dt)[0] for _ in range(3 * n)][-1]
     assert steady == pytest.approx(0.3, abs=1e-12)
 
     c = HaltereController(sensing="stroke", frequency=frequency)
     out = [
-        c._filtered(np.sin(2 * np.pi * frequency * i * dt), 0.0, np.zeros(3), dt)[0]
+        c._filtered(
+            np.sin(2 * np.pi * frequency * i * dt), 0.0, 0.0, np.zeros(3), dt
+        )[0]
         for i in range(4 * n)
     ]
     assert max(abs(v) for v in out[2 * n :]) < 0.02
@@ -1153,3 +1173,156 @@ def test_the_pitch_tether_pins_through_the_centre_of_mass(rigid, wing, tmp_path)
     pitch, roll = attitude(body)
     assert np.degrees(pitch) == pytest.approx(5.73, abs=0.01)
     assert np.degrees(roll) == pytest.approx(0.0, abs=1e-9)
+
+
+@needs_model
+def test_holding_yaw_is_worth_more_than_any_of_the_sensor_tuning(
+    rigid, wing, tmp_path
+):
+    """The loop that was missing, and what it was worth.
+
+    Yaw was the one axis with nothing on it. It is also the light axis --
+    inertia 0.000591 against 0.002014 in pitch -- so it ran away fastest: a
+    normal flight reached +40 degrees of heading by 100 ms and -86 by 300, at
+    up to 1587 deg/s, while pitch and roll stayed inside ten.
+
+    Closing it roughly triples the flight. Everything above this spent its
+    effort on the pitch and roll loop's phase margin, and that was a
+    second-order effect next to this.
+    """
+    from wingloop.body.control import HaltereController
+
+    free = add_free_base(rigid[0], tmp_path / "yaw.xml", dofs="free")
+
+    def fly(seconds, **kw):
+        """Returns the trace cut to the samples that are still a flight.
+
+        Cut by **index**, not by time. MuJoCo resets the clock when it
+        diverges, so post-divergence samples carry small times and sail
+        through a ``t <= held`` mask while the recorded heading keeps
+        accumulating -- which reported 9000 degrees of spin inside a flight
+        whose heading never left ten. ``fly`` stops at the reset, so the last
+        good index is the first place time goes backwards.
+        """
+        body = FlightBody(free, wing, timestep=2e-5)
+        controller = HaltereController(**kw)
+        trace = controller.fly(body, seconds)
+        backwards = np.flatnonzero(np.diff(trace["t"]) < 0)
+        end = int(backwards[0]) + 1 if len(backwards) else len(trace["t"])
+        trace = {k: v[:end] for k, v in trace.items()}
+        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
+        over = np.flatnonzero(bad > 30.0)
+        end = int(over[0]) + 1 if len(over) else end
+        trace = {k: v[:end] for k, v in trace.items()}
+        return trace, float(trace["t"][-1] * 1000)
+
+    _, loose = fly(1.5, **YAW_OFF)
+    held_trace, held = fly(1.5)
+    assert held > 2.5 * loose, (loose, held)
+    assert held > 900.0, held
+
+    # And the heading it holds is a heading, not a slow spin: inside ten
+    # degrees at 200, 400, 600 and 800 ms, departing only in the last fifty
+    # milliseconds as the attitude goes.
+    for ms in (200, 400, 600, 800):
+        i = int(np.argmin(np.abs(held_trace["t"] - ms / 1000.0)))
+        assert abs(held_trace["heading"][i]) < 20.0, (ms, held_trace["heading"][i])
+
+
+@needs_model
+def test_only_the_phase_knob_yaws_and_it_does_so_linearly(rigid, wing):
+    """The authority the yaw gains are derived from, and the knob's isolation.
+
+    Rotation phase is the yaw control and amplitude is the roll control -- a
+    division the steering work found and this measures directly. Amplitude
+    asymmetry makes exactly zero yaw; the symmetric phase shift makes 0.0004;
+    the phase *asymmetry* makes 0.5666 per radian, odd in the knob and linear
+    to 3.6% of full scale.
+    """
+    from wingloop.body.control import TRIM_BIAS, YAW_PER_PHASE
+    from wingloop.body.flight import harmonic_stroke
+
+    body = FlightBody(
+        add_free_base(rigid[0], Path(MESH).parent / "yawauth.xml", dofs="free"),
+        wing,
+        timestep=2e-5,
+    )
+
+    def mean_torque(**kw):
+        acc = []
+        for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, amplitude=np.deg2rad(75.0), frequency=218.0,
+                bias=TRIM_BIAS, rates=True, **kw,
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            acc.append(body.wrench_about_com()[3:6])
+        return np.asarray(acc).mean(axis=0)
+
+    assert mean_torque()[2] == pytest.approx(0.0, abs=1e-6)
+    # Amplitude is the roll knob and makes no yaw whatever.
+    assert mean_torque(asymmetry=0.2)[2] == pytest.approx(0.0, abs=1e-6)
+    assert abs(mean_torque(asymmetry=0.2)[0]) > 5.0
+    # The symmetric phase shift is not a yaw control either.
+    assert abs(mean_torque(phase=0.2)[2]) < 0.001
+
+    values = np.array([-0.3, -0.15, 0.15, 0.3])
+    yaw = np.array([mean_torque(phase_asymmetry=v)[2] for v in values])
+    assert np.allclose(yaw, -yaw[::-1], atol=1e-6), "should be odd in the knob"
+    fit = np.polyfit(values, yaw, 1)[0]
+    assert fit == pytest.approx(YAW_PER_PHASE, rel=0.05), (fit, YAW_PER_PHASE)
+
+
+@needs_model
+def test_the_phase_knob_means_the_same_thing_in_both_stroke_generators(
+    rigid, wing, tmp_path
+):
+    """A bug the yaw loop found, because it was the first thing to use the knob.
+
+    ``PowerStroke`` added ``phase_asymmetry`` to a saturating velocity proxy
+    where ``harmonic_stroke`` rotates it inside the cosine. Same name, a
+    different physical quantity: **opposite in sign and thirty times larger**.
+    Nothing had noticed, because until there was a yaw loop nothing read the
+    knob's sign -- and then a loop with gains measured on one generator was
+    positive feedback on the other, and the muscle-driven flight dropped from
+    338 ms to 54.
+    """
+    from wingloop.body.control import TRIM_BIAS
+    from wingloop.body.flight import harmonic_stroke
+    from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
+
+    free = add_free_base(rigid[0], tmp_path / "convention.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+
+    oscillator = PowerOscillator(drive=3.0, load=aerodynamic_load(wing))
+    oscillator.angle = np.deg2rad(1.0)
+    generator = PowerStroke(oscillator)
+    for _ in range(int(0.25 / 2e-5)):
+        generator(2e-5)
+
+    def muscle_yaw(phase_asymmetry):
+        acc = []
+        for _ in range(int(3 / oscillator.frequency / 2e-5)):
+            angles, rates = generator(2e-5, phase_asymmetry=phase_asymmetry)
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            acc.append(body.wrench_about_com()[5])
+        return float(np.mean(acc))
+
+    def harmonic_yaw(phase_asymmetry):
+        acc = []
+        for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, amplitude=np.deg2rad(75.0), frequency=218.0, bias=TRIM_BIAS,
+                rates=True, phase_asymmetry=phase_asymmetry,
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            acc.append(body.wrench_about_com()[5])
+        return float(np.mean(acc))
+
+    for knob in (-0.3, -0.15, 0.15, 0.3):
+        a, b = muscle_yaw(knob), harmonic_yaw(knob)
+        assert np.sign(a) == np.sign(b), (knob, a, b)
+        assert 0.5 < abs(a) / abs(b) < 2.0, (knob, a, b)

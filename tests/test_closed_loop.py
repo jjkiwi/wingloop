@@ -15,6 +15,10 @@ from wingloop.body.control import (  # noqa: E402
     SteeringController,
     attitude,
 )
+
+#: Switches the yaw loop off, for the measurements that are about what yaw
+#: does when nothing holds it.
+YAW_OFF = {"yaw_gain": 0.0, "yaw_rate_gain": 0.0}
 from wingloop.body.flight import FlightBody  # noqa: E402
 from wingloop.body.hinge import (  # noqa: E402
     add_free_base,
@@ -112,8 +116,15 @@ def test_the_uncontrolled_fly_yaws_on_its_own(rig):
     """
     free, wing = rig
     body = FlightBody(free, wing, timestep=2e-5)
-    HaltereController().fly(body, 0.09)
+    # Explicitly uncontrolled: this is a statement about what yaw does when
+    # nothing holds it, and there is now a loop that does. With the loop on
+    # the same 90 ms drifts under half a degree.
+    HaltereController(**YAW_OFF).fly(body, 0.09)
     assert abs(_yaw(body)) > 10.0
+
+    held = FlightBody(free, wing, timestep=2e-5)
+    HaltereController().fly(held, 0.09)
+    assert abs(_yaw(held)) < 2.0, _yaw(held)
 
 
 @needs_model
@@ -138,9 +149,11 @@ def test_a_right_turn_command_yaws_left_first(rig):
     def yaw_at(ms: float, steering: bool) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
         controller = (
-            SteeringController(readout=flat, bearing=0.0, steer_mode="amplitude")
+            SteeringController(
+                readout=flat, bearing=0.0, steer_mode="amplitude", **YAW_OFF
+            )
             if steering
-            else HaltereController()
+            else HaltereController(**YAW_OFF)
         )
         controller.fly(body, ms / 1000.0)
         return _yaw(body)
@@ -149,10 +162,19 @@ def test_a_right_turn_command_yaws_left_first(rig):
     early = yaw_at(50, True) - yaw_at(50, False)
     assert early > 10.0, f"expected adverse yaw, got {early}"
 
-    # And it banks hard while doing it, which is what eventually turns it.
+    # And it banks while doing it, which is what eventually turns it.
+    #
+    # This asked for more than 30 degrees of bank until the steering
+    # controller stopped advancing the sensor filter twice per step -- it
+    # called the stabiliser and then recomputed the knobs, running the filter
+    # at double rate and halving the time constant everything else here argues
+    # about. With one advance per step the same 50 ms banks 11 degrees. The
+    # old number measured the bug.
     body = FlightBody(free, wing, timestep=2e-5)
-    SteeringController(readout=flat, bearing=0.0, steer_mode="amplitude").fly(body, 0.05)
-    assert np.degrees(attitude(body)[1]) > 30.0
+    SteeringController(
+        readout=flat, bearing=0.0, steer_mode="amplitude", **YAW_OFF
+    ).fly(body, 0.05)
+    assert np.degrees(attitude(body)[1]) > 8.0
 
 
 @needs_model
@@ -242,30 +264,24 @@ def test_phase_steering_turns_the_right_way_from_the_start(rig):
     free, wing = rig
 
     def yaw_at(ms: float, **kw) -> float:
-        body = FlightBody(free, wing, timestep=2e-5)
-        controller = HaltereController()
-        dt = float(body.model.opt.timestep)
-        from wingloop.body.control import angular_rate
+        """The stabiliser's own knobs, with a phase offset forced on top.
 
+        The yaw loop is off because this asks what the phase knob does to an
+        animal whose yaw nothing is holding -- with it on, the loop answers
+        the offset and the question does not arise.
+        """
+        body = FlightBody(free, wing, timestep=2e-5)
+        controller = HaltereController(**YAW_OFF)
+        dt = float(body.model.opt.timestep)
         for _ in range(int(ms / 1000.0 / dt)):
-            pitch, roll = attitude(body)
-            pitch, roll, rate = controller._filtered(
-                pitch, roll, angular_rate(body), dt
-            )
-            bias = (
-                controller.trim_bias
-                + controller.pitch_gain * pitch
-                + controller.pitch_rate_gain * rate[1]
-            )
-            asym = -controller.roll_gain * roll - controller.roll_rate_gain * rate[0]
+            knobs = controller.knobs(body)
+            knobs["phase_asymmetry"] += kw.get("phase_asymmetry", 0.0)
             angles, rates = harmonic_stroke(
                 body.t,
                 amplitude=controller.amplitude,
                 frequency=controller.frequency,
-                bias=float(np.clip(bias, -controller.max_bias, controller.max_bias)),
-                asymmetry=float(np.clip(asym, -0.45, 0.45)),
                 rates=True,
-                **kw,
+                **knobs,
             )
             body.set_wings(angles, rates)
             body.apply_aerodynamics()
