@@ -88,6 +88,72 @@ biggest population aimed at those muscles. DNbe001 and DNa08 are single pairs
 apiece, which is what command-type neurons look like, and they sit second and
 fourth.
 
+### The power channel, and the two channels apart
+
+The flight power muscles are in MaleCNS as 24 motor neurons across five types
+(DLMn a,b and c-f; DVMn 1a-c, 2a,b, 3a,b). Driving each descending family
+forward and recording both motor pools -- all 24 power motor neurons and all
+32 steering ones -- separates them cleanly:
+
+| family | power MNs | steering MNs | ratio | visual input |
+| --- | ---: | ---: | ---: | ---: |
+| DNg02 | 0.4366 | 0.0410 | 10.6x | 1.48% |
+| **DNa08** | 0.2676 | 0.0126 | **21.3x** | 0.71% |
+| **DNp31** | 0.1403 | 0.0071 | **19.7x** | 29.51% |
+| DNg110 | 0.0521 | 0.0052 | 10.0x | 0.64% |
+| DNbe001 | 0.0319 | 0.0151 | 2.1x | 20.40% |
+| DNa02 | 0.0000 | 0.0004 | 0.0x | 2.82% |
+
+Three regimes: power-selective by an order of magnitude, shared (DNbe001, the
+steering command), and steering-only (DNa02, which `flyloop` steers walking
+with and which reaches the power muscles not at all). `COMMAND_TYPES` takes
+DNa08 and DNp31 together -- 0.374 against 0.0185, **20x** -- and that is the
+signal `PowerReadout` turns into oscillator drive.
+
+DNg02 is the largest drive here *and* the least selective of the three, the
+same verdict its input shares gave: 18.4% of the power muscles' descending
+input against 9.1% of the steering muscles'. It is an amplitude control, not a
+throttle, which is what the physiology above says it is.
+
+**Two corrections this measurement forced, recorded because the wrong version
+was written down first.**
+
+1. *The separation is 20x, not 82x.* The first pass recorded four steering
+   types instead of all sixteen and reported 82x, with DNa08 and DNg02 coming
+   out infinitely selective. Against the whole apparatus neither is: the
+   ordering survives, the magnitude does not. A selectivity measured against
+   the muscles a command happens to miss is not a measurement of selectivity.
+2. *The throttle is not blind.* The power motor neurons take **0.00%** of
+   their input directly from visual neurons -- but so do the steering motor
+   neurons, exactly 0.00%, so direct blindness is a property of wing motor
+   neurons in general and separates nothing. And a synapse up the command is
+   the more visual of the two: **DNp31 29.51%** against DNbe001's 20.40%.
+   Vision can open this throttle. The scalar command in `PowerReadout` does
+   not use that, and the class says so rather than claiming an anatomy it
+   does not have.
+
+The method was checked against itself: the same visual-share computation
+returns 20.40% for DNbe001 and 29.51% for DNp31, so a 0.00% on the motor
+neurons is the data and not a broken query.
+
+### The whole stack, on a rail
+
+Command in the brain to altitude in a body, with nothing written down between
+them except the one activation-to-drive calibration. Two hundred milliseconds
+on a vertical rail:
+
+| command | stroke amplitude | height at 200 ms |
+| ---: | ---: | ---: |
+| 0.25 | 24.6 deg | -169 mm |
+| 0.50 | 48.7 deg | -93 mm |
+| 0.75 | 63.5 deg | +1.8 mm |
+| 1.00 | 71.2 deg | +100 mm |
+
+The hover point lands near three-quarter command. That is a consequence of the
+connectome curve and the calibration rather than something aimed at, and it is
+why the calibration was left where it is. Free flight at full command holds
+attitude for 227.5 ms and climbs 151 mm.
+
 ### The rest
 
 - MaleCNS contains the VNC: 12,967 `vnc_intrinsic`, 699 `vnc_motor`.

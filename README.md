@@ -390,6 +390,62 @@ degrees. A real wing is damped overwhelmingly by the air it is pushing: the
 oscillation grows until the muscle's power equals the air's, and without the
 air there is nothing to stop it.
 
+## The drive comes from the connectome too
+
+The oscillator above still took its drive as a number someone typed. The
+muscles it stands for have motor neurons in this connectome -- 24 of them,
+DLMn and DVMn -- so the number can be measured instead.
+
+Pushing each descending family forward and recording *both* motor pools, all
+24 power motor neurons and all 32 steering ones, sorts them into three kinds:
+
+| family | power MNs | steering MNs | ratio | visual input |
+| --- | ---: | ---: | ---: | ---: |
+| DNg02 | 0.4366 | 0.0410 | 10.6x | 1.48% |
+| **DNa08** | 0.2676 | 0.0126 | **21.3x** | 0.71% |
+| **DNp31** | 0.1403 | 0.0071 | **19.7x** | 29.51% |
+| DNbe001 | 0.0319 | 0.0151 | 2.1x | 20.40% |
+| DNa02 | 0.0000 | 0.0004 | 0.0x | 2.82% |
+
+Power-selective by an order of magnitude, shared, and steering-only. DNbe001 --
+the neuron this project steers with -- moves both pools alike and is no kind of
+throttle; DNa02, which carries every steering result in `flyloop`, does not
+reach the power muscles at all. `PowerReadout` takes DNa08 and DNp31: **0.374
+against 0.0185, a twentyfold separation**, turned into oscillator drive by one
+calibration that the class labels as a calibration.
+
+So the whole path runs from a command in the brain to altitude in a body. On a
+vertical rail, 200 ms:
+
+| command | stroke amplitude | height at 200 ms |
+| ---: | ---: | ---: |
+| 0.25 | 24.6 deg | -169 mm |
+| 0.50 | 48.7 deg | -93 mm |
+| 0.75 | 63.5 deg | **+1.8 mm** |
+| 1.00 | 71.2 deg | +100 mm |
+
+**The fly hovers at three-quarter throttle** -- a consequence of the connectome
+curve and the calibration, not a target. At full command in free flight it
+holds attitude for 227.5 ms and climbs 151 mm.
+
+### Two claims this cost
+
+Writing it up produced two statements that measurement then took back, and
+both are in the code where they were wrong rather than deleted.
+
+**The separation is 20x, not 82x.** The first pass recorded four steering
+types instead of all sixteen, and reported 82x with DNa08 and DNg02 coming out
+*infinitely* selective. Against the whole steering apparatus neither is. The
+ordering survived; the number did not. A selectivity measured against the
+muscles a command happens to miss is not a measurement of selectivity.
+
+**The throttle is not blind.** It was nearly written up as deliberately blind:
+the power motor neurons take 0.00% of their input directly from visual
+neurons. They do -- and so do the steering motor neurons, exactly 0.00%, so
+the fact separates nothing. Worse for the story, a synapse up this command is
+the *more* visual of the two: DNp31 at 29.51% against DNbe001's 20.40%. Vision
+can open this throttle. The scalar command does not use that, and now says so.
+
 ## What does not exist yet
 
 

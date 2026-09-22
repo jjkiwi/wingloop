@@ -305,11 +305,20 @@ class HaltereController:
             body.apply_aerodynamics()
             body._mj.mj_step(body.model, body.data)
             pitch, roll = attitude(body)
-            q = body.data.qpos
+            # A free base carries x, y, z; a vertical rail carries only z, and
+            # reading three numbers off a one-number qpos is an IndexError
+            # rather than a wrong answer -- which is the better failure, but
+            # still one worth not having.
+            if body.root_translation == 3:
+                x, y, z = (float(v) for v in body.data.qpos[body.root_dof : body.root_dof + 3])
+            elif body.root_translation == 1:
+                x, y, z = 0.0, 0.0, float(body.data.qpos[body.root_dof])
+            else:
+                x = y = z = 0.0
             out["t"].append(body.t)
-            out["x"].append(float(q[0]))
-            out["y"].append(float(q[1]))
-            out["z"].append(float(q[2]))
+            out["x"].append(x)
+            out["y"].append(y)
+            out["z"].append(z)
             out["pitch"].append(pitch)
             out["roll"].append(roll)
             out["tumble"].append(float(np.linalg.norm(angular_rate(body))))

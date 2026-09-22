@@ -752,3 +752,99 @@ def test_a_muscle_driven_stroke_flies(rigid, wing, tmp_path):
 
     # And the oscillator really did run: it is not sitting where it started.
     assert np.degrees(abs(oscillator.angle)) > 5.0
+
+
+@needs_model
+def test_the_connectome_command_sets_how_hard_it_flies(rigid, wing, tmp_path):
+    """The whole stack, end to end: a command in the brain, altitude in a body.
+
+    A flight command drives DNa08 and DNp31, the power motor neurons follow,
+    their activation becomes oscillator drive, the oscillator sets the stroke,
+    and the stroke decides whether the animal goes up or down. Nothing between
+    the command and the altitude is written down except the one calibration
+    that turns activation into drive.
+
+    On a vertical rail, which asks for force without asking for balance, the
+    measured result over 200 ms is a throttle with a hover point on it:
+
+    ======= ========= =========
+    command amplitude 200 ms
+    ======= ========= =========
+    0.25      24.6 deg  -169 mm
+    0.50      48.7 deg   -93 mm
+    0.75      63.5 deg   +1.8 mm
+    1.00      71.2 deg  +100 mm
+    ======= ========= =========
+
+    The fly hovers near three quarters of the command it has. That is a
+    consequence of the connectome curve and the calibration, not something
+    aimed at, and it is the reason the calibration was left where it is.
+    """
+    from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
+    from wingloop.brain.readout import PowerReadout
+
+    stored = dict(np.load(Path(__file__).parent / "power_command.npz"))
+    readout = PowerReadout(
+        command=stored["command"],
+        activation=stored["activation"],
+        steering=stored["steering"],
+    )
+    rail = add_free_base(rigid[0], tmp_path / "throttle.xml", dofs="z")
+    load = aerodynamic_load(wing)
+
+    def climb(command: float) -> tuple[float, float]:
+        oscillator = PowerOscillator(drive=readout.drive(command), load=load)
+        oscillator.angle = np.deg2rad(1.0)
+        body = FlightBody(rail, wing, timestep=2e-5)
+        generator = PowerStroke(oscillator)
+        peak = 0.0
+        for _ in range(int(0.20 / body.model.opt.timestep)):
+            angles, rates = generator(float(body.model.opt.timestep))
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            body._mj.mj_step(body.model, body.data)
+            peak = max(peak, abs(oscillator.angle))
+        return float(body.data.qpos[0]), float(np.degrees(peak))
+
+    heights, amplitudes = zip(
+        *(climb(c) for c in (0.25, 0.5, 0.75, 1.0)), strict=True
+    )
+
+    # More command is more stroke is more height, with no exceptions.
+    assert all(b > a for a, b in zip(amplitudes[:-1], amplitudes[1:], strict=True))
+    assert all(b > a for a, b in zip(heights[:-1], heights[1:], strict=True))
+
+    # And the throttle crosses weight between half and full command.
+    assert heights[0] < 0 and heights[-1] > 0
+    assert heights[1] < 0 < heights[3]
+
+
+@needs_model
+def test_no_command_is_no_flight(rigid, wing, tmp_path):
+    """The control for the test above: the rail only goes up when asked.
+
+    Without this, a climb would be evidence of nothing -- a body that rises
+    whatever the brain says is not being flown by it.
+    """
+    from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
+    from wingloop.brain.readout import PowerReadout
+
+    stored = dict(np.load(Path(__file__).parent / "power_command.npz"))
+    readout = PowerReadout(
+        command=stored["command"], activation=stored["activation"]
+    )
+    assert readout.drive(0.0) == pytest.approx(0.0, abs=1e-9)
+
+    rail = add_free_base(rigid[0], tmp_path / "idle.xml", dofs="z")
+    oscillator = PowerOscillator(drive=readout.drive(0.0), load=aerodynamic_load(wing))
+    oscillator.angle = np.deg2rad(1.0)
+    body = FlightBody(rail, wing, timestep=2e-5)
+    generator = PowerStroke(oscillator)
+    for _ in range(int(0.05 / body.model.opt.timestep)):
+        angles, rates = generator(float(body.model.opt.timestep))
+        body.set_wings(angles, rates)
+        body.apply_aerodynamics()
+        body._mj.mj_step(body.model, body.data)
+
+    assert np.degrees(abs(oscillator.angle)) < 1.0, "an undriven muscle decays"
+    assert body.data.qpos[0] < 0.0, "and the fly falls"

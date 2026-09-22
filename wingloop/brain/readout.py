@@ -140,3 +140,162 @@ class FlightReadout:
     def span(self) -> float:
         """How much command the whole visual field is worth."""
         return float(self.command.max() - self.command.min())
+
+
+#: Motor neuron types of the flight power muscles: the dorsal longitudinals
+#: that drive the downstroke and the dorsoventrals that drive the upstroke.
+POWER_TYPES = ("DLMn a, b", "DLMn c-f", "DVMn 1a-c", "DVMn 2a, b", "DVMn 3a, b")
+
+#: Descending neurons used as the flight command, chosen by measurement.
+#:
+#: Of everything that reaches the power motor neurons, these two are the
+#: power-selective ones: DNp31 supplies 20.2% of their descending input
+#: against 1.9% of the steering muscles', and DNa08 12.6% against 3.5%.
+#: DNg02 is larger still on the power muscles at 18.4% but drives the steering
+#: muscles just as hard at 9.1%, so it is not a throttle.
+#:
+#: Driven together they raise the power motor neurons to 0.374 while leaving
+#: the steering motor neurons at 0.019 -- a twentyfold separation, which is
+#: what makes this a throttle channel rather than a second steering one.
+COMMAND_TYPES = ("DNa08", "DNp31")
+
+#: The whole wing steering apparatus, one motor neuron per side, as MaleCNS
+#: names it: 32 neurons.
+#:
+#: **All of it, deliberately.** An earlier version of this recorded four types
+#: and reported the command as 82x selective. Against the full pool it is 20x.
+#: Both numbers are real; only the second is about the steering apparatus, and
+#: a selectivity measured against the muscles a command happens to miss is not
+#: a measurement of selectivity.
+STEERING_MN_TYPES = (
+    "b1 MN", "b2 MN", "b3 MN",
+    "i1 MN", "i2 MN",
+    "iii1 MN", "iii3 MN",
+    "hg1 MN", "hg2 MN", "hg3 MN", "hg4 MN",
+    "ps1 MN", "ps2 MN",
+    "tp1 MN", "tp2 MN", "tpn MN",
+)
+
+#: Oscillator drive per unit of power motor neuron activity.
+#:
+#: **A calibration, not a measurement.** The rate model returns activations in
+#: arbitrary units and :class:`~wingloop.body.power.PowerOscillator` wants a
+#: dimensionless gain, so something has to bridge them. This is set so a full
+#: command produces the drive that gives a hovering-sized stroke, and it is
+#: the same kind of free parameter as the coupling gain in `flyloop`: every
+#: result computed through it has to be read with it in view.
+DRIVE_PER_ACTIVATION = 8.0
+
+
+def power_response(connectome, *, levels=(0.0, 0.25, 0.5, 0.75, 1.0), hops: int = 4):
+    """Power motor neuron activity against flight command level.
+
+    Injects at :data:`COMMAND_TYPES` and propagates, which is the command
+    formulation: the brain decides to fly, the command neurons fire, the power
+    muscles follow. The steering motor neurons are recorded alongside so the
+    separation between the two channels stays visible rather than assumed --
+    and so it can be checked against a family that does not separate them, as
+    :class:`PowerReadout` tabulates.
+    """
+    try:
+        import numpy as _np
+        from flyloop.brain.rate import rate_brain, steady_state
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise ImportError(_HINT) from exc
+
+    types = connectome.neurons["type"].astype(str)
+    command = _np.flatnonzero(types.isin(COMMAND_TYPES).to_numpy())
+    if len(command) == 0:
+        raise KeyError(f"connectome has none of {COMMAND_TYPES}")
+    record = {
+        "power": _np.flatnonzero(types.isin(POWER_TYPES).to_numpy()),
+        "steering": _np.flatnonzero(types.isin(STEERING_MN_TYPES).to_numpy()),
+    }
+    if len(record["power"]) == 0:
+        raise KeyError("connectome has no power muscle motor neurons")
+
+    brain = rate_brain(connectome, command, num_layers=hops)
+    out = {"command": _np.asarray(levels, dtype=float), "power": [], "steering": []}
+    for level in levels:
+        drive = _np.full(len(command), float(level), dtype=_np.float32)
+        res = brain.run(steady_state(drive, hops), record=record)
+        for key in ("power", "steering"):
+            out[key].append(float(res.populations[key].max()))
+    out["power"] = _np.asarray(out["power"])
+    out["steering"] = _np.asarray(out["steering"])
+    return out
+
+
+@dataclass
+class PowerReadout:
+    """Flight command in, oscillator drive out, through the power muscles.
+
+    The counterpart of :class:`FlightReadout`: a scalar throttle, with no
+    bearing in it. What makes that the right shape is **selectivity of
+    drive**, measured by pushing each descending family forward and recording
+    both motor pools (peak activation over four hops, against all 32 steering
+    motor neurons -- see :data:`STEERING_MN_TYPES` for why all of them):
+
+    ========  ==========  ============  ======  =========
+    family    power MNs   steering MNs  ratio   visual in
+    ========  ==========  ============  ======  =========
+    DNg02        0.4366       0.0410     10.6x      1.48%
+    DNa08        0.2676       0.0126     21.3x      0.71%
+    DNp31        0.1403       0.0071     19.7x     29.51%
+    DNg110       0.0521       0.0052     10.0x      0.64%
+    DNbe001      0.0319       0.0151      2.1x     20.40%
+    DNa02        0.0000       0.0004      0.0x      2.82%
+    ========  ==========  ============  ======  =========
+
+    Three regimes, and the dissociation is what the claim rests on: families
+    that move the power muscles an order of magnitude harder than the steering
+    ones, one that moves both about alike (DNbe001, 2.1x -- the steering
+    command, and no kind of throttle), and one that moves steering only
+    (DNa02). :data:`COMMAND_TYPES` takes DNa08 and DNp31, the two most
+    selective: 0.374 against 0.0185, **20x**.
+
+    Note where DNg02 sits. It is the largest drive by some way and the least
+    selective of the three, which is the same verdict the input shares gave
+    when the command was chosen -- 18.4% of the power muscles' descending
+    input but 9.1% of the steering muscles'. It belongs to amplitude control,
+    which is a different job from opening a throttle.
+
+    **And one claim measurement took away.** The power motor neurons receive
+    0.00% of their input directly from visual neurons -- but so do the
+    steering motor neurons, exactly 0.00%. Direct blindness is a property of
+    wing motor neurons in general and separates nothing, so it is not a reason
+    for anything, and the throttle is not blind a synapse up either: DNp31,
+    half of this command, draws **29.51%** of its input from visual neurons,
+    more than the 20.40% of DNbe001, which is the steering command. Vision can
+    open this throttle. For a fly flying *toward* something that is a feature,
+    but it was not designed in and it is not what the scalar command models.
+    """
+
+    command: np.ndarray
+    activation: np.ndarray
+    gain: float = DRIVE_PER_ACTIVATION
+    steering: np.ndarray | None = None
+
+    @classmethod
+    def measure(cls, connectome, *, gain: float = DRIVE_PER_ACTIVATION, **kw):
+        curve = power_response(connectome, **kw)
+        return cls(
+            command=curve["command"],
+            activation=curve["power"],
+            gain=gain,
+            steering=curve["steering"],
+        )
+
+    def drive(self, command: float) -> float:
+        """Oscillator drive for a flight command in [0, 1]."""
+        return float(
+            self.gain * np.interp(command, self.command, self.activation)
+        )
+
+    @property
+    def separation(self) -> float:
+        """How much more this command moves the power muscles than the steering
+        ones, at full command. Large is what makes it a throttle."""
+        if self.steering is None or self.steering[-1] == 0:
+            return float("inf")
+        return float(self.activation[-1] / self.steering[-1])
