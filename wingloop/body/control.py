@@ -26,6 +26,19 @@ not assumed:
 
 Yaw is not controlled. Nothing in this stroke produces much of it, and adding a
 third loop before the first two work would be tuning in the dark.
+
+**A second loop, on a second variable.** :class:`Throttle` closes altitude the
+same way, through the connectome's power channel rather than these two knobs:
+height error into a flight command, and the command into how hard the muscle
+pulls. It is a separate loop because it acts on a separate thing -- which way
+the animal points against how hard it flies -- and because the wings serve
+both, the two add on the same stroke, exactly as steering and roll do.
+
+It does not extend the flight. Free, with both loops closed, the animal holds
+attitude for 216.7 ms against 227.5 at a held full command: the limit is still
+the attitude loop's phase margin, and closing a loop on height was never going
+to move it. What it changes is that the height stops being a side effect of
+whichever command was typed.
 """
 
 from __future__ import annotations
@@ -101,6 +114,51 @@ def attitude(body) -> tuple[float, float]:
     return float(-np.arcsin(np.clip(r[2, 0], -1.0, 1.0))), float(
         np.arcsin(np.clip(r[2, 1], -1.0, 1.0))
     )
+
+
+#: Vertical acceleration per unit flight command, mm/s^2. Measured on the rail
+#: by sweeping the command and fitting the slope of the vertical velocity once
+#: the muscle has settled: the response is linear to the eye across 0.5 to 1.0.
+#:
+#: This is the altitude loop's control authority, and the gains below are
+#: derived from it and the wingbeat rather than tuned, the same way the
+#: attitude gains come from :data:`PITCH_PER_BIAS` and the body's inertia.
+CLIMB_PER_COMMAND = 21038.0
+
+#: Flight command at which lift equals weight, so the animal neither climbs nor
+#: sinks. The zero crossing of the same sweep.
+#:
+#: Not the same number as the break-even on a 200 ms rail run, which is nearer
+#: 0.75: that one starts from rest and spends the first wingbeats falling while
+#: the muscle spins up, so it has height to make back. This is the steady
+#: state, and it is what the loop trims around.
+HOVER_COMMAND = 0.695
+
+#: Altitude loop bandwidth, rad/s, and its damping.
+#:
+#: Half the attitude loop's 40: an animal cannot usefully chase a height faster
+#: than it can hold the attitude it climbs on, and this loop acts through the
+#: same wings. Critically damped, because an altitude loop that overshoots
+#: downwards has a floor to hit.
+ALTITUDE_BANDWIDTH = 20.0
+ALTITUDE_DAMPING = 1.0
+
+
+def altitude(body) -> tuple[float, float]:
+    """Height and climb rate, in millimetres and mm/s.
+
+    Read from the simulator, as :func:`attitude` is, rather than through a
+    modelled sense organ. In the animal height comes from vision -- ventral
+    optic flow -- and nothing here stands in for that; what this asserts is
+    only that the signal exists, not how it is obtained.
+    """
+    if body.root_translation == 3:
+        i = body.root_dof
+        return float(body.data.qpos[i + 2]), float(body.data.qvel[i + 2])
+    if body.root_translation == 1:
+        i = body.root_dof
+        return float(body.data.qpos[i]), float(body.data.qvel[i])
+    return 0.0, 0.0
 
 
 def angular_rate(body) -> np.ndarray:
@@ -202,6 +260,11 @@ class HaltereController:
     #: ``frequency`` stop being inputs to it. The loop does not care which:
     #: it works the same two knobs either way.
     stroke: object = None
+    #: An optional :class:`Throttle`. Given one, how hard the animal flies is
+    #: no longer an argument either: the altitude loop sets the oscillator's
+    #: drive every step from the height error. Attitude and altitude are then
+    #: two loops on the same wings, which is the arrangement the animal has.
+    throttle: object = None
 
     def _integrate(self, pitch, roll, dt):
         """Accumulate the attitude error, bounded."""
@@ -233,6 +296,8 @@ class HaltereController:
 
     def command(self, body, t: float):
         """Stroke angles and rates for this instant, with the loop closed."""
+        if self.throttle is not None:
+            self.throttle.update(body, float(body.model.opt.timestep))
         pitch, roll = attitude(body)
         rate = angular_rate(body)
         pitch, roll, rate = self._filtered(
@@ -282,7 +347,10 @@ class HaltereController:
         steps = int(round(seconds / body.model.opt.timestep))
         out = {
             k: []
-            for k in ("t", "x", "y", "z", "pitch", "roll", "tumble", "bearing", "heading")
+            for k in (
+                "t", "x", "y", "z", "pitch", "roll", "tumble", "bearing",
+                "heading", "throttle",
+            )
         }
         # Heading is accumulated rather than read from atan2 each step. With the
         # loop tuned, a steering command can carry the animal past half a turn
@@ -323,6 +391,9 @@ class HaltereController:
             out["roll"].append(roll)
             out["tumble"].append(float(np.linalg.norm(angular_rate(body))))
             out["bearing"].append(float(getattr(self, "bearing", 0.0)))
+            out["throttle"].append(
+                float(self.throttle.last) if self.throttle is not None else float("nan")
+            )
             m = body.data.xmat[body.root_body].reshape(3, 3) if body.root_body else None
             raw = float(np.arctan2(m[1, 0], m[0, 0])) if m is not None else 0.0
             if previous is not None:
@@ -462,3 +533,102 @@ class SteeringController(HaltereController):
                 phase_asymmetry=phase_asymmetry,
             )
         return angles, rates
+
+
+@dataclass
+class Throttle:
+    """The altitude loop: how high the animal is, back onto how hard it flies.
+
+    Everything above this closed a loop around *attitude* -- which way the
+    animal points -- and left how hard it flaps as a number someone chose.
+    That is an animal that can stay upright while it sinks. This closes the
+    other loop, through the channel the connectome supplies: height error into
+    a flight command, the command into power motor neuron activity through
+    :class:`~wingloop.brain.readout.PowerReadout`, the activity into oscillator
+    drive, and the drive into stroke amplitude.
+
+    The law is the same shape as the attitude one and its gains come from the
+    same place -- a measured authority, not a knob::
+
+        command = hover - (w^2 (z - z*) + 2 zeta w zdot) / CLIMB_PER_COMMAND
+
+    so ``bandwidth`` and ``damping`` are the only choices, and both are
+    argued for where they are defined.
+
+    **The filter turned out to matter much less than the attitude loop's**,
+    which is not what was written here first. Holding zero on the rail for
+    600 ms, against the time constant:
+
+    ======  ============  ===============
+    tau     command swing altitude error
+    ======  ============  ===============
+    0 ms       0.0128        0.126 mm
+    1 ms       0.0044        0.028 mm
+    5 ms       0.0011        0.054 mm
+    20 ms      0.0007        0.064 mm
+    50 ms      0.0550        0.910 mm
+    ======  ============  ===============
+
+    Unfiltered the loop still holds height to a tenth of a millimetre and puts
+    1.3% of stroke ripple into the command: worth removing, not what the loop
+    stands or falls on. The end that bites is the other one, and it is the
+    familiar one -- at 50 ms the lag has eaten the phase margin and both the
+    ripple and the error jump by an order of magnitude. Why heave tolerates
+    what pitch does not is **not established here**: the obvious guess, that
+    the body's mass integrates the stroke ripple away before the loop sees it,
+    is wrong -- measured against its own mean, heave velocity ripples *more*
+    than pitch rate does (3.5 against 1.7). The number is kept at the attitude
+    loop's 5 ms because nothing measured argues for moving it.
+    """
+
+    #: The connectome channel this loop acts through.
+    readout: object
+    #: The muscle it sets the drive of.
+    oscillator: object
+    #: Height to hold, millimetres, in whatever frame the body reports.
+    target: float = 0.0
+    bandwidth: float = ALTITUDE_BANDWIDTH
+    damping: float = ALTITUDE_DAMPING
+    tau: float = 0.005
+    hover: float = HOVER_COMMAND
+    authority: float = CLIMB_PER_COMMAND
+    #: Hold this command and ignore the height instead of closing the loop.
+    #: The open-loop control the closed-loop results are measured against.
+    held: float | None = None
+    #: The command most recently issued, for the trace to record.
+    last: float = float("nan")
+
+    _state: dict = field(default_factory=dict)
+
+    def _filtered(self, z, w, dt):
+        a = dt / (self.tau + dt)
+        if not self._state:
+            self._state = {"z": z, "w": w}
+        else:
+            self._state["z"] += a * (z - self._state["z"])
+            self._state["w"] += a * (w - self._state["w"])
+        return self._state["z"], self._state["w"]
+
+    def command(self, z: float, w: float, dt: float) -> float:
+        """Flight command for this height and climb rate, in [0, 1]."""
+        if self.held is not None:
+            return float(np.clip(self.held, 0.0, 1.0))
+        z, w = self._filtered(z, w, dt)
+        wanted = -(
+            self.bandwidth**2 * (z - self.target)
+            + 2.0 * self.damping * self.bandwidth * w
+        )
+        return float(np.clip(self.hover + wanted / self.authority, 0.0, 1.0))
+
+    def update(self, body, dt: float) -> float:
+        """Read the body, set the muscle's drive, and report the command.
+
+        Called once per step and only once: :meth:`command` advances the
+        filter, so a second call for the sake of recording the number would
+        halve the time constant that the docstring above argues for. The
+        command is kept in :attr:`last` for whoever wants to look at it.
+        """
+        z, w = altitude(body)
+        self.last = self.command(z, w, dt)
+        self.oscillator.drive = self.readout.drive(self.last)
+        return self.last

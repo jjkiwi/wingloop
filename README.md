@@ -446,6 +446,63 @@ the fact separates nothing. Worse for the story, a synapse up this command is
 the *more* visual of the two: DNp31 at 29.51% against DNbe001's 20.40%. Vision
 can open this throttle. The scalar command does not use that, and now says so.
 
+## Closing the throttle loop
+
+The command above was still a number someone chose, held for the whole flight.
+So the animal could stay upright while it sank -- and does: **even at the
+measured hover command it loses 64 mm over 600 ms**, because it spends the
+first wingbeats falling while the muscle spins up and a constant never makes
+that back. A tenth below and it drops 412 mm; a tenth above and it climbs 324.
+
+`Throttle` closes it, through the channel the connectome supplies -- height
+error to flight command, command to power motor neuron activity, activity to
+drive, drive to stroke amplitude. The law is the attitude loop's shape and its
+gains come from the same place, a measured authority rather than a knob:
+
+```
+command = hover - (w^2 (z - z*) + 2 zeta w zdot) / CLIMB_PER_COMMAND
+```
+
+Both constants are swept, not assumed: **21038 mm/s^2 of vertical acceleration
+per unit command**, linear from 0.5 to 1.0, crossing zero at a **hover command
+of 0.695**. Bandwidth is 20 rad/s -- half the attitude loop's, because an
+animal cannot chase a height faster than it can hold the attitude it climbs on
+-- and critically damped, because an altitude loop that overshoots downward has
+a floor to hit.
+
+| | held 0.60 | held 0.695 | held 0.80 | **closed** |
+| --- | ---: | ---: | ---: | ---: |
+| height after 600 ms | -412 mm | -64 mm | +324 mm | **-0.03 mm** |
+
+Asked for 30 mm from a standing start it arrives in 219 ms and overshoots by
+0.03. It dips 2.2 mm while the muscle starts and never again.
+
+### What it leans on, and what it does not buy
+
+There is no integral term, so the loop is exactly as accurate as the hover
+trim: a trim wrong by `d` settles `d * 21038 / 20^2` from the target. At 0.65
+against a true 0.695 that predicts -2.37 mm and the body gives **-2.40**; at
+0.75 it predicts +2.89 and gives **+2.86**. That is asserted as a number in the
+tests, so the constant cannot rot quietly behind a loop that still looks like
+it works.
+
+And it does not buy flight time. Free, with both loops closed, attitude holds
+216.7 ms against 227.5 at a held full command -- the limit is still phase
+margin in the attitude loop, as it has been since that was identified, and
+closing a loop on height was never going to move it. What changes is that at
+200 ms the animal is at 41.7 mm on its way to a commanded 50, instead of 95 on
+its way to wherever.
+
+One more claim measurement took back. The filter on the sensed climb rate was
+written up as *not optional* -- by analogy with the attitude loop, where it is
+the single most important number. Swept, it is nearly optional at the bottom:
+unfiltered the loop still holds a tenth of a millimetre and puts 1.3% of stroke
+ripple into the command. The end that bites is the top, at 50 ms, where lag
+eats the phase margin and the error jumps to 0.91 mm. Why heave tolerates what
+pitch does not is not established; the obvious guess -- that the body's mass
+integrates the ripple away -- is wrong, since heave velocity ripples *more*
+against its own mean than pitch rate does, 3.5 against 1.7.
+
 ## What does not exist yet
 
 

@@ -848,3 +848,126 @@ def test_no_command_is_no_flight(rigid, wing, tmp_path):
 
     assert np.degrees(abs(oscillator.angle)) < 1.0, "an undriven muscle decays"
     assert body.data.qpos[0] < 0.0, "and the fly falls"
+
+
+@needs_model
+def test_the_throttle_loop_holds_a_height_that_no_fixed_command_holds(
+    rigid, wing, tmp_path
+):
+    """Closing the second loop: how high it is, back onto how hard it flies.
+
+    The control is the point. A *held* command cannot hold a height, even the
+    right one: at the measured hover command the animal still sinks 64 mm over
+    600 ms, because it spends the first wingbeats falling while the muscle
+    spins up and proportional-to-nothing never makes that back. Below it sinks
+    412 mm and above it climbs 324. Closed, the same body holds zero to within
+    0.04 mm.
+    """
+    from wingloop.body.control import HOVER_COMMAND, HaltereController, Throttle
+    from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
+    from wingloop.brain.readout import PowerReadout
+
+    stored = dict(np.load(Path(__file__).parent / "power_command.npz"))
+    readout = PowerReadout(command=stored["command"], activation=stored["activation"])
+    rail = add_free_base(rigid[0], tmp_path / "throttle_loop.xml", dofs="z")
+    load = aerodynamic_load(wing)
+
+    def fly(seconds=0.6, **throttle):
+        oscillator = PowerOscillator(drive=0.0, load=load)
+        oscillator.angle = np.deg2rad(1.0)
+        body = FlightBody(rail, wing, timestep=2e-5)
+        controller = HaltereController(
+            stroke=PowerStroke(oscillator),
+            throttle=Throttle(readout=readout, oscillator=oscillator, **throttle),
+        )
+        return controller.fly(body, seconds)
+
+    # Open loop, including at the command that hovers: height is whatever the
+    # command made it.
+    assert fly(held=0.60)["z"][-1] < -300.0
+    assert fly(held=0.80)["z"][-1] > 250.0
+    assert fly(held=HOVER_COMMAND)["z"][-1] < -50.0
+
+    # Closed, on the same body.
+    trace = fly(target=0.0)
+    late = trace["t"] > 0.5
+    assert np.abs(trace["z"][late]).max() < 1.0, np.abs(trace["z"][late]).max()
+    assert trace["z"].min() > -10.0, "and it barely dips while the muscle starts"
+
+    # The loop really is working the connectome channel, not a constant.
+    assert trace["throttle"].max() > trace["throttle"].min() + 0.1
+    assert trace["throttle"][-1] == pytest.approx(HOVER_COMMAND, abs=0.02)
+
+
+@needs_model
+def test_it_climbs_to_a_commanded_height_without_overshooting(rigid, wing, tmp_path):
+    """Critically damped on purpose: an altitude loop that overshoots down has
+    a floor to hit. Asked for 30 mm from a standing start it arrives in 219 ms
+    and goes past by 0.03."""
+    from wingloop.body.control import HaltereController, Throttle
+    from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
+    from wingloop.brain.readout import PowerReadout
+
+    stored = dict(np.load(Path(__file__).parent / "power_command.npz"))
+    readout = PowerReadout(command=stored["command"], activation=stored["activation"])
+    rail = add_free_base(rigid[0], tmp_path / "step.xml", dofs="z")
+
+    oscillator = PowerOscillator(drive=0.0, load=aerodynamic_load(wing))
+    oscillator.angle = np.deg2rad(1.0)
+    body = FlightBody(rail, wing, timestep=2e-5)
+    controller = HaltereController(
+        stroke=PowerStroke(oscillator),
+        throttle=Throttle(readout=readout, oscillator=oscillator, target=30.0),
+    )
+    trace = controller.fly(body, 0.8)
+
+    assert trace["z"].max() < 31.0, "overshoot"
+    assert np.abs(trace["z"][trace["t"] > 0.7] - 30.0).max() < 1.0
+    # It got there by flying harder and then backing off, not by drifting up.
+    rising = trace["throttle"][trace["t"] < 0.1].max()
+    assert rising > 0.9 and trace["throttle"][-1] < 0.75
+
+
+@needs_model
+def test_a_mis_measured_hover_point_costs_exactly_what_it_should(
+    rigid, wing, tmp_path
+):
+    """What the loop leans on, stated as a number rather than trusted.
+
+    There is no integral term, so the loop is only as accurate as
+    ``HOVER_COMMAND``: a trim that is wrong by ``d`` settles at
+    ``d * CLIMB_PER_COMMAND / bandwidth**2`` away from the target, below it if
+    the trim is low. At 0.65 against a true 0.695 that is -2.37 mm, and the
+    body settles at -2.40.
+
+    A test that only checked "it holds a height" would pass with the trim
+    wrong; this one says how wrong, so the constant cannot rot quietly.
+    """
+    from wingloop.body.control import (
+        ALTITUDE_BANDWIDTH,
+        CLIMB_PER_COMMAND,
+        HOVER_COMMAND,
+        HaltereController,
+        Throttle,
+    )
+    from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
+    from wingloop.brain.readout import PowerReadout
+
+    stored = dict(np.load(Path(__file__).parent / "power_command.npz"))
+    readout = PowerReadout(command=stored["command"], activation=stored["activation"])
+    rail = add_free_base(rigid[0], tmp_path / "trim.xml", dofs="z")
+    load = aerodynamic_load(wing)
+
+    for assumed in (0.65, 0.75):
+        oscillator = PowerOscillator(drive=0.0, load=load)
+        oscillator.angle = np.deg2rad(1.0)
+        body = FlightBody(rail, wing, timestep=2e-5)
+        controller = HaltereController(
+            stroke=PowerStroke(oscillator),
+            throttle=Throttle(
+                readout=readout, oscillator=oscillator, target=0.0, hover=assumed
+            ),
+        )
+        settled = float(controller.fly(body, 0.6)["z"][-1])
+        predicted = (assumed - HOVER_COMMAND) * CLIMB_PER_COMMAND / ALTITUDE_BANDWIDTH**2
+        assert settled == pytest.approx(predicted, abs=0.15), (assumed, settled, predicted)

@@ -154,6 +154,25 @@ connectome curve and the calibration rather than something aimed at, and it is
 why the calibration was left where it is. Free flight at full command holds
 attitude for 227.5 ms and climbs 151 mm.
 
+### The altitude loop's two constants
+
+Both swept on the rail rather than assumed, by fitting the vertical velocity
+once the muscle has settled:
+
+| flight command | stroke amplitude | vertical acceleration |
+| ---: | ---: | ---: |
+| 0.50 | 49.9 deg | -3956 mm/s^2 |
+| 0.60 | 57.8 deg | -1995 |
+| 0.70 | 65.2 deg | +89 |
+| 0.80 | 72.0 deg | +2186 |
+| 0.90 | 78.2 deg | +4267 |
+| 1.00 | 84.1 deg | +6394 |
+
+**21038 mm/s^2 per unit command**, linear across the range, crossing zero at a
+**hover command of 0.695**. That is not the same as the break-even on a 200 ms
+rail run, which is nearer 0.75: that one starts from rest and spends its first
+wingbeats falling while the muscle spins up, so it has height to make back.
+
 ### The rest
 
 - MaleCNS contains the VNC: 12,967 `vnc_intrinsic`, 699 `vnc_motor`.
