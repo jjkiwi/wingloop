@@ -196,6 +196,12 @@ class HaltereController:
     _state: dict = field(default_factory=dict)
     #: Where a run stopped because the simulation diverged, seconds, or None.
     diverged_at: float | None = None
+    #: An optional stroke generator. Given one -- a
+    #: :class:`~wingloop.body.power.PowerStroke` -- the sweep is produced by a
+    #: muscle model rather than written down, and ``amplitude`` and
+    #: ``frequency`` stop being inputs to it. The loop does not care which:
+    #: it works the same two knobs either way.
+    stroke: object = None
 
     def _integrate(self, pitch, roll, dt):
         """Accumulate the attitude error, bounded."""
@@ -242,12 +248,22 @@ class HaltereController:
             + i_pitch
         )
         asymmetry = -self.roll_gain * roll - self.roll_rate_gain * rate[0] - i_roll
+        return self._stroke(
+            t,
+            body,
+            bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
+            asymmetry=float(np.clip(asymmetry, -self.max_asymmetry, self.max_asymmetry)),
+        )
+
+    def _stroke(self, t, body, **knobs):
+        """The stroke, from a generator when there is one and a sine otherwise."""
+        if self.stroke is not None:
+            return self.stroke(float(body.model.opt.timestep), **knobs)
         return harmonic_stroke(
             t,
             amplitude=self.amplitude,
             frequency=self.frequency,
-            bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
-            asymmetry=float(np.clip(asymmetry, -self.max_asymmetry, self.max_asymmetry)),
+            **knobs,
             **self.shape,
         )
 
@@ -429,13 +445,11 @@ class SteeringController(HaltereController):
                 )
             else:
                 asym += extra
-            angles, rates = harmonic_stroke(
+            angles, rates = self._stroke(
                 t,
-                amplitude=self.amplitude,
-                frequency=self.frequency,
+                body,
                 bias=float(np.clip(bias, -self.max_bias, self.max_bias)),
                 asymmetry=float(np.clip(asym, -self.max_asymmetry, self.max_asymmetry)),
                 phase_asymmetry=phase_asymmetry,
-                **self.shape,
             )
         return angles, rates

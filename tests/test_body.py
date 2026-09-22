@@ -718,3 +718,37 @@ def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
 
     assert holds_until(0.005) > 1.5 * holds_until(0.020)
     assert holds_until(0.005) > holds_until(0.003)
+
+
+@needs_model
+def test_a_muscle_driven_stroke_flies(rigid, wing, tmp_path):
+    """The last thing that was still being written down rather than produced.
+
+    The sweep now comes out of a stretch-activated oscillator working against
+    the air, so its amplitude and frequency are consequences of the neural
+    drive and the load. The animal flies on it: attitude held past 200 ms and
+    180 mm of altitude, against 148 for the prescribed sine, because the
+    muscle settles on a larger stroke than the sine was told to make.
+
+    Rotation is still commanded, which is the division the animal has: power
+    muscles asynchronous, steering muscles synchronous.
+    """
+    from wingloop.body.control import HaltereController
+    from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
+
+    free = add_free_base(rigid[0], tmp_path / "muscle.xml", dofs="free")
+    oscillator = PowerOscillator(drive=3.0, load=aerodynamic_load(wing))
+    oscillator.angle = np.deg2rad(1.0)
+
+    body = FlightBody(free, wing, timestep=2e-5)
+    controller = HaltereController(stroke=PowerStroke(oscillator))
+    trace = controller.fly(body, 0.30)
+
+    bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
+    over = np.flatnonzero(bad > 30.0)
+    held = float(trace["t"][over[0]] * 1000) if len(over) else 300.0
+    assert held > 150.0, held
+    assert trace["z"][-1] > 100.0, trace["z"][-1]
+
+    # And the oscillator really did run: it is not sitting where it started.
+    assert np.degrees(abs(oscillator.angle)) > 5.0

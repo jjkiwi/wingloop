@@ -352,9 +352,46 @@ a peak-hold, not a memory -- and inflated mean lift 8.6-fold. And unpacking
 force is applied along, a few lines above: a vector times a scalar, broadcast
 across three axes, reported as 364 of lift where the wing was making 27.
 
+## The stroke is produced, not written down
+
+Everything above handed the wings a stroke and asked what forces it made. That
+validates a force model and assumes the answer to the question the animal
+poses, because the frequency, amplitude and waveform were all written down.
+
+*Drosophila* power muscles are **asynchronous**: stretch-activated rather than
+driven one spike to one contraction, with the downstroke and upstroke groups
+coupled through the thorax so each stretches the other. The nervous system
+sets how hard they pull; the resonance sets how fast. `PowerOscillator` is
+that, as a resonant second-order system with a delayed stretch-activation
+term and the aerodynamic load it works against.
+
+| neural drive | amplitude | frequency |
+| ---: | ---: | ---: |
+| 0.0 | **0.0 deg** (it stops) | -- |
+| 0.5 | 15.7 deg | 217.9 Hz |
+| 1.0 | 32.9 deg | 217.3 Hz |
+| 2.0 | 62.3 deg | 216.1 Hz |
+| 3.0 | 86.2 deg | 215.3 Hz |
+
+**Amplitude rises fivefold; frequency moves 1.2%.** That is the asynchronous
+signature, and it is what the model predicts rather than what it was told: a
+synchronous muscle would do the opposite. The stiffness *is* calibrated -- it
+was chosen to put the resonance at the observed 218 Hz -- so that number is an
+input, and `stiffness_for` exists so it cannot be mistaken for a derivation.
+
+Driven this way the fly flies: attitude held past 200 ms and **181 mm of
+altitude**, against 148 for the prescribed sine, because the muscle settles on
+a larger stroke than the sine was told to make. Rotation is still commanded,
+which is the division the animal has -- power muscles asynchronous, steering
+muscles synchronous.
+
+The first version had no aerodynamic load, and ran to amplitudes of 2125
+degrees. A real wing is damped overwhelmingly by the air it is pushing: the
+oscillation grows until the muscle's power equals the air's, and without the
+air there is nothing to stop it.
+
 ## What does not exist yet
 
-- The power-muscle oscillator that would drive the stroke instead of imposing it
 
 ## Running the tests
 

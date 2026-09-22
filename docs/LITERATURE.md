@@ -42,6 +42,12 @@ forms so a later edit cannot drift them silently. The lift coefficient peaks at
 
 - **Wingbeat frequency 218 Hz** and **stroke amplitude ~75 degrees** for
   hovering *D. melanogaster*, used by `stroke_average_lift`.
+- **Drosophila flight power muscles are asynchronous and stretch-activated**:
+  not driven one action potential to one contraction, but producing extra
+  force a delay after being stretched, with the dorsal longitudinal and
+  dorsoventral groups coupled through thorax deformation so each stretches the
+  other. Neural input sets how hard, the resonance sets how fast. The whole of
+  `wingloop/body/power.py` rests on this and it is stated from memory.
 - **Circulation reaches most of its steady value within a couple of chord
   lengths of travel** -- `wake.RISE_CHORDS`. The direction and timescale of
   the Wagner effect; the true Wagner function is a sum of exponentials and
