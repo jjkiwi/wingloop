@@ -462,7 +462,7 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
         free = add_free_base(rigid[0], tmp_path / f"h{bearing:+.0f}.xml", dofs="free")
         body = FlightBody(free, wing, timestep=2e-5)
         return float(
-            SteeringController(readout=readout, bearing=bearing).fly(body, 0.10)[
+            SteeringController(readout=readout, bearing=bearing).fly(body, 0.30)[
                 "heading"
             ][-1]
         )
@@ -471,10 +471,13 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
     #
     # This asked for more than 100 degrees in 100 ms until yaw was stabilised,
     # which it reached because nothing was holding the heading and the phase
-    # command simply span the animal. With the yaw loop closed the steering
-    # command moves the heading *setpoint* instead and the same 100 ms turns
-    # +2.4 left and -11.4 right against a -0.9 baseline. The claim was always
-    # the paired difference; the absolute number was the spin.
+    # command simply span the animal. Two things have shortened it since. The
+    # yaw loop moved the steering command onto the heading *setpoint*, and
+    # flapping counter-torque damps a commanded turn as much as a
+    # disturbance, so the window has to be longer to see anything: the left
+    # and right objects are 12 degrees apart at 150 ms, 24 at 200 and 29 at
+    # 300. The claim was always the paired difference; the absolute number
+    # was the spin.
     left_object = heading(real, -45.0)
     right_object = heading(real, 45.0)
     assert left_object > right_object + 5.0, (left_object, right_object)
@@ -487,7 +490,7 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
 
     free = add_free_base(rigid[0], tmp_path / "bare.xml", dofs="free")
     bare = FlightBody(free, wing, timestep=2e-5)
-    bare_turn = HaltereController().fly(bare, 0.10)["heading"][-1]
+    bare_turn = HaltereController().fly(bare, 0.30)["heading"][-1]
     assert blind_left == pytest.approx(float(bare_turn), abs=1e-6)
 
     # And the steering straddles that baseline rather than sitting to one side.
@@ -509,12 +512,15 @@ def test_steering_response_follows_the_bearing_monotonically(rigid, wing, tmp_pa
         body = FlightBody(free, wing, timestep=2e-5)
         headings.append(
             float(
-                SteeringController(readout=readout, bearing=bearing).fly(body, 0.06)[
+                SteeringController(readout=readout, bearing=bearing).fly(body, 0.20)[
                     "heading"
                 ][-1]
             )
         )
 
+    # 200 ms, where it was 60. Counter-torque damps the turn, so at 60 ms the
+    # three bearings are still inside the transient and come out in the wrong
+    # order (+1.8, +9.2, +3.2); by 200 ms they are +20.6, +0.3, -16.9.
     assert headings[0] > headings[1] > headings[2], headings
 
 
@@ -590,24 +596,40 @@ def test_deviation_moves_the_wing_out_of_the_stroke_plane_twice_a_beat():
 
 
 @needs_model
-def test_realistic_kinematics_cut_the_torque_swing_and_still_fly_worse(
+def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
     rigid, wing, tmp_path
 ):
-    """A hypothesis of this project's own, refuted with the controls attached.
+    """A refutation of this project's own refutation.
 
-    The reasoning was that the within-stroke torque swing -- which runs from
-    -28 to +27 about a near-zero mean, against a control authority of 8 -- is
-    what ends the flight, and that a more realistic stroke would shrink it.
-    The first half is right: a sharper sweep cuts the swing by 20%. The second
-    half is wrong in the opposite direction. Attitude hold goes from 187 ms to
-    20.
+    The original reasoning was that the within-stroke torque swing -- -28 to
+    +27 about a near-zero mean, against a control authority of 8 -- is what
+    ends the flight, and that a more realistic stroke would shrink it. A
+    sharper sweep does cut the swing by 20%, and every measurement of what
+    that was worth came out negative: attitude hold fell from 187 ms to 20,
+    and this test was written to record the hypothesis being wrong.
 
-    Two confounds were ruled out rather than argued away. The trim was
-    re-measured for each stroke shape and moves by less than half a degree.
-    The lost lift was restored by raising the amplitude to 79.4 degrees, which
-    recovers the force exactly and the attitude hold not at all -- 19 ms.
+    **The penalty shrank every time the loop's sensing improved** -- a factor
+    of nine at 20 ms of filter lag, 1.5 at 5 ms, 1.25 under the stroke boxcar
+    -- and always for the same reason, which was never the stroke. With the
+    last of it gone, the sign has gone with it:
 
-    So the swing is not what limits the flight, and what does is still open.
+    ======  =======  =======  ======
+    amp     plain    sharp    ratio
+    ======  =======  =======  ======
+    74.25    1473     2467     1.68
+    75.00    1230     2123     1.73
+    75.75    1250     1879     1.50
+    ======  =======  =======  ======
+
+    What was missing was flapping counter-torque. An animal with no passive
+    yaw damping cannot bank the reduced swing, because what ends its flight is
+    not the swing. Once the wings are told the body rotates, the original
+    hypothesis is simply right, and it was right all along.
+
+    ``sharpness`` is still off by default. Turning it on is the obvious next
+    thing and it is not free: every result in this repository was measured on
+    the sinusoid, and this project has now twice found that changing what the
+    animal does invalidates what was measured around it.
     """
     from wingloop.body.control import HaltereController
     from wingloop.body.flight import harmonic_stroke
@@ -630,22 +652,18 @@ def test_realistic_kinematics_cut_the_torque_swing_and_still_fly_worse(
 
     def holds_until(**kwargs) -> float:
         b = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(**kwargs, **YAW_OFF).fly(b, 0.60)
+        trace = HaltereController(**kwargs).fly(b, 3.0)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
+        back = np.flatnonzero(np.diff(trace["t"]) < 0)
+        end = int(back[0]) + 1 if len(back) else len(trace["t"])
+        bad, t = bad[:end], trace["t"][:end]
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 600.0
+        return float(t[over[0]] * 1000) if len(over) else float(t[-1] * 1000)
 
     plain = holds_until()
     sharp = holds_until(sharpness=0.9)
-    assert plain > 200.0, plain
-    # Still a penalty, and it has shrunk twice, both times for the same
-    # reason: the sensing, not the stroke. With the 20 ms filter the sharp
-    # stroke held 20 ms against 187, a factor of nine. At 5 ms it was 171
-    # against 250, a factor of 1.5. Under the stroke boxcar at bandwidth 60 it
-    # is 254 against 320, a factor of 1.25. The sign has survived every
-    # improvement in how the loop senses and the size has not, so what is
-    # asserted here is the sign.
-    assert sharp < plain, (plain, sharp)
+    assert plain > 900.0, plain
+    assert sharp > 1.3 * plain, (plain, sharp)
 
 
 @needs_model
@@ -699,18 +717,22 @@ def test_wake_memory_changes_the_forces_barely_and_the_flight_a_lot(
 
     def holds_until(wake: bool) -> float:
         body = FlightBody(free, wing, timestep=2e-5, wake_memory=wake)
-        trace = HaltereController().fly(body, 0.30)
+        trace = HaltereController().fly(body, 1.0)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 300.0
+        return float(trace["t"][over[0]] * 1000) if len(over) else 1000.0
 
     # The flight, however, notices a great deal: same forces, added delay.
     # Measured 300 ms against 104 with the filter at its tuned 5 ms, and
     # 187 against 27 back when the filter itself was costing most of the
     # margin -- the ratio survives the retuning, which is the point.
     plain_flight = holds_until(False)
-    assert plain_flight > 250.0
-    assert holds_until(True) < 0.5 * plain_flight
+    assert plain_flight > 900.0
+    # 618 ms against the full 1000, a factor of 0.62 where this once measured
+    # 0.35. Flapping counter-torque gives the animal something to fall back on
+    # that the circulation lag cannot take away, so the lag costs less than it
+    # did -- and still costs plainly more than the forces it changes.
+    assert holds_until(True) < 0.8 * plain_flight
 
 
 @needs_model
@@ -724,9 +746,11 @@ def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
 
     What this deliberately does **not** assert is a size. The version of this
     test that did said 5 ms beats 20 ms by more than 1.5x, which passed on a
-    353 ms measurement that turns out to be a spike; on the trend the ratio is
-    1.26 and the assertion would have failed. See ``test_the_filter_optimum_is
-    _a_spike_that_moves``.
+    353 ms measurement that turned out to be a spike. The spike has since gone
+    away for a reason worth reading -- see
+    ``test_the_filter_optimum_is_smooth_once_the_wings_feel_the_rotation`` --
+    and the honest shape of this curve is a broad hump: 514 ms at 3, 993 at
+    4.8, 1002 at 6, 928 at 10, 619 at 20.
     """
     from wingloop.body.control import (
         LOWPASS_BANDWIDTH,
@@ -740,31 +764,35 @@ def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
         body = FlightBody(free, wing, timestep=2e-5)
         trace = HaltereController(
             sensing="lowpass", tau=tau, **{**gains_for(LOWPASS_BANDWIDTH), **YAW_OFF}
-        ).fly(body, 0.40)
+        ).fly(body, 1.50)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 400.0
+        return float(trace["t"][over[0]] * 1000) if len(over) else 1500.0
 
     assert holds_until(0.006) > holds_until(0.020)
     assert holds_until(0.006) > holds_until(0.003)
 
 
 @needs_model
-def test_the_filter_optimum_is_a_spike_that_moves(rigid, wing, tmp_path):
-    """The measurement that corrected this project's headline number.
+def test_the_filter_optimum_is_smooth_once_the_wings_feel_the_rotation(
+    rigid, wing, tmp_path
+):
+    """A correction to a correction, and the nicest result in this file.
 
-    Flight time against filter lag is a smooth hump with a narrow spike on it,
-    and the old default sat on the spike: 249 ms at 4.8, **353 at 5.0, 379 at
-    5.2**, 256 at 5.5. The project quoted the 353 as what the filter bought.
+    Flight time against filter lag used to be a smooth hump with a narrow
+    spike on it -- 249 ms at 4.8, **353 at 5.0, 379 at 5.2**, 256 at 5.5 --
+    and this project first quoted the 353 as what the filter bought, then
+    caught itself: a 1% change in stroke amplitude moved the spike to a
+    different time constant, so where it landed was a coincidence.
 
-    It is not a property of the filter. Change the stroke amplitude by 1% --
-    which has nothing to do with the sensing -- and the peak moves to a
-    different time constant. There is always a spike near 350-380 ms and where
-    it lands is a coincidence, so the honest figure is the trend under it,
-    about 240 ms.
+    **The spike was the missing yaw damping.** Once the wings are told the
+    body is rotating, the curve is smooth and the same shape at every
+    amplitude: 514 ms at 3 ms of lag, 993 at 4.8, 997 at 5.0, 999 at 5.2,
+    1002 at 6.0, 928 at 10, 619 at 20. A broad optimum near 5-6 ms, which is
+    where the default has been sitting all along -- chosen for a bad reason
+    and right anyway.
 
-    This asserts the moving, which is the part that matters: two amplitudes
-    put their best at different time constants.
+    So this asserts smoothness, which is the opposite of what it used to.
     """
     from wingloop.body.control import (
         LOWPASS_BANDWIDTH,
@@ -773,7 +801,6 @@ def test_the_filter_optimum_is_a_spike_that_moves(rigid, wing, tmp_path):
     )
 
     free = add_free_base(rigid[0], tmp_path / "spike.xml", dofs="free")
-    taus = (0.0048, 0.0052)
 
     def holds_until(tau: float, amplitude: float) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
@@ -782,19 +809,20 @@ def test_the_filter_optimum_is_a_spike_that_moves(rigid, wing, tmp_path):
             tau=tau,
             amplitude=np.deg2rad(amplitude),
             **{**gains_for(LOWPASS_BANDWIDTH), **YAW_OFF},
-        ).fly(body, 0.60)
+        ).fly(body, 1.50)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 600.0
+        return float(trace["t"][over[0]] * 1000) if len(over) else 1500.0
 
-    best = [
-        max(taus, key=lambda tau: holds_until(tau, amplitude))
-        for amplitude in (74.25, 75.75)
-    ]
-    assert best[0] != best[1], (
-        "a 1% amplitude change should move which filter wins; if it no longer "
-        "does, the spike story needs re-measuring rather than this relaxing"
-    )
+    taus = (0.003, 0.0048, 0.006, 0.020)
+    for amplitude in (74.25, 75.75):
+        curve = [holds_until(tau, amplitude) for tau in taus]
+        # One hump: up to the optimum, then down. No point stands out from its
+        # neighbours, which is what a spike would do.
+        assert curve[0] < curve[1], curve
+        assert curve[1] < curve[2] * 1.05, curve
+        assert curve[3] < curve[2], curve
+        assert curve[2] < 1.3 * curve[1], f"{amplitude}: 4.8 and 6 ms disagree: {curve}"
 
 
 @needs_model
@@ -1082,11 +1110,11 @@ def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
     def holds_until(bandwidth: float, **kwargs) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
         trace = HaltereController(**kwargs, **{**gains_for(bandwidth), **YAW_OFF}).fly(
-            body, 0.60
+            body, 1.50
         )
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 600.0
+        return float(trace["t"][over[0]] * 1000) if len(over) else 1500.0
 
     low = dict(sensing="lowpass", tau=0.006)
     box = dict(sensing="stroke")
@@ -1095,7 +1123,7 @@ def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
     assert holds_until(40.0, **low) == pytest.approx(holds_until(40.0, **box), rel=0.1)
 
     # And ahead where the lag would have started costing.
-    assert holds_until(60.0, **box) > 1.5 * holds_until(60.0, **low)
+    assert holds_until(60.0, **box) > 1.3 * holds_until(60.0, **low)
     assert holds_until(60.0, **box) > holds_until(40.0, **box)
 
 
@@ -1176,19 +1204,27 @@ def test_the_pitch_tether_pins_through_the_centre_of_mass(rigid, wing, tmp_path)
 
 
 @needs_model
-def test_holding_yaw_is_worth_more_than_any_of_the_sensor_tuning(
+def test_holding_yaw_helps_and_much_less_than_it_first_appeared(
     rigid, wing, tmp_path
 ):
-    """The loop that was missing, and what it was worth.
+    """The loop that was missing, and what it is actually worth.
 
-    Yaw was the one axis with nothing on it. It is also the light axis --
-    inertia 0.000591 against 0.002014 in pitch -- so it ran away fastest: a
-    normal flight reached +40 degrees of heading by 100 ms and -86 by 300, at
-    up to 1587 deg/s, while pitch and roll stayed inside ten.
+    Yaw was the one axis with nothing on it, and the light one -- inertia
+    0.000591 against 0.002014 in pitch -- so it ran away fastest: a flight
+    reached +40 degrees of heading by 100 ms and -86 by 300, at up to 1587
+    deg/s, while pitch and roll stayed inside ten. Closing it took the flight
+    from 320 ms to 1004, and this test said it tripled the flight.
 
-    Closing it roughly triples the flight. Everything above this spent its
-    effort on the pitch and roll loop's phase margin, and that was a
-    second-order effect next to this.
+    **That factor was mostly two other things.** The wings had never been told
+    the body was rotating, so the uncontrolled animal had no yaw damping to
+    fall back on; and the standing roll offset was making a yaw torque through
+    sideslip that nothing was answering. With both fixed the uncontrolled
+    animal flies 1020-1140 ms on its own, and the loop is worth **1.15 to
+    1.29** on top -- consistently, at every amplitude, and nothing like a
+    tripling.
+
+    A loop measured against a broken plant flatters itself. The claim that
+    survives is that it helps and that the heading stays a heading.
     """
     from wingloop.body.control import HaltereController
 
@@ -1216,10 +1252,10 @@ def test_holding_yaw_is_worth_more_than_any_of_the_sensor_tuning(
         trace = {k: v[:end] for k, v in trace.items()}
         return trace, float(trace["t"][-1] * 1000)
 
-    _, loose = fly(1.5, **YAW_OFF)
-    held_trace, held = fly(1.5)
-    assert held > 2.5 * loose, (loose, held)
-    assert held > 900.0, held
+    _, loose = fly(2.5, **YAW_OFF)
+    held_trace, held = fly(2.5)
+    assert held > 1.1 * loose, (loose, held)
+    assert held > 1100.0, held
 
     # And the heading it holds is a heading, not a slow spin: inside ten
     # degrees at 200, 400, 600 and 800 ms, departing only in the last fifty
@@ -1326,3 +1362,269 @@ def test_the_phase_knob_means_the_same_thing_in_both_stroke_generators(
         a, b = muscle_yaw(knob), harmonic_yaw(knob)
         assert np.sign(a) == np.sign(b), (knob, a, b)
         assert 0.5 < abs(a) / abs(b) < 2.0, (knob, a, b)
+
+
+@needs_model
+def test_a_spinning_body_damps_itself_through_its_own_wings(rigid, wing, tmp_path):
+    """Flapping counter-torque, and the hole it was filling.
+
+    A wing sits out at the radius of gyration, so when the body rotates that
+    point moves at ``omega x r`` on top of the body's translation: one wing
+    advances into the air and the other retreats, the forces stop balancing,
+    and the difference opposes the spin. It is the dominant passive damping on
+    insect yaw.
+
+    This model did not have it. The wings were told the body's *translational*
+    velocity and nothing else, so an imposed spin of 2000 deg/s produced
+    **0.0000** of yaw torque -- measured, not estimated. Yaw is also the only
+    axis with no restoring term of its own, pitch and roll having gravity and
+    the stroke plane, so it was the one axis where the omission was fatal: the
+    animal flew for a second and then entered a flat spin that nothing at all
+    resisted.
+    """
+    from wingloop.body.control import TRIM_BIAS, YAW_INERTIA
+    from wingloop.body.flight import harmonic_stroke
+
+    free = add_free_base(rigid[0], tmp_path / "fct.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+
+    def yaw_torque(spin: float) -> float:
+        body.data.qvel[body.root_dof + 5] = spin
+        mujoco.mj_forward(body.model, body.data)
+        acc = []
+        for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, amplitude=np.deg2rad(75.0), frequency=218.0,
+                bias=TRIM_BIAS, rates=True,
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            acc.append(body.wrench_about_com()[5])
+        body.data.qvel[body.root_dof + 5] = 0.0
+        return float(np.mean(acc))
+
+    assert yaw_torque(0.0) == pytest.approx(0.0, abs=1e-6), "no spin, no torque"
+
+    spins = np.array([np.deg2rad(d) for d in (250.0, 500.0, 1000.0, 2000.0)])
+    torques = np.array([yaw_torque(s) for s in spins])
+    # It opposes, always.
+    assert np.all(torques < 0.0), torques
+    assert np.all(np.array([yaw_torque(-s) for s in spins]) > 0.0)
+    # And it is linear in the spin rate, which is what makes it a damping
+    # coefficient rather than a nonlinearity that happens to point the right
+    # way.
+    coefficient = torques / spins
+    assert np.allclose(coefficient, coefficient[0], rtol=0.02), coefficient
+
+    # The time constant it gives yaw. Tens of milliseconds is the right order
+    # for a fly, and the number is what makes the spin self-arresting.
+    tau = YAW_INERTIA / abs(float(coefficient.mean()))
+    assert 0.005 < tau < 0.05, tau
+
+
+@needs_model
+def test_the_wings_are_told_about_rotation_only_through_their_own_offset(
+    rigid, wing, tmp_path
+):
+    """Where the damping comes from, so it cannot be mistaken for a fudge.
+
+    There is no damping coefficient anywhere in this: the torque falls out of
+    putting the wing's own position into the oncoming air. With the body still
+    the two agree exactly; with it spinning they differ by ``omega x r``, and
+    the two wings differ from each other in sign.
+    """
+    free = add_free_base(rigid[0], tmp_path / "offset.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+    body.set_wings(*harmonic_stroke(0.0, frequency=FREQUENCY, rates=True))
+
+    poses = {w: body.wing_pose(w, body.wing_angles) for w in WINGS}
+
+    # Still: the air the wing meets is the air the body meets.
+    for wingname, (rot, hinge) in poses.items():
+        assert np.allclose(
+            body.air_velocity_at(wingname, rot, hinge), body.body_velocity()
+        ), wingname
+
+    # Spinning: each wing sees something different, and it splits into exactly
+    # the two parts the geometry predicts.
+    body.data.qvel[body.root_dof + 5] = np.deg2rad(1000.0)
+    mujoco.mj_forward(body.model, body.data)
+    extra = {
+        w: body.air_velocity_at(w, *poses[w]) - body.body_velocity() for w in WINGS
+    }
+    assert np.linalg.norm(extra["LWing"]) > 1.0
+
+    differential = extra["LWing"] - extra["RWing"]
+    common = 0.5 * (extra["LWing"] + extra["RWing"])
+    # The wings are separated across the body, so a yaw spin sweeps one
+    # forward and the other back. That difference is the counter-torque, and
+    # it lies along the fore-aft axis.
+    assert abs(differential[0]) > 10.0 * abs(differential[1]), differential
+    assert np.sign(extra["LWing"][0]) != np.sign(extra["RWing"][0])
+    # They also share a part, because the centre of mass is 0.30 mm behind the
+    # wing line and a spin about it carries both wings sideways together. That
+    # part is lateral and it cancels between the sides, which is why it is not
+    # what damps the spin.
+    assert abs(common[1]) > 10.0 * abs(common[0]), common
+
+
+@needs_model
+def test_a_rolled_animal_that_is_climbing_yaws(rigid, wing, tmp_path):
+    """The standing disturbance that was eating the yaw loop's authority.
+
+    Neither roll nor climb does much on its own. Together they make a large
+    standing yaw torque, because a rolled animal moving through air has
+    sideslip. This fly flies permanently rolled -- the roll loop is
+    proportional-derivative against the +0.6 the pitch trim cross-couples into
+    it -- so the torque is always there, and the yaw knob was holding a
+    standing 25 degrees against it, over half its range, before any
+    disturbance arrived.
+
+    That is why ``roll_integral_gain`` is no longer zero, and the docstring
+    there is the rest of the story.
+    """
+    from wingloop.body.control import TRIM_BIAS
+    from wingloop.body.flight import harmonic_stroke
+
+    free = add_free_base(rigid[0], tmp_path / "sideslip.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+
+    def yaw_torque(roll: float, climb: float) -> float:
+        quat = np.zeros(4)
+        mujoco.mju_euler2Quat(quat, np.array([roll, 0.0, 0.0]), "xyz")
+        body.data.qpos[body.root_dof + 3 : body.root_dof + 7] = quat
+        body.data.qvel[body.root_dof : body.root_dof + 3] = [0.0, 0.0, climb]
+        mujoco.mj_forward(body.model, body.data)
+        acc = []
+        for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, amplitude=np.deg2rad(75.0), frequency=218.0,
+                bias=TRIM_BIAS, rates=True,
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            acc.append(body.wrench_about_com()[5])
+        return float(np.mean(acc))
+
+    rolled = np.deg2rad(5.0)
+    assert abs(yaw_torque(0.0, 0.0)) < 1e-6
+    assert abs(yaw_torque(rolled, 0.0)) < 0.01, "roll alone does almost nothing"
+    assert abs(yaw_torque(0.0, 1500.0)) < 1e-6, "climbing alone does nothing"
+    together = yaw_torque(rolled, 1500.0)
+    assert abs(together) > 0.1, together
+    # It is the product that matters, not either factor: the pair is more than
+    # twenty times the sum of the two on their own.
+    alone = abs(yaw_torque(rolled, 0.0)) + abs(yaw_torque(0.0, 1500.0))
+    assert abs(together) > 20.0 * alone, (together, alone)
+    # And it reverses with the roll, so it is a sideslip term and not an
+    # offset that happens to be there.
+    assert np.sign(yaw_torque(-rolled, 1500.0)) != np.sign(together)
+
+
+def test_the_yaw_knob_saturates_early_and_that_is_a_known_cost():
+    """The yaw loop is bang-bang for most of a flight, on purpose.
+
+    Yaw carries a third of pitch's inertia, so the shared bandwidth puts the
+    gain high enough that twelve degrees of heading error already asks for the
+    whole knob. That was investigated as the cause of the flat spin and is
+    not: giving yaw its own lower bandwidth widens the linear range exactly as
+    the arithmetic says and buys no flight at all -- 1206 ms at bandwidth 20
+    where the knob stays linear to 108 degrees, against 1218 at the shared 60
+    where it saturates at 12. Below 60 the loop stops saturating and starts
+    drifting, and the heading wanders further for it.
+
+    No simulation here: this pins the number so the trade stays visible.
+    """
+    from wingloop.body.control import (
+        BANDWIDTH,
+        MAX_PHASE,
+        YAW_INERTIA,
+        YAW_PER_PHASE,
+        HaltereController,
+        gains_for,
+    )
+
+    controller = HaltereController()
+    assert controller.yaw_gain == pytest.approx(gains_for(BANDWIDTH)["yaw_gain"])
+    saturates_at = np.degrees(MAX_PHASE / controller.yaw_gain)
+    assert saturates_at == pytest.approx(12.0, abs=0.5), saturates_at
+
+    # And it is the light inertia that does it, not the knob being weak: at
+    # pitch's inertia the same bandwidth would stay linear three times further.
+    as_heavy = YAW_INERTIA * BANDWIDTH**2 / abs(YAW_PER_PHASE) * (0.002014 / YAW_INERTIA)
+    assert np.degrees(MAX_PHASE / as_heavy) < saturates_at / 3.0
+
+
+@needs_model
+def test_the_yaw_knob_drags_roll_with_it_and_the_loop_is_told_in_advance(
+    rigid, wing, tmp_path
+):
+    """The cross-coupling, and the compensation that was expected not to matter.
+
+    Deflecting the rotation-phase asymmetry to yaw the animal also rolls it,
+    and not symmetrically: +1.51 of roll torque at +45 degrees against +0.33
+    at -45, so the even part does not cancel between the sides. In the roll
+    loop's own units that is 0.039 of amplitude asymmetry against a limit of
+    0.45 -- one tenth of the authority available, which is why cancelling it
+    looked pointless.
+
+    It is worth 1218 ms of flight to 1377, at every stroke amplitude tried.
+    The size was never the point: the yaw knob saturates for long stretches,
+    so the roll it drags arrives as a step the roll loop can only answer after
+    its own filter has seen it, and a known disturbance fed forward skips that
+    delay for free.
+
+    Flight times are too noisy here to assert a 13% difference from one run,
+    so what is asserted is the mechanism: the curve is real, and the
+    controller subtracts it.
+    """
+    from wingloop.body.control import (
+        ROLL_FROM_PHASE,
+        ROLL_PER_ASYMMETRY,
+        TRIM_BIAS,
+        HaltereController,
+    )
+    from wingloop.body.flight import harmonic_stroke
+
+    free = add_free_base(rigid[0], tmp_path / "xc.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+
+    def roll_torque(phase_asymmetry: float) -> float:
+        acc = []
+        for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, amplitude=np.deg2rad(75.0), frequency=218.0, bias=TRIM_BIAS,
+                rates=True, phase_asymmetry=phase_asymmetry,
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            acc.append(body.wrench_about_com()[3])
+        return float(np.mean(acc))
+
+    # The coupling is real, large, and lopsided.
+    base = roll_torque(0.0)
+    plus = roll_torque(np.deg2rad(45.0)) - base
+    minus = roll_torque(np.deg2rad(-45.0)) - base
+    assert plus > 1.4, plus
+    assert 0.2 < minus < 0.5, minus
+    assert plus > 3.0 * minus, "the even part is what does not cancel"
+
+    # And the stored curve is the measurement, so it matches at every knot.
+    for degrees in (-45.0, -22.5, 0.0, 22.5, 45.0):
+        p = np.deg2rad(degrees)
+        predicted = float(np.interp(p, *ROLL_FROM_PHASE))
+        assert predicted == pytest.approx(roll_torque(p) - base, abs=0.01), degrees
+
+    # The controller subtracts exactly that, and only when asked to.
+    class Fixed(HaltereController):
+        def _filtered(self, pitch, roll, yaw, rate, dt):
+            return 0.0, 0.0, np.deg2rad(20.0), np.zeros(3)
+
+    on = Fixed(compensate_yaw_roll=True).knobs(body)
+    off = Fixed(compensate_yaw_roll=False).knobs(body)
+    assert on["phase_asymmetry"] == pytest.approx(off["phase_asymmetry"])
+    p = on["phase_asymmetry"]
+    expected = float(np.interp(p, *ROLL_FROM_PHASE)) / ROLL_PER_ASYMMETRY
+    assert off["asymmetry"] - on["asymmetry"] == pytest.approx(expected, rel=1e-9)
+    # It vanishes where there is nothing to cancel.
+    assert float(np.interp(0.0, *ROLL_FROM_PHASE)) == 0.0

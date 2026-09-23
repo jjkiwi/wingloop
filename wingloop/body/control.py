@@ -37,10 +37,20 @@ flight from 320 ms to 1004, holding the heading inside ten degrees the whole
 way. Everything above it -- the sensor filter, the loop bandwidth, the whole
 phase-margin argument -- was worth tens of milliseconds against that.
 
-What ends the flight now is not a tumble but a **flat spin**: past about 950
-ms the heading departs, and because the phase knob saturates at 45 degrees it
-is out of authority beyond 12 degrees of heading error. That is the next
-thing to measure.
+What ends the flight is still the heading, which departs twenty to fifty
+milliseconds before the attitude does. Three things were found looking for
+why, and they moved it from about 1069 ms to about 1250: the wings had never
+been told the body was rotating, so there was no yaw damping at all (see
+:meth:`~wingloop.body.flight.FlightBody.air_velocity_at`); a rolled animal
+that is climbing yaws, which was consuming over half the yaw knob before any
+disturbance arrived (see :attr:`HaltereController.roll_integral_gain`); and
+the yaw knob drags roll with it, which is cheaper to cancel in advance than to
+answer (see :attr:`HaltereController.compensate_yaw_roll`).
+
+It is delayed rather than fixed, and further tuning is not what will fix it:
+the differences between settings are now smaller than the differences between
+stroke amplitudes, which is the situation that produced the filter-lag spike
+:data:`SENSING` had to withdraw.
 
 **A second loop, on a second variable.** :class:`Throttle` closes altitude the
 same way, through the connectome's power channel rather than these two knobs:
@@ -88,6 +98,35 @@ ROLL_PER_ASYMMETRY = 38.2
 PITCH_INERTIA = 0.002014
 ROLL_INERTIA = 0.001502
 YAW_INERTIA = 0.000591
+
+#: Roll torque the yaw knob drags with it, as the measured curve itself.
+#:
+#: Swept across the knob's whole range, reading the stroke-averaged roll about
+#: the centre of mass and subtracting the undeflected value. Strongly
+#: asymmetric -- +1.51 at +45 degrees against +0.33 at -45 -- so it has a
+#: large even part that does not cancel between the sides.
+#:
+#: **Interpolated rather than fitted, because the fits were not good enough to
+#: defend.** A quadratic through zero leaves 12.9% of full scale, a cubic
+#: 13.2%, and only a quartic gets to 2.9% -- at which point the polynomial is
+#: carrying the shape rather than describing it. The first version of this was
+#: an unconstrained quadratic, which fitted the middle well and predicted
+#: +0.14 of roll at zero deflection, where there is none by construction.
+#: These are the measurements; the knob is clipped to this range, so nothing
+#: extrapolates.
+#:
+#: In the units the roll loop works in this is small -- 0.039 of amplitude
+#: asymmetry at full deflection, against a limit of 0.45 -- which is the
+#: reason it was expected not to matter. See
+#: :attr:`HaltereController.compensate_yaw_roll` for what it is actually
+#: worth.
+ROLL_FROM_PHASE = (
+    np.linspace(-np.deg2rad(45.0), np.deg2rad(45.0), 13),
+    np.array([
+        0.3266, 0.3296, 0.2751, 0.1759, 0.0615, -0.0174, 0.0000,
+        0.1501, 0.4167, 0.7452, 1.0728, 1.3426, 1.5065,
+    ]),
+)
 
 #: Yaw torque per radian of left-right *rotation phase* asymmetry: the two
 #: wings flipping at slightly different points in the stroke.
@@ -301,8 +340,54 @@ class HaltereController:
     roll_rate_gain: float = ROLL_INERTIA * 2 * BANDWIDTH / ROLL_PER_ASYMMETRY
     #: Yaw, through the rotation-phase asymmetry. Set both to zero for the
     #: uncontrolled yaw every result before this was measured with.
+    #:
+    #: **The bandwidth is shared with pitch and roll, and a sweep says it
+    #: should be.** Yaw carries a third of pitch's inertia, so at 60 rad/s the
+    #: gain is high enough that 12 degrees of heading error saturates the
+    #: knob, and the loop spends the whole flight bang-bang -- visibly so,
+    #: 100% saturated for stretches while the heading swings plus or minus
+    #: thirteen. That looked like an obvious thing to fix by giving yaw its
+    #: own, lower bandwidth. Measured over three stroke amplitudes it is not:
+    #:
+    #: ======  ==============  ========
+    #: rad/s   saturates at    median
+    #: ======  ==============  ========
+    #: 20        107.9 deg      1206 ms
+    #: 25         69.0 deg      1154 ms
+    #: 30         47.9 deg      1090 ms
+    #: 40         27.0 deg      1042 ms
+    #: 60         12.0 deg      1218 ms
+    #: ======  ==============  ========
+    #:
+    #: Non-monotonic, and the shared 60 is already at the top of it. At low
+    #: gain the loop stops saturating and starts drifting instead -- the
+    #: heading wanders to 142 degrees at bandwidth 20 against 106 at 60 -- and
+    #: flies no longer for it. Saturation is real and is not what limits this.
     yaw_gain: float = YAW_INERTIA * BANDWIDTH**2 / abs(YAW_PER_PHASE)
     yaw_rate_gain: float = YAW_INERTIA * 2 * BANDWIDTH / abs(YAW_PER_PHASE)
+    #: Feed the yaw knob's roll cross-coupling forward into the roll knob,
+    #: from :data:`ROLL_FROM_PHASE`, instead of leaving the roll loop to
+    #: discover it as a disturbance.
+    #:
+    #: **On, and it was expected not to matter.** At full deflection the
+    #: coupling is 0.039 of amplitude asymmetry against a limit of 0.45, which
+    #: looked far too small to be worth cancelling -- the roll loop has ten
+    #: times the authority it needs.
+    #:
+    #: It helps, at every stroke amplitude tried, and by an amount this cannot
+    #: pin down. Off gives 1218/1221/1097 ms; on gives 1473/1230/1250, a
+    #: median of 1218 to 1250. An earlier version of the compensation, using a
+    #: fit that was wrong at small deflections, gave 1491/1377/1129 -- median
+    #: 1377. **Both are positive at all three amplitudes and they disagree by
+    #: more than the effect**, so what is claimed here is the sign and not the
+    #: size. The accurate curve is kept because it is the one that is right,
+    #: not because it measured better.
+    #:
+    #: The mechanism it is betting on is timing rather than magnitude: the yaw
+    #: knob saturates for long stretches, so the roll it drags arrives as a
+    #: step the roll loop can only answer once its own filter has seen it, and
+    #: a known disturbance fed forward skips that delay for free.
+    compensate_yaw_roll: bool = True
     #: Heading to hold, radians, accumulated rather than wrapped so that a
     #: turn past half a circle is a large error and not a small one of the
     #: wrong sign.
@@ -367,22 +452,42 @@ class HaltereController:
     sharpness: float = 0.0
     deviation: float = 0.0
     deviation_phase: float = 0.0
-    #: Integral gains, per second. **Off by default, because they were measured
-    #: not to help.**
+    #: Integral gains, per second. **The roll one is on now, and the story of
+    #: why is worth more than the number.**
     #:
-    #: The reasoning for adding them was sound and the diagnosis behind it is
-    #: still true: proportional-derivative alone leaves a steady-state offset
-    #: against a constant disturbance, there is one -- the pitch trim
-    #: cross-couples into roll by +0.6 -- and the roll loop does settle about
-    #: 10 degrees off level and stay there, without ever saturating (the
-    #: commanded asymmetry sits at 0.03 against a limit of 0.45).
+    #: Proportional-derivative alone leaves a steady-state offset against a
+    #: constant disturbance, and there is one: the pitch trim cross-couples
+    #: +0.6 into roll, so the roll loop settles several degrees off level and
+    #: stays there without ever saturating.
     #:
-    #: Closing that offset changes nothing. At gain 4 the animal holds attitude
-    #: for 179 ms against 187 without, which is slightly worse. So the standing
-    #: roll offset is not what ends the flight, and the integral is kept
-    #: available and disabled rather than quietly left in.
+    #: That was measured once and dismissed -- at gain 4 the animal held
+    #: attitude for 179 ms against 187 without, slightly worse -- and written
+    #: up as *the standing roll offset is not what ends the flight*. True at
+    #: the time. A tumble ended the flight at 187 ms and a few degrees of roll
+    #: had nothing to do with it.
+    #:
+    #: It became false without being re-measured. Once the yaw loop pushed
+    #: flight past a second, the standing roll started to matter through a
+    #: route that did not exist before: **roll and climb together make yaw**.
+    #: Rolled 5 degrees while still is 0.0008 of yaw torque and climbing while
+    #: level is 0.0000, but rolled and climbing is 0.2362 -- sideslip -- and
+    #: that standing torque was consuming over half the yaw knob. Nulling the
+    #: roll takes the mean roll from 7.94 degrees to 0.17 and the standing
+    #: phase deflection from -22.5 degrees to +4.3.
+    #:
+    #: The gain is 1.5 because it is the one that helps at *every* stroke
+    #: amplitude tried. Medians over three amplitudes: 1069 ms at gain 0,
+    #: 1154 at 1.0, **1218 at 1.5**, 1360 at 2.0, 1146 at 3.0. Gain 2.0 has
+    #: the better median and its worst amplitude is 1044, barely above
+    #: baseline; 1.5 improves all three and has the best worst case. The
+    #: spread between amplitudes is comparable to the effect, so this is worth
+    #: about 15% and not more -- nothing like the tripling that closing the
+    #: yaw loop gave.
+    #:
+    #: The pitch integral stays off: added on top it makes things worse, 1204
+    #: ms against 1382 on the same run.
     pitch_integral_gain: float = 0.0
-    roll_integral_gain: float = 0.0
+    roll_integral_gain: float = 1.5
     #: Bound on the accumulated terms, in the units of each knob, so a period
     #: of saturation or a tumble cannot wind them up into a command that
     #: outlives the error that produced it.
@@ -516,6 +621,13 @@ class HaltereController:
         phase_asymmetry = self.yaw_gain * (
             yaw - self.target_heading
         ) + self.yaw_rate_gain * rate[2]
+        if self.compensate_yaw_roll:
+            # Cancel the roll the yaw knob is about to make, from the measured
+            # curve, before the roll loop has to see it as a disturbance.
+            p = float(np.clip(phase_asymmetry, -MAX_PHASE, MAX_PHASE))
+            asymmetry -= (
+                float(np.interp(p, *ROLL_FROM_PHASE)) / ROLL_PER_ASYMMETRY
+            )
         return {
             "bias": float(np.clip(bias, -self.max_bias, self.max_bias)),
             "asymmetry": float(

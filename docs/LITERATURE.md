@@ -182,12 +182,21 @@ Flight time against sensor-filter lag, first-order filter at bandwidth 40:
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | holds 30 deg | 146 | 193 | 214 | 249 | **353** | **379** | 256 | 236 | 221 | 204 | 187 |
 
-The peak is a spike, not the shape of the curve. A 1% change in stroke
-amplitude moves it: best at 4.8 ms for 74.25 degrees, 5.2 for 75.00, 5.5 for
-75.75. The trend under the spike is about 240 ms, and the project's quoted
-"353 ms at 5 ms of lag" was the spike. Flight times are otherwise repeatable
-to a millisecond against initial-condition nudges, so it is a real feature of
-a chaotic landscape rather than numerical noise.
+The peak was a spike, not the shape of the curve. A 1% change in stroke
+amplitude moved it: best at 4.8 ms for 74.25 degrees, 5.2 for 75.00, 5.5 for
+75.75.
+
+**The spike was the missing yaw damping.** Re-measured once the wings are told
+the body rotates, the curve is smooth and the same shape at every amplitude:
+
+| tau (ms) | 3.0 | 4.8 | 5.0 | 5.2 | 6.0 | 10 | 20 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| holds, amplitude 74.25 | 514 | 993 | 997 | 999 | **1002** | 928 | 619 |
+| holds, amplitude 75.75 | 444 | 891 | 899 | 899 | **903** | 864 | 595 |
+
+One broad optimum at 5-6 ms. The chaotic landscape that made a single setting
+look twice as good as its neighbours was an animal with no passive yaw
+damping at all.
 
 Sensed pitch-rate power, by band, in free flight: **75.4% at 200-240 Hz** (the
 wingbeat), 17.8% above 500 (harmonics, peak at 654 = 3x), and under 4%
@@ -238,13 +247,109 @@ none. It is not clean in the other direction -- the same knob makes 0.58 to
 but against a roll authority of 38.2 per unit of amplitude asymmetry the roll
 loop answers it with 0.04 of a knob that saturates at 0.45.
 
-Closing the yaw loop takes free flight from 320 ms to **1004 ms**, heading
-held inside ten degrees at 200, 400, 600 and 800 ms. With it closed, sensing
-and bandwidth stop mattering much: every combination tried flies 0.5-1.3 s.
+Closing the yaw loop took free flight from 320 ms to 1004 ms as first
+measured -- but most of that gap was an animal missing its passive yaw
+damping and carrying a standing roll offset. With both corrected, the
+uncontrolled animal flies 1020-1140 ms and the loop is worth **1.15 to 1.29**
+on top, at three stroke amplitudes.
 
-The remaining failure is a flat spin rather than a tumble. The phase knob
-saturates at 45 degrees, which the loop reaches at **12 degrees of heading
-error**, so beyond that it has no authority left.
+| stroke amplitude | 74.25 | 75.00 | 75.75 |
+| --- | ---: | ---: | ---: |
+| yaw loop off | 1140 | 1073 | 1020 |
+| yaw loop on | 1473 | 1230 | 1250 |
+
+The remaining failure is still the heading, which departs twenty to fifty
+milliseconds before the attitude does.
+
+### Flapping counter-torque
+
+Yaw torque against an imposed spin, at zero steering knob, measured before and
+after the wings were told about the body's rotation:
+
+| imposed spin | 250 | 500 | 1000 | 2000 deg/s |
+| --- | ---: | ---: | ---: | ---: |
+| before | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+| after | -0.159 | -0.318 | -0.637 | -1.273 |
+
+**-0.0365 per rad/s**, linear to 2%, which gives yaw a time constant of
+`YAW_INERTIA / c = 16 ms`. Tens of milliseconds is the right order for a fly.
+
+There is no damping coefficient in the model: the torque follows from adding
+`omega x r` at the wing's radius of gyration to the air it meets. The wings
+had only ever been given the body's translational velocity.
+
+Yaw authority of the phase knob across its *whole* range, which is wider than
+the earlier table:
+
+| phase asymmetry (deg) | 10 | 20 | 26 | 35 | 45 | 55 | 70 | 90 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| yaw torque | -0.09 | -0.20 | -0.27 | -0.37 | -0.47 | -0.50 | -0.39 | 0.00 |
+
+It peaks at 55 degrees and collapses to zero by 90, where the wing is flipping
+mid-stroke rather than at the reversals. `MAX_PHASE` at 45 degrees is
+therefore close to the best the knob can do, not past it.
+
+### Sideslip makes yaw
+
+| condition | roll | pitch | yaw |
+| --- | ---: | ---: | ---: |
+| level, still | 0.604 | 0.009 | 0.0000 |
+| rolled 5 degrees | 0.604 | 0.009 | 0.0008 |
+| climbing 1500 mm/s | 0.604 | 0.009 | 0.0000 |
+| rolled 5 and climbing 1500 | 0.849 | -0.004 | **0.2362** |
+| pitched -10 and climbing 1500 | 0.623 | -0.769 | 0.0976 |
+
+Roll alone does nothing and climbing alone does nothing; together they make a
+standing yaw torque large enough to consume half the yaw knob's authority. A
+rolled animal moving through air has sideslip, and sideslip yaws it.
+
+### Yaw loop tuning, and two things that did not work
+
+Flight duration (attitude inside 30 degrees), median over three stroke
+amplitudes, with counter-torque and the roll integral in place.
+
+Yaw bandwidth on its own, against the shared 60 rad/s:
+
+| rad/s | 20 | 25 | 30 | 40 | 60 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| knob saturates at | 107.9 deg | 69.0 | 47.9 | 27.0 | 12.0 |
+| median flight | 1206 ms | 1154 | 1090 | 1042 | **1218** |
+
+Non-monotonic, and the shared 60 is already best. At 60 the loop is bang-bang
+-- 12 degrees of heading error saturates the knob -- and lowering the gain to
+stop that makes the heading drift instead (142 degrees of wander at bandwidth
+20 against 106 at 60) without buying any flight.
+
+Roll integral, the gain that removes the sideslip yaw torque:
+
+| gain | 0.0 | 0.5 | 1.0 | 1.5 | 2.0 | 3.0 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| median flight | 1069 | 1103 | 1154 | **1218** | 1360 | 1146 |
+
+1.5 is taken rather than 2.0 because it improves all three amplitudes and has
+the better worst case (1097 against 1044); 2.0 has the better median and one
+amplitude barely above baseline. The spread between amplitudes is comparable
+to the effect throughout, so this is worth about 15%.
+
+### Stroke kinematics, re-measured with yaw damping
+
+Flight duration against stroke shape, three amplitudes, with flapping
+counter-torque in the force model:
+
+| amplitude | 74.25 | 75.00 | 75.75 |
+| --- | ---: | ---: | ---: |
+| plain sinusoid | 1473 ms | 1230 | 1250 |
+| sharpness 0.9 | 2467 ms | 2123 | 1879 |
+| ratio | 1.68 | 1.73 | 1.50 |
+
+The sharper sweep cuts the within-stroke torque swing by 20% and now flies
+50-73% longer for it. Every earlier measurement of this came out negative,
+and the penalty shrank each time the sensing improved -- nine-fold at 20 ms of
+filter lag, 1.5 at 5 ms, 1.25 under the stroke boxcar -- before changing sign
+once the wings were told the body rotates.
+
+`sharpness` remains off by default, so every other number in these documents
+is still the sinusoid.
 
 ### The rest
 

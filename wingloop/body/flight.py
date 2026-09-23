@@ -103,6 +103,12 @@ class FlightBody:
         # on, not at mid-span and not at the tip.
         self.cop = wing.moment(3) / wing.moment(2)
         self.span = {w: np.asarray(v, dtype=float) for w, v in SPAN_LOCAL.items()}
+        # Where along the span the force acts, for the rotational part of the
+        # oncoming air. Same radius the wake model uses, and for the same
+        # reason: the force integral is weighted by the second moment of area.
+        self._gyration_radius = float(
+            np.sqrt(self.wing.moment(2) / max(self.wing.area, 1e-12))
+        )
         # Which way an element travels when the stroke joint turns positively.
         self.sweep_dir = {
             w: np.cross([0.0, 0.0, 1.0], s) for w, s in self.span.items()
@@ -324,7 +330,7 @@ class FlightBody:
         # The animal's own speed through the air, resolved along the direction
         # this wing sweeps. Zero on a tether; the whole difference between
         # hovering and flight once the body is free.
-        rot, _ = self.wing_pose(wing, self.wing_angles)
+        rot, hinge = self.wing_pose(wing, self.wing_angles)
         # The stroke plane belongs to the animal, not to the world. Its normal
         # is the body's own vertical, so lift tilts when the body tilts --
         # which is most of how attitude couples back into the forces, and
@@ -335,7 +341,7 @@ class FlightBody:
         path = path - np.dot(path, normal) * normal
         norm = np.linalg.norm(path)
         path = path / norm if norm > 1e-12 else np.zeros(3)
-        along = float(np.dot(self.body_velocity(), path))
+        along = float(np.dot(self.air_velocity_at(wing, rot, hinge), path))
 
         f = blade_element_forces(
             self.wing, state, density=self.density, body_velocity=along
@@ -453,6 +459,45 @@ class FlightBody:
         applied = np.asarray(self.data.xfrc_applied[self.root_body], dtype=float)
         offset = self.data.xipos[self.root_body] - self.data.subtree_com[self.root_body]
         return np.concatenate([applied[:3], applied[3:] + np.cross(offset, applied[:3])])
+
+    def air_velocity_at(self, wing: str, rot, hinge) -> np.ndarray:
+        """How fast this wing is moving through the air because the *body* is.
+
+        Not the same as the body's velocity, and the difference is the whole
+        of a fly's passive yaw damping. A wing sits out at the radius of
+        gyration; when the body rotates at ``omega`` that point moves at
+        ``omega x r`` on top of the body's translation, so a spinning animal
+        has one wing advancing into the air and the other retreating. The
+        forces no longer balance and the difference opposes the spin. This is
+        **flapping counter-torque**, and it is the dominant damping on insect
+        yaw.
+
+        Without it this model had **exactly zero** yaw damping: an imposed
+        spin of 2000 deg/s produced 0.0000 of yaw torque, measured. The animal
+        flew for a second and then entered a flat spin that nothing resisted
+        and the loop, reading a filtered heading, could not catch. Yaw is also
+        the axis with no restoring term of any kind -- pitch and roll at least
+        have gravity and the stroke plane -- so it was the only one where the
+        omission was fatal.
+
+        The point taken is the radius of gyration rather than the tip or the
+        hinge, for the reason :func:`~wingloop.aero.wake.reference_speed`
+        gives: the force integral is weighted by the second moment of area, so
+        that is the radius the force acts at.
+        """
+        v = self.body_velocity()
+        if self.root_body is None or self.root_translation != 3:
+            return v
+        omega = self.data.xmat[self.root_body].reshape(3, 3) @ np.asarray(
+            self.data.qvel[self.root_dof + 3 : self.root_dof + 6]
+        )
+        centre = np.asarray(hinge) + rot @ (self._gyration_radius * self.span[wing])
+        arm = centre - self.centre_of_mass()
+        return v + np.cross(omega, arm)
+
+    def centre_of_mass(self) -> np.ndarray:
+        """World position of the whole animal's centre of mass."""
+        return np.asarray(self.data.subtree_com[self.root_body or 0], dtype=float)
 
     def body_velocity(self) -> np.ndarray:
         """World translational velocity of the root body, or zeros on a tether.

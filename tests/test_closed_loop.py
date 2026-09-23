@@ -119,12 +119,30 @@ def test_the_uncontrolled_fly_yaws_on_its_own(rig):
     # Explicitly uncontrolled: this is a statement about what yaw does when
     # nothing holds it, and there is now a loop that does. With the loop on
     # the same 90 ms drifts under half a degree.
+    # 5.5 degrees in 90 ms. It was over 10 until the wings were told about
+    # the body's rotation: flapping counter-torque damps the free drift as
+    # well as a commanded turn, so every yaw magnitude in this file shrank
+    # when that term went in. The claim is that the drift exists and has a
+    # direction, not that it is large.
     HaltereController(**YAW_OFF).fly(body, 0.09)
-    assert abs(_yaw(body)) > 10.0
+    assert abs(_yaw(body)) > 3.0, _yaw(body)
 
-    held = FlightBody(free, wing, timestep=2e-5)
-    HaltereController().fly(held, 0.09)
-    assert abs(_yaw(held)) < 2.0, _yaw(held)
+    # And the loop answers it -- but not inside 90 ms, which is about twenty
+    # wingbeats and less than the loop's own settling time. At 90 ms the held
+    # animal is at -7.5 against the free one's +5.6, which is a transient, not
+    # a failure. By 400 ms it is +2.9 against -11.5. Compare where the loop
+    # has settled or the comparison is meaningless.
+    def heading_at(ms, **kw):
+        body = FlightBody(free, wing, timestep=2e-5)
+        return float(HaltereController(**kw).fly(body, ms / 1000.0)["heading"][-1])
+
+    # Compared across windows, not at one. A single sample of this is noisy
+    # enough to flip a threshold: the ratios run 0.58, 0.54, 0.70 and 0.04 at
+    # 200, 400, 600 and 800 ms. The loop is ahead at every one of them, and
+    # the free animal is the one that eventually runs away.
+    for ms in (200, 400, 600, 800):
+        assert abs(heading_at(ms)) < abs(heading_at(ms, **YAW_OFF)), ms
+    assert abs(heading_at(800)) < 0.2 * abs(heading_at(800, **YAW_OFF))
 
 
 @needs_model
@@ -158,9 +176,14 @@ def test_a_right_turn_command_yaws_left_first(rig):
         controller.fly(body, ms / 1000.0)
         return _yaw(body)
 
-    # A right turn is decreasing yaw. Early on it does the opposite.
-    early = yaw_at(50, True) - yaw_at(50, False)
-    assert early > 10.0, f"expected adverse yaw, got {early}"
+    # A right turn is decreasing yaw. Early on it does the opposite, and then
+    # crosses over: +3.2 degrees at 30 ms, +2.1 at 50, -2.7 at 70, -13.5 at
+    # 90. Flapping counter-torque both shrank the adverse phase and brought
+    # the crossover in from 70-90 ms to 50-70.
+    early = yaw_at(30, True) - yaw_at(30, False)
+    assert early > 2.0, f"expected adverse yaw, got {early}"
+    late = yaw_at(90, True) - yaw_at(90, False)
+    assert late < -5.0, f"expected the turn to come good, got {late}"
 
     # And it banks while doing it, which is what eventually turns it.
     #
@@ -200,8 +223,12 @@ def test_closed_loop_steering_pulls_the_bearing_toward_zero_once_banked(rig):
             distant=True,
             bearing=start,
         )
-        return controller.fly(body, 0.09)["bearing"][-1]
+        return controller.fly(body, 0.15)["bearing"][-1]
 
+    # 150 ms, where it was 90. Flapping counter-torque damps a commanded turn
+    # as well as a disturbance, so the loop needs longer to show what it is
+    # doing: at 90 ms only two of the five starts have moved the right way,
+    # at 150 all five have, and they stay five at 250 and 400 ms.
     toward = 0
     for start in (-60.0, -45.0, -30.0, 30.0, 45.0):
         delta = final_bearing(start, 1.0) - final_bearing(start, 0.0)
@@ -315,13 +342,22 @@ def test_phase_steering_fixates_from_the_first_forty_milliseconds(rig):
             steer_mode="phase",
         ).fly(body, seconds)["bearing"][-1]
 
-    for seconds in (0.04, 0.06):
+    # **No single early window is reliable any more**, and picking the one
+    # that passes would be the same mistake this project already had to
+    # withdraw once. Counted across four windows and four starts the steering
+    # is clearly pulling the right way -- 13 of 16 -- but window by window it
+    # wobbles: 4 of 4 at 60 ms, 2 at 100, 4 at 150, 3 at 200. Flapping
+    # counter-torque damps a commanded turn as much as a disturbance, so the
+    # early phase is smaller than it was and the transients are a larger
+    # share of it.
+    toward = 0
+    for seconds in (0.06, 0.10, 0.15, 0.20):
         for start in (-45.0, -30.0, 30.0, 45.0):
             delta = final_bearing(start, 1.0, seconds) - final_bearing(
                 start, 0.0, seconds
             )
-            toward = (delta < 0) if start > 0 else (delta > 0)
-            assert toward, f"{start} deg at {seconds * 1000:.0f} ms moved away: {delta}"
+            toward += (delta < 0) if start > 0 else (delta > 0)
+    assert toward >= 11, f"only {toward} of 16 start-window pairs moved toward zero"
 
 
 def test_an_unknown_steer_mode_is_refused():
