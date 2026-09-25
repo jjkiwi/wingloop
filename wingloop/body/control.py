@@ -418,16 +418,21 @@ class HaltereController:
     #: circulation lag in :mod:`wingloop.aero.wake` made them much worse.
     #:
     #: The filter cannot go to zero -- within a stroke the torque about the
-    #: centre of mass swings between -28 and +27 about a near-zero mean, so an
-    #: unfiltered loop chases the beat, and at 3 ms the flight is 146 ms. So
-    #: this trades stroke noise against phase margin, and 5 ms is roughly
-    #: where that trade sits.
+    #: centre of mass swings about a near-zero mean, so an unfiltered loop
+    #: chases the beat. It trades stroke noise against phase margin, and where
+    #: that trade sits **belongs to the stroke, not to the loop**: 5-6 ms on
+    #: the sinusoid, 3.5 ms on the sharper sweep this animal now flies, which
+    #: carries its torque differently and wants less filtering. At 1 ms the
+    #: flight is 116 ms and at 20 it is 21.
     #:
-    #: **What was wrong was the size of the prize.** 5 ms was quoted as worth
-    #: 353 ms of flight against 187 at 20. The 353 is a spike that moves when
-    #: an unrelated parameter moves; the trend under it is about 240. See
-    #: :data:`SENSING`. A boxcar over one wingbeat gets the same rejection
-    #: without the lag, which is why it is now the default.
+    #: 5 ms was also once quoted as worth 353 ms of flight against 187 at 20,
+    #: and that was a spike which moved when the stroke amplitude moved. See
+    #: :data:`SENSING`. The 3.5 ms peak does not move with amplitude, which is
+    #: the difference between the two.
+    #:
+    #: None of this is the default path. A boxcar over one wingbeat beats
+    #: every low-pass setting tried -- 1162 ms at bandwidth 40 against the best
+    #: low-pass's 932 -- which is why it is what the loop actually reads.
     tau: float = 0.005
     #: How the sensed attitude and rate are cleaned up before the loop reads
     #: them. ``"lowpass"`` is the first-order filter :attr:`tau` sets, which
@@ -447,9 +452,35 @@ class HaltereController:
     #: Stroke shape, passed through to :func:`harmonic_stroke`. ``sharpness``
     #: bends the sweep from a sinusoid toward a triangle and ``deviation``
     #: adds the out-of-plane motion that makes a wingtip trace a
-    #: figure-of-eight. Both default to off, which is the sinusoid every
-    #: earlier result was measured on.
-    sharpness: float = 0.0
+    #: figure-of-eight.
+    #:
+    #: **0.9, and it took three corrections to get here.** A real stroke sweeps
+    #: at a flatter speed with the turnaround compressed into the reversals,
+    #: and that cuts the within-stroke torque swing by 20%. This project
+    #: predicted that would buy flight, measured a ninefold *loss*, and wrote
+    #: the hypothesis up as refuted. The loss shrank every time the loop's
+    #: sensing improved -- nine at 20 ms of filter lag, 1.5 at 5 ms, 1.25 under
+    #: the stroke boxcar -- and reversed outright once the wings were told the
+    #: body rotates:
+    #:
+    #: ======  =======  =======  ======
+    #: amp     sine     sharp    ratio
+    #: ======  =======  =======  ======
+    #: 74.25    1473     2467     1.68
+    #: 75.00    1230     2123     1.73
+    #: 75.75    1250     1879     1.50
+    #: ======  =======  =======  ======
+    #:
+    #: What it costs is lift: 12.19 against 13.66, from 1.36 of body weight
+    #: down to 1.21. Still more than enough to fly, and the amplitude that
+    #: would restore it exactly is 79.41 degrees -- not taken, because the
+    #: table above was measured at 75 and raising the amplitude is a different
+    #: change with its own measurements owing.
+    #:
+    #: The pitch trim moves with the shape, and barely: the torque about the
+    #: centre of mass vanishes at -10.95 degrees of bias here against -10.67
+    #: for the sinusoid, so :data:`TRIM_BIAS` is 0.25 degrees out and stays.
+    sharpness: float = 0.9
     deviation: float = 0.0
     deviation_phase: float = 0.0
     #: Integral gains, per second. **The roll one is on now, and the story of

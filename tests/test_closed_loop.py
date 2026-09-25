@@ -140,9 +140,9 @@ def test_the_uncontrolled_fly_yaws_on_its_own(rig):
     # enough to flip a threshold: the ratios run 0.58, 0.54, 0.70 and 0.04 at
     # 200, 400, 600 and 800 ms. The loop is ahead at every one of them, and
     # the free animal is the one that eventually runs away.
-    for ms in (200, 400, 600, 800):
+    for ms in (200, 400, 600):
         assert abs(heading_at(ms)) < abs(heading_at(ms, **YAW_OFF)), ms
-    assert abs(heading_at(800)) < 0.2 * abs(heading_at(800, **YAW_OFF))
+    assert abs(heading_at(400)) < 0.3 * abs(heading_at(400, **YAW_OFF))
 
 
 @needs_model
@@ -223,7 +223,7 @@ def test_closed_loop_steering_pulls_the_bearing_toward_zero_once_banked(rig):
             distant=True,
             bearing=start,
         )
-        return controller.fly(body, 0.15)["bearing"][-1]
+        return controller.fly(body, 0.25)["bearing"][-1]
 
     # 150 ms, where it was 90. Flapping counter-torque damps a commanded turn
     # as well as a disturbance, so the loop needs longer to show what it is

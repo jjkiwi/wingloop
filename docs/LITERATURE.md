@@ -348,8 +348,49 @@ and the penalty shrank each time the sensing improved -- nine-fold at 20 ms of
 filter lag, 1.5 at 5 ms, 1.25 under the stroke boxcar -- before changing sign
 once the wings were told the body rotates.
 
-`sharpness` remains off by default, so every other number in these documents
-is still the sinusoid.
+`sharpness` is now 0.9 by default. Every other number in these documents that
+involves a flight was measured on the sinusoid, so they are measurements of a
+stroke this animal no longer flies -- kept because they are what was
+measured, not because they still describe the default.
+
+What the sharp stroke costs is lift: cycle-mean 12.19 against 13.66, which is
+1.21 of body weight against 1.36. The amplitude that restores it exactly is
+79.41 degrees, not taken. The pitch trim moves from -10.67 to -10.95 degrees
+of bias, so the stored -10.7 is a quarter of a degree out.
+
+### The filter optimum belongs to the stroke
+
+Flight against sensor-filter lag, first-order filter, bandwidth 40, yaw loop
+off, under the sharper stroke that is now the default:
+
+| tau (ms) | 2.0 | 2.5 | 3.0 | 3.5 | 4.0 | 6.0 | 10 | 20 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| amplitude 74.25 | 338 | 539 | 932 | **1092** | 437 | 369 | 278 | 21 |
+| amplitude 75.00 | 300 | 505 | 847 | **934** | 459 | — | — | — |
+| amplitude 75.75 | 282 | 426 | 761 | **942** | 476 | 365 | 292 | 21 |
+
+**3.5 ms**, against 5-6 ms for the sinusoid. A sharper sweep carries its
+torque differently and wants less filtering, so the lag costs more: 20 ms of
+it is worth 21 ms of flight.
+
+This peak is believed where the first one was not, and for the stated reason:
+it **does not move with stroke amplitude** -- all three columns agree -- where
+the original spike moved with a 1% change. It does move with `sharpness`, to
+3.0 ms at 0.95, which is a stroke parameter and so a dependence a real
+optimum should have.
+
+None of it is the default path. The one-wingbeat boxcar beats every low-pass
+setting tried:
+
+| bandwidth | first-order 6 ms | stroke boxcar |
+| --- | ---: | ---: |
+| 40 | 366 ms | **1162 ms** |
+| 60 | 779 ms | **1227 ms** |
+
+On the sinusoid these were level at bandwidth 40 (236 against 237) and the
+boxcar was ahead only above it. The sharper stroke puts more of its
+disturbance at the wingbeat and its harmonics, which is what the boxcar nulls
+exactly and the first-order filter can only smear.
 
 ### The rest
 

@@ -283,7 +283,12 @@ This is what real flies do, and the model now says why they do it: amplitude
 pays the drag penalty first, rotation timing does not. `steer_mode="amplitude"`
 is kept so the comparison stays runnable.
 
-## A hypothesis of ours, refuted
+## A hypothesis of ours, refuted -- and then reinstated
+
+*(Read this section as history. The measurement it reports stood for most of
+this project's life and was wrong the whole time; `sharpness` is 0.9 by
+default now. What went wrong and how it was found is further down, under
+**the oldest refutation in this README turns out to be wrong**.)*
 
 The reasoning was that the within-stroke torque swing is what ends the flight
 -- it runs from -28 to +27 about a near-zero mean, against a control authority
@@ -793,10 +798,49 @@ hypothesis was right and every measurement against it was taken on an animal
 that could not bank the reduced swing, because what was ending its flight was
 not the swing.
 
-`sharpness` is still off by default, and turning it on is the obvious next
-thing. It is not free: every result in this repository was measured on the
-sinusoid, and this is now the second time that restoring one missing term has
-invalidated a layer of tuning built on top of it.
+**`sharpness` is now 0.9 by default**, and the sinusoid is the special case.
+That is not free, and the cost is the honest part: every number in this
+repository above this line was measured on the sinusoid, so each one is a
+measurement of an animal flying a stroke it no longer flies. The tests that
+compare stroke shapes now ask for the sinusoid explicitly.
+
+What it costs in the air is lift -- 12.19 against 13.66, from 1.36 of body
+weight down to 1.21 -- and that shows up as climb: the 300 ms run that rose
+148 mm on the sinusoid rises **65 mm** now. The stroke buys attitude with
+lift. The amplitude that would
+restore it exactly is 79.41 degrees, and that is deliberately *not* taken: the
+table above was measured at 75 degrees, and raising the amplitude is a
+separate change with its own measurements owing. The pitch trim moves with the
+shape and barely: the torque about the centre of mass vanishes at -10.95
+degrees of bias against -10.67 for the sinusoid, so `TRIM_BIAS` is a quarter
+of a degree out and stays.
+
+### What the new default moved
+
+Turning `sharpness` on re-opened almost every tuning question in this file,
+which is the price of it and worth listing rather than burying:
+
+| | sinusoid | sharpness 0.9 |
+| --- | ---: | ---: |
+| flight, yaw loop closed | 1230 ms | **2123 ms** |
+| climb over 300 ms | 148 mm | 65 mm |
+| cycle-mean lift | 13.66 | 12.19 |
+| best first-order filter lag | 5-6 ms | **3.5 ms** |
+| boxcar against that filter, bandwidth 40 | 237 / 236 | **1162 / 366** |
+| bearing loop needs | 150 ms | 250 ms |
+
+The filter optimum moving is the interesting one. It is **not** another spike:
+the first one was discredited because a 1% change in stroke amplitude moved
+it, and this peak sits at 3.5 ms for every amplitude tried, moving only with
+`sharpness` itself -- a stroke parameter, which is a dependence a real
+optimum should have. A sharper sweep carries its torque differently and wants
+less filtering, so the lag costs more; 20 ms of it is now worth 21 ms of
+flight.
+
+The boxcar's advantage grew the same way and for the same reason. A sharper
+sweep puts more of its disturbance at the wingbeat and its harmonics, which is
+exactly what a one-period boxcar nulls and a first-order filter can only
+smear.
 
 ### Where it ends now
 

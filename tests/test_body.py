@@ -409,9 +409,15 @@ def test_closing_the_loop_holds_attitude_for_the_whole_run(rigid, wing, tmp_path
 
     The earlier version of this test asserted the opposite -- that attitude
     hold lasted about 20 ms and then failed -- with a note saying the
-    assertion should start failing if the controller ever got better. It did.
-    Dropping the sensor filter from 20 ms to 5 took controlled flight from
-    187 ms to 353 and brought the whole 300 ms run inside 20 degrees.
+    assertion should start failing if the controller ever got better. It did,
+    repeatedly, and the numbers here have been rewritten each time.
+
+    The climb is the part to read carefully. It was 148 mm over this run on
+    the sinusoid and is **65 mm** on the sharper stroke that is now the
+    default, because that stroke makes 12.19 of cycle-mean lift against 13.66
+    -- 1.21 of body weight against 1.36. It buys attitude with lift, and this
+    is where that shows. The amplitude that would buy the lift back is 79.41
+    degrees; taking it is a separate change with its own measurements owing.
     """
     free = add_free_base(rigid[0], tmp_path / "loop.xml", dofs="free")
     body = FlightBody(free, wing, timestep=2e-5)
@@ -421,7 +427,7 @@ def test_closing_the_loop_holds_attitude_for_the_whole_run(rigid, wing, tmp_path
     assert controller.diverged_at is None, "it should not blow up inside 300 ms"
     assert np.degrees(np.abs(trace["pitch"])).max() < 20.0
     assert np.degrees(np.abs(trace["roll"])).max() < 25.0
-    assert trace["z"][-1] > 100.0, "and climb the whole way"
+    assert trace["z"][-1] > 50.0, "and climb the whole way"
 
 
 # --------------------------------------------------- the connectome steering
@@ -462,7 +468,7 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
         free = add_free_base(rigid[0], tmp_path / f"h{bearing:+.0f}.xml", dofs="free")
         body = FlightBody(free, wing, timestep=2e-5)
         return float(
-            SteeringController(readout=readout, bearing=bearing).fly(body, 0.30)[
+            SteeringController(readout=readout, bearing=bearing).fly(body, 0.45)[
                 "heading"
             ][-1]
         )
@@ -490,7 +496,7 @@ def test_the_connectome_steers_the_body_toward_the_object(rigid, wing, tmp_path)
 
     free = add_free_base(rigid[0], tmp_path / "bare.xml", dofs="free")
     bare = FlightBody(free, wing, timestep=2e-5)
-    bare_turn = HaltereController().fly(bare, 0.30)["heading"][-1]
+    bare_turn = HaltereController().fly(bare, 0.45)["heading"][-1]
     assert blind_left == pytest.approx(float(bare_turn), abs=1e-6)
 
     # And the steering straddles that baseline rather than sitting to one side.
@@ -626,10 +632,8 @@ def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
     not the swing. Once the wings are told the body rotates, the original
     hypothesis is simply right, and it was right all along.
 
-    ``sharpness`` is still off by default. Turning it on is the obvious next
-    thing and it is not free: every result in this repository was measured on
-    the sinusoid, and this project has now twice found that changing what the
-    animal does invalidates what was measured around it.
+    ``sharpness`` is now 0.9 by default, so the *sinusoid* is the special case
+    here and this test asks for it explicitly.
     """
     from wingloop.body.control import HaltereController
     from wingloop.body.flight import harmonic_stroke
@@ -648,7 +652,7 @@ def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
             torques.append(body.wrench_about_com()[4])
         return float(np.ptp(torques))
 
-    assert swing(sharpness=0.9) < 0.85 * swing()
+    assert swing(sharpness=0.9) < 0.85 * swing(sharpness=0.0)
 
     def holds_until(**kwargs) -> float:
         b = FlightBody(free, wing, timestep=2e-5)
@@ -660,8 +664,8 @@ def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
         over = np.flatnonzero(bad > 30.0)
         return float(t[over[0]] * 1000) if len(over) else float(t[-1] * 1000)
 
-    plain = holds_until()
-    sharp = holds_until(sharpness=0.9)
+    plain = holds_until(sharpness=0.0)
+    sharp = holds_until()
     assert plain > 900.0, plain
     assert sharp > 1.3 * plain, (plain, sharp)
 
@@ -744,13 +748,14 @@ def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
     a near-zero mean, so an unfiltered loop chases the beat, and at 3 ms the
     flight is back to 146 ms.
 
-    What this deliberately does **not** assert is a size. The version of this
-    test that did said 5 ms beats 20 ms by more than 1.5x, which passed on a
-    353 ms measurement that turned out to be a spike. The spike has since gone
-    away for a reason worth reading -- see
-    ``test_the_filter_optimum_is_smooth_once_the_wings_feel_the_rotation`` --
-    and the honest shape of this curve is a broad hump: 514 ms at 3, 993 at
-    4.8, 1002 at 6, 928 at 10, 619 at 20.
+    The optimum is interior, and **where it sits depends on the stroke**. On
+    the sinusoid it was a broad hump around 5-6 ms. On the stroke this animal
+    now flies it is a pronounced peak at 3.5 ms, with 116 ms of flight at 1 ms
+    of lag and 21 at 20. So this asserts the shape -- worse on both sides --
+    and not a number, because the number belongs to the stroke.
+
+    See ``test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck``
+    for why the peak is believed this time.
     """
     from wingloop.body.control import (
         LOWPASS_BANDWIDTH,
@@ -769,30 +774,38 @@ def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
         over = np.flatnonzero(bad > 30.0)
         return float(trace["t"][over[0]] * 1000) if len(over) else 1500.0
 
-    assert holds_until(0.006) > holds_until(0.020)
-    assert holds_until(0.006) > holds_until(0.003)
+    assert holds_until(0.0035) > holds_until(0.020)
+    assert holds_until(0.0035) > holds_until(0.001)
 
 
 @needs_model
-def test_the_filter_optimum_is_smooth_once_the_wings_feel_the_rotation(
+def test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck(
     rigid, wing, tmp_path
 ):
-    """A correction to a correction, and the nicest result in this file.
+    """Third time this curve has been measured, and the first believable peak.
 
-    Flight time against filter lag used to be a smooth hump with a narrow
-    spike on it -- 249 ms at 4.8, **353 at 5.0, 379 at 5.2**, 256 at 5.5 --
-    and this project first quoted the 353 as what the filter bought, then
-    caught itself: a 1% change in stroke amplitude moved the spike to a
-    different time constant, so where it landed was a coincidence.
+    The history is the point. The filter optimum was first quoted as 353 ms at
+    5 ms of lag; that turned out to be a spike that **moved when the stroke
+    amplitude changed by 1%**, so where it landed was a coincidence. Adding
+    the missing yaw damping flattened it into a broad hump at 5-6 ms. Turning
+    ``sharpness`` on moved it again, to a pronounced peak at 3.5 ms:
 
-    **The spike was the missing yaw damping.** Once the wings are told the
-    body is rotating, the curve is smooth and the same shape at every
-    amplitude: 514 ms at 3 ms of lag, 993 at 4.8, 997 at 5.0, 999 at 5.2,
-    1002 at 6.0, 928 at 10, 619 at 20. A broad optimum near 5-6 ms, which is
-    where the default has been sitting all along -- chosen for a bad reason
-    and right anyway.
+    ======  =====  =====  =====  =====  =====
+    tau ms   2.0    2.5    3.0    3.5    4.0
+    ======  =====  =====  =====  =====  =====
+    74.25    338    539    932   1092    437
+    75.00    300    505    847    934    459
+    75.75    282    426    761    942    476
+    ======  =====  =====  =====  =====  =====
 
-    So this asserts smoothness, which is the opposite of what it used to.
+    **This peak does not move with amplitude**, which is the test the first
+    one failed: all three put it at 3.5 ms. It moves with ``sharpness``, to
+    3.0 at 0.95, and that is a stroke parameter, so depending on it is what a
+    real optimum should do. A sharper sweep carries its torque differently and
+    wants less filtering; the lag then costs more, and 20 ms of it is worth
+    21 ms of flight.
+
+    So this asserts the discriminator directly: three amplitudes, one peak.
     """
     from wingloop.body.control import (
         LOWPASS_BANDWIDTH,
@@ -809,20 +822,24 @@ def test_the_filter_optimum_is_smooth_once_the_wings_feel_the_rotation(
             tau=tau,
             amplitude=np.deg2rad(amplitude),
             **{**gains_for(LOWPASS_BANDWIDTH), **YAW_OFF},
-        ).fly(body, 1.50)
+        ).fly(body, 2.0)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 1500.0
+        return float(trace["t"][over[0]] * 1000) if len(over) else 2000.0
 
-    taus = (0.003, 0.0048, 0.006, 0.020)
-    for amplitude in (74.25, 75.75):
+    taus = (0.0025, 0.003, 0.0035, 0.004)
+    peaks = []
+    for amplitude in (74.25, 75.0, 75.75):
         curve = [holds_until(tau, amplitude) for tau in taus]
-        # One hump: up to the optimum, then down. No point stands out from its
-        # neighbours, which is what a spike would do.
-        assert curve[0] < curve[1], curve
-        assert curve[1] < curve[2] * 1.05, curve
-        assert curve[3] < curve[2], curve
-        assert curve[2] < 1.3 * curve[1], f"{amplitude}: 4.8 and 6 ms disagree: {curve}"
+        # It climbs to the peak rather than jumping to it: a spike stands out
+        # from both neighbours, this one has a side.
+        assert curve[0] < curve[1] < curve[2], curve
+        peaks.append(taus[int(np.argmax(curve))])
+    assert len(set(peaks)) == 1, (
+        f"the peak moved with stroke amplitude ({peaks}), which is what the "
+        "first version of this curve did and the reason its optimum was not "
+        "believed. If this fires, the 3.5 ms figure needs withdrawing."
+    )
 
 
 @needs_model
@@ -1090,18 +1107,26 @@ def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
     down at 218 Hz for the 229-sample window this timestep gives -- with a
     group delay of half a period, 2.29 ms against 5.
 
-    The two are level at the bandwidth the old default used and separate
-    above it, which is what a phase margin looks like when it is spent on
-    gain instead of lag. Measured across three stroke amplitudes so that a
-    coincidence of the kind ``test_the_filter_optimum_is_a_spike_that_moves``
-    found would show up as disagreement:
+    On the sinusoid the two were level at the bandwidth the old default used
+    and separated above it, which is what a phase margin looks like when it is
+    spent on gain instead of lag: 236 against 237 at bandwidth 40, and 163
+    against 320 at 60.
+
+    **On the stroke this animal now flies the boxcar wins everywhere**, and by
+    much more:
 
     ======  =================  ==============
     rad/s   first-order 6 ms   stroke boxcar
     ======  =================  ==============
-    40            236 ms           237 ms
-    60            163 ms           320 ms
+    40            366 ms          1162 ms
+    60            779 ms          1227 ms
     ======  =================  ==============
+
+    That is the same effect grown rather than a different one. A sharper sweep
+    puts more of its disturbance at the wingbeat and its harmonics, which is
+    exactly what a one-period boxcar nulls and a first-order filter can only
+    smear -- and the first-order filter's own optimum moved to 3.5 ms for the
+    same reason, so 6 ms is further off its best than it used to be.
     """
     from wingloop.body.control import HaltereController, gains_for
 
@@ -1110,19 +1135,16 @@ def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
     def holds_until(bandwidth: float, **kwargs) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
         trace = HaltereController(**kwargs, **{**gains_for(bandwidth), **YAW_OFF}).fly(
-            body, 1.50
+            body, 1.60
         )
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 1500.0
+        return float(trace["t"][over[0]] * 1000) if len(over) else 1600.0
 
     low = dict(sensing="lowpass", tau=0.006)
     box = dict(sensing="stroke")
 
-    # Level where the old default sat: the boxcar is not simply a better filter.
-    assert holds_until(40.0, **low) == pytest.approx(holds_until(40.0, **box), rel=0.1)
-
-    # And ahead where the lag would have started costing.
+    assert holds_until(40.0, **box) > 2.0 * holds_until(40.0, **low)
     assert holds_until(60.0, **box) > 1.3 * holds_until(60.0, **low)
     assert holds_until(60.0, **box) > holds_until(40.0, **box)
 
