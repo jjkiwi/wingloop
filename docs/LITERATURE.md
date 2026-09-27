@@ -369,7 +369,28 @@ off, under the sharper stroke that is now the default:
 | amplitude 75.00 | 300 | 505 | 847 | **934** | 459 | — | — | — |
 | amplitude 75.75 | 282 | 426 | 761 | **942** | 476 | 365 | 292 | 21 |
 
-**3.5 ms**, against 5-6 ms for the sinusoid. A sharper sweep carries its
+At the wider default stroke it moved again, to **4 ms**:
+
+| tau (ms) | 3.0 | 4.0 | 5.0 | 6.0 | 8.0 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| amplitude 78.62 | 561 | **777** | 421 | 375 | 320 |
+| amplitude 79.41 | 459 | **830** | 437 | 374 | 318 |
+| amplitude 80.20 | 422 | **789** | 437 | 376 | 317 |
+
+**3.5 ms at 75 degrees, 4 ms at 79.41**, against 5-6 ms for the sinusoid.
+Four values across one session, counting the spike at 5 ms that was not a
+property of the filter at all. This constant is not the loop's: it belongs to
+whatever stroke is being flown, and needs finding again whenever that changes.
+What stays true is the discriminator -- a real optimum sits still under a 1%
+amplitude nudge and moves when the stroke actually changes.
+
+**The discriminator has to nudge the stroke that is being flown.** Written as
+a literal 75 degrees it kept sweeping a stroke the animal no longer flew,
+against gains measured for one it did, and reported a peak that belonged to
+neither: 911 ms at 3 ms of lag where the matched configuration gives 459. Both
+that test and the ones checking the stored authorities now read the stroke off
+the controller. Writing the nominal stroke down twice is how this project
+mislaid a 49% error in the yaw authority for a whole commit. A sharper sweep carries its
 torque differently and wants less filtering, so the lag costs more: 20 ms of
 it is worth 21 ms of flight.
 
@@ -391,6 +412,62 @@ On the sinusoid these were level at bandwidth 40 (236 against 237) and the
 boxcar was ahead only above it. The sharper stroke puts more of its
 disturbance at the wingbeat and its harmonics, which is what the boxcar nulls
 exactly and the first-order filter can only smear.
+
+### Control authorities belong to the stroke, and were left behind once
+
+Every authority on this page is a property of the stroke being flown, and the
+commit that turned `sharpness` on changed the stroke while re-measuring only
+the lift and the trim. Measured at the same amplitude, 75 degrees, purely by
+sharpening the sweep:
+
+| constant | sinusoid (stored) | sharpness 0.9 | error |
+| --- | ---: | ---: | ---: |
+| TRIM_BIAS | -10.70 deg | -10.95 | 0.25 deg |
+| PITCH_PER_BIAS | -18.85 | -16.04 | -15% |
+| ROLL_PER_ASYMMETRY | 38.2 | 32.51 | -15% |
+| YAW_PER_PHASE | -0.5666 | -0.8419 | **+49%** |
+
+Gains are `inertia * bandwidth^2 / authority`, so overstated authorities give
+understated gains: the loop was running below its nominal bandwidth. It flew
+*longer* that way -- 2123 ms against 2011 with the gains correct -- which
+means "bandwidth 60" was never bandwidth 60 and the sweep that chose it was
+measuring something else.
+
+At the new default, 79.41 degrees and sharpness 0.9:
+
+| constant | value |
+| --- | ---: |
+| TRIM_BIAS | -11.303 deg |
+| PITCH_PER_BIAS | -17.401 |
+| ROLL_PER_ASYMMETRY | 34.342 |
+| YAW_PER_PHASE | -0.9804 |
+
+### The amplitude that buys the lift back
+
+79.41 degrees restores the cycle-mean lift exactly: 13.663 against 13.664 for
+the sinusoid, 1.358 of body weight. The climb comes with it -- 148.2 mm over
+300 ms against 76.6 at 75 degrees, and 148 for the sinusoid this all started
+from.
+
+It costs attitude. With each amplitude on its own authorities:
+
+| bandwidth | 75.00 deg | 79.41 deg |
+| --- | ---: | ---: |
+| 35 | 1135 ms / 86.1 mm | 729 ms / 148.8 mm |
+| 45 | 1526 / 88.1 | 960 / 151.9 |
+| 55 | 1921 / 81.7 | 1193 / 149.1 |
+| 60 | 2011 / 76.6 | 1244 / 148.2 |
+| 70 | 2620 / 68.2 | 1523 / 130.5 |
+
+A wider sweep makes a wider within-stroke torque swing and the loop has more
+to answer, so the flight is shorter at every bandwidth. The choice between the
+two amplitudes is a choice between climbing and staying upright.
+
+**And the bandwidth is now unconverged.** With the authorities correct, flight
+time is still rising at 70 rad/s at both amplitudes, where the old sweep --
+run on gains that were quietly 15% low -- put the optimum at 60. One run per
+point is not enough to move a default on, so `BANDWIDTH` stays at 60 and this
+is the next thing to measure properly.
 
 ### The rest
 

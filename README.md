@@ -842,6 +842,57 @@ sweep puts more of its disturbance at the wingbeat and its harmonics, which is
 exactly what a one-period boxcar nulls and a first-order filter can only
 smear.
 
+### The amplitude that buys the lift back
+
+The sharper stroke gave away lift, and `79.41 degrees` is the amplitude that
+solves for getting it back: cycle-mean 13.663 against the sinusoid's 13.664,
+1.358 of body weight. The climb returns with it -- **148.2 mm over 300 ms**,
+against 76.6 at 75 degrees, and 148 for the sinusoid this whole chain started
+from.
+
+It costs attitude, and the cost is not small. With each amplitude flown on its
+own measured authorities:
+
+| bandwidth | 75.00 deg | 79.41 deg |
+| --- | ---: | ---: |
+| 45 | 1526 ms / 88.1 mm | 960 ms / 151.9 mm |
+| 55 | 1921 / 81.7 | 1193 / 149.1 |
+| **60** | **2011 / 76.6** | **1244 / 148.2** |
+| 70 | 2620 / 68.2 | 1523 / 130.5 |
+
+A wider sweep makes a wider within-stroke torque swing, and the loop has more
+to answer. The choice between these two amplitudes is a straight choice
+between climbing and staying upright.
+
+### A calibration error, and what it was hiding
+
+Every control authority in `wingloop.body.control` is a property of the stroke
+being flown, and the commit that turned `sharpness` on changed the stroke
+while re-measuring only the lift and the trim. At the same 75 degrees, purely
+from sharpening the sweep:
+
+| constant | sinusoid (stored) | sharpness 0.9 | error |
+| --- | ---: | ---: | ---: |
+| `PITCH_PER_BIAS` | -18.85 | -16.04 | -15% |
+| `ROLL_PER_ASYMMETRY` | 38.2 | 32.51 | -15% |
+| `YAW_PER_PHASE` | -0.5666 | -0.8419 | **+49%** |
+
+Gains are `inertia * bandwidth^2 / authority`, so overstating the authority
+understates the gain: **the loop was quietly running below its nominal
+bandwidth**, and it flew *longer* that way -- 2123 ms against 2011 with the
+gains correct. Which means "bandwidth 60" was never bandwidth 60, and the
+sweep that picked it was measuring a loop that was not the one described.
+
+All of them are now measured at the default stroke, and the tests that check
+them read the stroke off the controller instead of writing 75 degrees down
+again -- which is why they passed through the error in the first place.
+
+**The bandwidth is now unconverged.** With the authorities right, flight time
+is still climbing at 70 rad/s at both amplitudes where the old sweep put the
+optimum at 60. One run per point is not enough to move a default on, so
+`BANDWIDTH` stays at 60 and this is the next thing that needs measuring
+properly.
+
 ### Where it ends now
 
 **1069 ms to about 1250, and the failure mode is unchanged.** The heading

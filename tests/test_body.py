@@ -34,6 +34,18 @@ from wingloop.body.hinge import (  # noqa: E402
 MESH = Path(__file__).parent / "rwing_vertices.npy"
 FREQUENCY = 218.0
 
+#: The stroke the stored constants were measured on, read from the controller
+#: rather than written down again.
+#:
+#: Every authority in :mod:`wingloop.body.control` is a property of the stroke
+#: being flown. These tests check those numbers, so they have to fly the same
+#: stroke -- and when this was a literal 75 degrees and no sharpness, turning
+#: ``sharpness`` on left them checking constants against a stroke the animal
+#: had stopped flying. They passed anyway, because the constants were wrong in
+#: the same direction.
+DEFAULT_STROKE = HaltereController().amplitude
+DEFAULT_SHARPNESS = HaltereController().sharpness
+
 #: Switches the yaw loop off.
 #:
 #: Every sensing and filter comparison below uses it, and deliberately. Those
@@ -376,7 +388,10 @@ def test_the_trim_bias_nulls_the_pitch_torque(rigid, wing, tmp_path):
             total += float(body.wrench_about_com()[4])
         return total / n
 
-    assert abs(pitch_torque(TRIM_BIAS)) < 0.2, "trim should leave no pitch torque"
+    # 0.2 of residual against a pitch authority of 17.4 is two thirds of a
+    # degree of equivalent bias error, which is what a bisection on a
+    # 240-sample cycle leaves when this test integrates over 300.
+    assert abs(pitch_torque(TRIM_BIAS)) < 0.3, "trim should leave no pitch torque"
     assert pitch_torque(0.0) < -3.0, "untrimmed, it pitches nose-down hard"
     # Authority, and its sign: more bias is more nose-down.
     slope = (pitch_torque(np.deg2rad(5)) - pitch_torque(np.deg2rad(-5))) / np.deg2rad(10)
@@ -788,22 +803,28 @@ def test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck(
     5 ms of lag; that turned out to be a spike that **moved when the stroke
     amplitude changed by 1%**, so where it landed was a coincidence. Adding
     the missing yaw damping flattened it into a broad hump at 5-6 ms. Turning
-    ``sharpness`` on moved it again, to a pronounced peak at 3.5 ms:
+    ``sharpness`` on moved it to 3.5 ms, and widening the stroke to 79.41
+    degrees moved it again, to 4 ms:
 
     ======  =====  =====  =====  =====  =====
-    tau ms   2.0    2.5    3.0    3.5    4.0
+    tau ms   3.0    4.0    5.0    6.0    8.0
     ======  =====  =====  =====  =====  =====
-    74.25    338    539    932   1092    437
-    75.00    300    505    847    934    459
-    75.75    282    426    761    942    476
+    78.62    561    777    421    375    320
+    79.41    459    830    437    374    318
+    80.20    422    789    437    376    317
     ======  =====  =====  =====  =====  =====
 
-    **This peak does not move with amplitude**, which is the test the first
-    one failed: all three put it at 3.5 ms. It moves with ``sharpness``, to
-    3.0 at 0.95, and that is a stroke parameter, so depending on it is what a
-    real optimum should do. A sharper sweep carries its torque differently and
-    wants less filtering; the lag then costs more, and 20 ms of it is worth
-    21 ms of flight.
+    **The peak does not move with a 1% change of amplitude**, which is the
+    test the first version failed: all three columns put it at 4 ms. It moves
+    with the things that change the stroke itself -- the sharpness, and a 6%
+    change of amplitude -- which is what a real optimum should do and what a
+    coincidence should not.
+
+    Four values across one session, then: 5-6 ms on the sinusoid, 3.5 with the
+    sharper sweep, 4 with the wider one, and once a spike at 5 that was not a
+    property of the filter at all. This constant is not the loop's. It belongs
+    to whatever stroke the animal is flying and has to be found again each
+    time that changes.
 
     So this asserts the discriminator directly: three amplitudes, one peak.
     """
@@ -827,13 +848,20 @@ def test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck(
         over = np.flatnonzero(bad > 30.0)
         return float(trace["t"][over[0]] * 1000) if len(over) else 2000.0
 
-    taus = (0.0025, 0.003, 0.0035, 0.004)
+    taus = (0.003, 0.004, 0.005, 0.006)
     peaks = []
-    for amplitude in (74.25, 75.0, 75.75):
+    # One percent either side of whatever the default stroke is, because the
+    # discriminator is "does the peak move when something unrelated to the
+    # filter moves" -- and a fixed 75 degrees stopped being unrelated to the
+    # filter the moment the default amplitude changed. Written as a literal it
+    # swept a stroke the animal no longer flies, against gains measured for
+    # one it does, and reported a peak neither of them has.
+    nominal = np.degrees(DEFAULT_STROKE)
+    for amplitude in (nominal * 0.99, nominal, nominal * 1.01):
         curve = [holds_until(tau, amplitude) for tau in taus]
-        # It climbs to the peak rather than jumping to it: a spike stands out
-        # from both neighbours, this one has a side.
-        assert curve[0] < curve[1] < curve[2], curve
+        # It climbs to the peak and falls away from it, rather than standing
+        # out from both neighbours the way the discredited spike did.
+        assert curve[0] < curve[1] > curve[2] > curve[3], curve
         peaks.append(taus[int(np.argmax(curve))])
     assert len(set(peaks)) == 1, (
         f"the peak moved with stroke amplitude ({peaks}), which is what the "
@@ -1310,7 +1338,7 @@ def test_only_the_phase_knob_yaws_and_it_does_so_linearly(rigid, wing):
         acc = []
         for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
             angles, rates = harmonic_stroke(
-                t, amplitude=np.deg2rad(75.0), frequency=218.0,
+                t, amplitude=DEFAULT_STROKE, frequency=218.0, sharpness=DEFAULT_SHARPNESS,
                 bias=TRIM_BIAS, rates=True, **kw,
             )
             body.set_wings(angles, rates)
@@ -1372,7 +1400,8 @@ def test_the_phase_knob_means_the_same_thing_in_both_stroke_generators(
         acc = []
         for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
             angles, rates = harmonic_stroke(
-                t, amplitude=np.deg2rad(75.0), frequency=218.0, bias=TRIM_BIAS,
+                t, amplitude=DEFAULT_STROKE, frequency=218.0,
+                sharpness=DEFAULT_SHARPNESS, bias=TRIM_BIAS,
                 rates=True, phase_asymmetry=phase_asymmetry,
             )
             body.set_wings(angles, rates)
@@ -1416,7 +1445,7 @@ def test_a_spinning_body_damps_itself_through_its_own_wings(rigid, wing, tmp_pat
         acc = []
         for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
             angles, rates = harmonic_stroke(
-                t, amplitude=np.deg2rad(75.0), frequency=218.0,
+                t, amplitude=DEFAULT_STROKE, frequency=218.0, sharpness=DEFAULT_SHARPNESS,
                 bias=TRIM_BIAS, rates=True,
             )
             body.set_wings(angles, rates)
@@ -1520,7 +1549,7 @@ def test_a_rolled_animal_that_is_climbing_yaws(rigid, wing, tmp_path):
         acc = []
         for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
             angles, rates = harmonic_stroke(
-                t, amplitude=np.deg2rad(75.0), frequency=218.0,
+                t, amplitude=DEFAULT_STROKE, frequency=218.0, sharpness=DEFAULT_SHARPNESS,
                 bias=TRIM_BIAS, rates=True,
             )
             body.set_wings(angles, rates)
@@ -1569,7 +1598,7 @@ def test_the_yaw_knob_saturates_early_and_that_is_a_known_cost():
     controller = HaltereController()
     assert controller.yaw_gain == pytest.approx(gains_for(BANDWIDTH)["yaw_gain"])
     saturates_at = np.degrees(MAX_PHASE / controller.yaw_gain)
-    assert saturates_at == pytest.approx(12.0, abs=0.5), saturates_at
+    assert saturates_at == pytest.approx(20.7, abs=0.5), saturates_at
 
     # And it is the light inertia that does it, not the knob being weak: at
     # pitch's inertia the same bandwidth would stay linear three times further.
@@ -1584,11 +1613,16 @@ def test_the_yaw_knob_drags_roll_with_it_and_the_loop_is_told_in_advance(
     """The cross-coupling, and the compensation that was expected not to matter.
 
     Deflecting the rotation-phase asymmetry to yaw the animal also rolls it,
-    and not symmetrically: +1.51 of roll torque at +45 degrees against +0.33
-    at -45, so the even part does not cancel between the sides. In the roll
-    loop's own units that is 0.039 of amplitude asymmetry against a limit of
-    0.45 -- one tenth of the authority available, which is why cancelling it
-    looked pointless.
+    and almost entirely on one side: **+1.34 of roll torque at +45 degrees
+    against -0.003 at -45**. Nothing cancels between the sides because one
+    side has no coupling to cancel. In the roll loop's own units the worst of
+    it is 0.039 of amplitude asymmetry against a limit of 0.45 -- one tenth of
+    the authority available, which is why cancelling it looked pointless.
+
+    On the sinusoid at 75 degrees the same sweep gave +1.51 against +0.33, a
+    large even part sitting under an odd one. The shape is a property of the
+    stroke, like every other authority on that page, and it was re-measured
+    when the stroke changed.
 
     It is worth 1218 ms of flight to 1377, at every stroke amplitude tried.
     The size was never the point: the yaw knob saturates for long stretches,
@@ -1615,7 +1649,8 @@ def test_the_yaw_knob_drags_roll_with_it_and_the_loop_is_told_in_advance(
         acc = []
         for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
             angles, rates = harmonic_stroke(
-                t, amplitude=np.deg2rad(75.0), frequency=218.0, bias=TRIM_BIAS,
+                t, amplitude=DEFAULT_STROKE, frequency=218.0,
+                sharpness=DEFAULT_SHARPNESS, bias=TRIM_BIAS,
                 rates=True, phase_asymmetry=phase_asymmetry,
             )
             body.set_wings(angles, rates)
@@ -1627,9 +1662,9 @@ def test_the_yaw_knob_drags_roll_with_it_and_the_loop_is_told_in_advance(
     base = roll_torque(0.0)
     plus = roll_torque(np.deg2rad(45.0)) - base
     minus = roll_torque(np.deg2rad(-45.0)) - base
-    assert plus > 1.4, plus
-    assert 0.2 < minus < 0.5, minus
-    assert plus > 3.0 * minus, "the even part is what does not cancel"
+    assert plus > 1.2, plus
+    assert abs(minus) < 0.1, minus
+    assert plus > 10.0 * abs(minus), "one side carries all of it"
 
     # And the stored curve is the measurement, so it matches at every knot.
     for degrees in (-45.0, -22.5, 0.0, 22.5, 45.0):

@@ -83,14 +83,21 @@ from .flight import harmonic_stroke
 #: +0.66 where the moment about the centre of mass is -3.49. Wrong magnitude,
 #: wrong sign, and the controller trimmed on it pushed the animal over faster
 #: with the loop closed than without.
-TRIM_BIAS = np.deg2rad(-10.7)
+#: **Re-measured for the default stroke, which is not the one this was found
+#: on.** Every authority on this page moves when the stroke does, and the
+#: commit that turned ``sharpness`` on changed them all while re-measuring
+#: only the lift and this trim. At 75 degrees and sharpness 0.9 the stored
+#: numbers were already 15% out in pitch and roll and 49% out in yaw, so the
+#: loop ran on gains derived from a stroke it was no longer flying. These are
+#: measured at the default: 79.41 degrees, sharpness 0.9.
+TRIM_BIAS = np.deg2rad(-11.303)
 
 #: Control authority, measured about the centre of mass at the nominal stroke.
 #: Pitch torque per radian of stroke bias, and roll torque per unit of
 #: left-right amplitude asymmetry. The gains below are derived from these and
 #: the body's inertia rather than tuned by hand.
-PITCH_PER_BIAS = -18.85
-ROLL_PER_ASYMMETRY = 38.2
+PITCH_PER_BIAS = -17.401
+ROLL_PER_ASYMMETRY = 34.342
 
 #: Pitch, roll and yaw inertia of the whole animal, from the model's mass
 #: matrix. **Yaw is the light axis**, a third of pitch, which is why an
@@ -102,9 +109,12 @@ YAW_INERTIA = 0.000591
 #: Roll torque the yaw knob drags with it, as the measured curve itself.
 #:
 #: Swept across the knob's whole range, reading the stroke-averaged roll about
-#: the centre of mass and subtracting the undeflected value. Strongly
-#: asymmetric -- +1.51 at +45 degrees against +0.33 at -45 -- so it has a
-#: large even part that does not cancel between the sides.
+#: the centre of mass and subtracting the undeflected value. One-sided on the
+#: stroke now flown: **+1.34 at +45 degrees against -0.003 at -45**, so
+#: nothing cancels between the sides because one side has nothing to cancel.
+#: On the sinusoid at 75 degrees it was +1.51 against +0.33 -- an even part
+#: under an odd one -- which is a reminder that this curve belongs to the
+#: stroke as much as the authorities do.
 #:
 #: **Interpolated rather than fitted, because the fits were not good enough to
 #: defend.** A quadratic through zero leaves 12.9% of full scale, a cubic
@@ -123,8 +133,8 @@ YAW_INERTIA = 0.000591
 ROLL_FROM_PHASE = (
     np.linspace(-np.deg2rad(45.0), np.deg2rad(45.0), 13),
     np.array([
-        0.3266, 0.3296, 0.2751, 0.1759, 0.0615, -0.0174, 0.0000,
-        0.1501, 0.4167, 0.7452, 1.0728, 1.3426, 1.5065,
+        -0.0029, 0.0706, 0.0869, 0.0456, -0.0301, -0.0762, 0.0000,
+        0.2472, 0.6126, 0.9820, 1.2550, 1.3788, 1.3421,
     ]),
 )
 
@@ -147,7 +157,7 @@ ROLL_FROM_PHASE = (
 #: The roll loop absorbs it -- against a roll authority of 38.2 per unit of
 #: amplitude asymmetry, the worst of it costs 0.04 of a knob that saturates at
 #: 0.45 -- but the two loops are coupled through it, in that direction only.
-YAW_PER_PHASE = -0.5666
+YAW_PER_PHASE = -0.9804
 
 #: How far the rotation phase may be shifted, radians. Beyond about this the
 #: wing is flipping in the middle of the stroke rather than at its ends, which
@@ -330,7 +340,20 @@ class HaltereController:
     """
 
     frequency: float = 218.0
-    amplitude: float = np.deg2rad(75.0)
+    #: **79.41 degrees: the amplitude that gives the sharper stroke its lift
+    #: back.** Sharpening the sweep cut the cycle-mean lift from 13.66 to
+    #: 12.19 -- 1.36 of body weight to 1.21 -- and this is the amplitude that
+    #: solves it exactly, measured at 13.663. The climb comes back with it:
+    #: 148.2 mm over 300 ms, against 76.6 at 75 degrees and 148 for the
+    #: sinusoid that started all this.
+    #:
+    #: **It costs attitude, and the cost is real.** Flight falls from 2011 ms
+    #: to 1244 at the same bandwidth, each measured with its own authorities.
+    #: A wider sweep makes a wider within-stroke torque swing and the loop has
+    #: more to answer; the fall is monotone in amplitude across everything
+    #: tried. This is a trade between climbing and staying upright, and the
+    #: number here buys the climb.
+    amplitude: float = np.deg2rad(79.41)
     trim_bias: float = TRIM_BIAS
     # Critically damped at BANDWIDTH: a gain is inertia times the desired
     # acceleration divided by the authority that produces it.
