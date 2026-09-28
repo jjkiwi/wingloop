@@ -106,6 +106,7 @@ def _yaw(body) -> float:
 
 
 @needs_model
+@pytest.mark.sweep
 def test_the_uncontrolled_fly_yaws_on_its_own(rig):
     """Why every steering claim here is a paired measurement.
 
@@ -324,6 +325,7 @@ def test_phase_steering_turns_the_right_way_from_the_start(rig):
 
 
 @needs_model
+@pytest.mark.sweep
 def test_phase_steering_fixates_from_the_first_forty_milliseconds(rig):
     """What amplitude could not do: pull the bearing toward straight ahead
     before the bank develops, from both sides, at every window tested."""

@@ -617,6 +617,7 @@ def test_deviation_moves_the_wing_out_of_the_stroke_plane_twice_a_beat():
 
 
 @needs_model
+@pytest.mark.sweep
 def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
     rigid, wing, tmp_path
 ):
@@ -755,6 +756,7 @@ def test_wake_memory_changes_the_forces_barely_and_the_flight_a_lot(
 
 
 @needs_model
+@pytest.mark.sweep
 def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
     """The direction is right: inside the loop, delay costs flight.
 
@@ -794,6 +796,7 @@ def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
 
 
 @needs_model
+@pytest.mark.sweep
 def test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck(
     rigid, wing, tmp_path
 ):
@@ -1124,6 +1127,7 @@ def test_a_mis_measured_hover_point_costs_exactly_what_it_should(
 
 
 @needs_model
+@pytest.mark.sweep
 def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
     rigid, wing, tmp_path
 ):
@@ -1254,6 +1258,7 @@ def test_the_pitch_tether_pins_through_the_centre_of_mass(rigid, wing, tmp_path)
 
 
 @needs_model
+@pytest.mark.sweep
 def test_holding_yaw_helps_and_much_less_than_it_first_appeared(
     rigid, wing, tmp_path
 ):

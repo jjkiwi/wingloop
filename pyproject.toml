@@ -16,4 +16,11 @@ line-length = 96
 select = ["E", "F", "I", "W", "B"]
 
 [tool.pytest.ini_options]
-markers = ["slow: needs a built body or a connectome"]
+markers = [
+    "slow: needs a built body or a connectome",
+    "sweep: a multi-flight measurement that pins a documented table; run with -m sweep",
+]
+# The sweeps re-measure tables that already live in README and LITERATURE.
+# They are the discriminators that catch a false optimum, and they are worth
+# running whenever the stroke or the loop changes -- not on every edit.
+addopts = "-m 'not sweep'"

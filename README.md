@@ -934,9 +934,21 @@ measurement that does not go through flight duration at all.
 ## Running the tests
 
 ```bash
-pip install -e ".[dev]"
-pytest -q
+pip install -e ".[dev,body]"
+pytest -q             # 94 tests, about ten minutes
+pytest -q -m sweep    # the 7 measurement sweeps, about half an hour
 ```
 
-Nothing here needs MuJoCo or a connectome; the wing mesh is checked in as
-vertices so the geometry test runs anywhere.
+The aerodynamics and the connectome readout run anywhere -- the wing mesh is
+checked in as vertices and the tuning curves as fixtures -- and everything
+that puts the wings on a body skips itself without MuJoCo.
+
+**The sweeps are deselected by default, on purpose.** Seven tests re-measure
+tables that already live in this README and in `docs/LITERATURE.md`: the
+filter-lag curve at three amplitudes, the sensing-against-bandwidth grid, the
+stroke-shape comparison, and the multi-window steering and yaw-hold
+comparisons. They are the discriminators that have caught every false optimum
+here, and they are worth running whenever the stroke or the loop changes. They
+are not worth 27 of the suite's 37 minutes on every edit, and a suite that
+grows slower every time the animal flies longer -- which is what a
+time-to-failure metric does -- was on its way to being one nobody ran.
