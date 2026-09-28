@@ -195,6 +195,33 @@ MAX_PHASE = np.deg2rad(45.0)
 #: The two agree exactly where the old default sat and diverge above it. That
 #: is the phase margin, spent on loop gain instead of on lag: **236 ms to 320,
 #: and the usable bandwidth from 40 to 60.**
+#:
+#: **Re-swept once the authorities were right, and kept at 60 on purpose.**
+#: The gains this was chosen on were 15% low, so the loop had never actually
+#: run at 60. With the authorities corrected and the stroke at its default,
+#: three amplitudes one percent apart:
+#:
+#: ======  ================  ================  ================  ======
+#: rad/s   78.62 deg         79.41 deg         80.20 deg         median
+#: ======  ================  ================  ================  ======
+#: 60       1461 / 13 deg     1341 / 14 deg     1223 / 13 deg     1341
+#: 80       1839 / 15         1073 / 19         1591 / 13         1591
+#: 90       1688 / 13         1848 /  9         1022 / 28         1688
+#: 100      2092 / 13         1759 / 24         1349 / 23         1759
+#: 110       145 / 30         1086 / 20          509 / 30          509
+#: 120       186 / 30          520 / 30          107 / 30          186
+#: ======  ================  ================  ================  ======
+#:
+#: (flight in ms, then the worst pitch-or-roll excursion inside the first
+#: second.) The median rises all the way to 100 and 100 beats 60 at every
+#: amplitude, which is the test every other default here was moved on. It is
+#: not moved. The cliff is at 110 -- two of three amplitudes collapse -- so
+#: 100 sits inside 10% of it, and the excursions at 100 are twice those at
+#: 60: the loop flies longer there by riding its limit, not by being calm.
+#: Sixty is the only row whose three amplitudes agree inside 240 ms; the rows
+#: above it spread by 750-830. A default that a 6% change of stroke could
+#: push over a cliff is not a default, and this project has already had to
+#: withdraw one optimum that was chosen from terrain like that.
 BANDWIDTH = 60.0
 
 #: What the sensing change is worth, and the measurement that nearly hid it.

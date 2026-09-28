@@ -887,11 +887,32 @@ All of them are now measured at the default stroke, and the tests that check
 them read the stroke off the controller instead of writing 75 degrees down
 again -- which is why they passed through the error in the first place.
 
-**The bandwidth is now unconverged.** With the authorities right, flight time
-is still climbing at 70 rad/s at both amplitudes where the old sweep put the
-optimum at 60. One run per point is not enough to move a default on, so
-`BANDWIDTH` stays at 60 and this is the next thing that needs measuring
-properly.
+### The bandwidth, re-swept, and kept
+
+With the authorities right the loop had never actually run at 60 rad/s, so
+the sweep that chose it was measuring something else. Re-swept at three
+amplitudes one percent apart (flight in ms / worst excursion in the first
+second):
+
+| rad/s | 78.62 deg | 79.41 deg | 80.20 deg | median |
+| --- | ---: | ---: | ---: | ---: |
+| **60** | 1461 / 13 | 1341 / 14 | 1223 / 13 | 1341 |
+| 80 | 1839 / 15 | 1073 / 19 | 1591 / 13 | 1591 |
+| 90 | 1688 / 13 | 1848 / 9 | 1022 / 28 | 1688 |
+| 100 | 2092 / 13 | 1759 / 24 | 1349 / 23 | 1759 |
+| 110 | 145 / 30 | 1086 / 20 | 509 / 30 | 509 |
+| 120 | 186 / 30 | 520 / 30 | 107 / 30 | 186 |
+
+The median rises all the way to 100, and 100 beats 60 at every one of the
+three amplitudes -- which is the test every other default in this file was
+moved on. **It is not moved.** The cliff is at 110, where two of three
+amplitudes collapse, so 100 sits inside 10% of it; and its excursions are
+twice those at 60, so it flies longer by riding the limit rather than by
+being calm. Sixty is the only row whose three amplitudes agree inside 240 ms
+-- everything above it spreads by 750-830 inside a 1% amplitude change, which
+is the same chaotic terrain that produced the filter-lag spike this README had
+to withdraw. A default that a 6% stroke change could push over a cliff is not
+a default.
 
 ### Where it ends now
 

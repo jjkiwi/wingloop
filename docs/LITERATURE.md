@@ -463,11 +463,25 @@ A wider sweep makes a wider within-stroke torque swing and the loop has more
 to answer, so the flight is shorter at every bandwidth. The choice between the
 two amplitudes is a choice between climbing and staying upright.
 
-**And the bandwidth is now unconverged.** With the authorities correct, flight
-time is still rising at 70 rad/s at both amplitudes, where the old sweep --
-run on gains that were quietly 15% low -- put the optimum at 60. One run per
-point is not enough to move a default on, so `BANDWIDTH` stays at 60 and this
-is the next thing to measure properly.
+**The bandwidth, re-swept with the authorities correct**, three amplitudes
+one percent apart, flight in ms and the worst pitch-or-roll excursion inside
+the first second:
+
+| rad/s | 78.62 | 79.41 | 80.20 | median |
+| --- | ---: | ---: | ---: | ---: |
+| 60 | 1461 / 13 deg | 1341 / 14 | 1223 / 13 | 1341 |
+| 80 | 1839 / 15 | 1073 / 19 | 1591 / 13 | 1591 |
+| 90 | 1688 / 13 | 1848 / 9 | 1022 / 28 | 1688 |
+| 100 | 2092 / 13 | 1759 / 24 | 1349 / 23 | 1759 |
+| 110 | 145 / 30 | 1086 / 20 | 509 / 30 | 509 |
+| 120 | 186 / 30 | 520 / 30 | 107 / 30 | 186 |
+
+The median rises to 100 and 100 beats 60 at every amplitude, but the cliff is
+at 110 (two of three amplitudes collapse), the excursions at 100 are double
+those at 60, and 60 is the only row whose amplitudes agree inside 240 ms
+against 750-830 for every row above it. `BANDWIDTH` stays at 60: a default
+inside 10% of a cliff, on terrain that chaotic, is the kind of optimum this
+project has already had to withdraw once.
 
 ### The rest
 

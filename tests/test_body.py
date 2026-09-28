@@ -1685,3 +1685,31 @@ def test_the_yaw_knob_drags_roll_with_it_and_the_loop_is_told_in_advance(
     assert off["asymmetry"] - on["asymmetry"] == pytest.approx(expected, rel=1e-9)
     # It vanishes where there is nothing to cancel.
     assert float(np.interp(0.0, *ROLL_FROM_PHASE)) == 0.0
+
+
+def test_the_bandwidth_stays_at_sixty_and_the_reason_is_a_cliff():
+    """A default that was measured to be beatable, and left alone anyway.
+
+    With the authorities corrected and the stroke at its default, bandwidth
+    100 beats 60 at every one of three amplitudes -- 2092/1759/1349 against
+    1461/1341/1223 ms -- and that is the test every other default here was
+    moved on. It is not moved, because the cliff is at 110: two of the three
+    amplitudes collapse there (145 and 509 ms), so 100 sits inside 10% of it,
+    and the excursions at 100 are twice those at 60. Sixty is the only
+    bandwidth whose three amplitudes agree inside 240 ms; everything above it
+    spreads by 750-830 inside a 1% change of stroke.
+
+    No simulation here -- the sweep is six flights of five seconds at three
+    amplitudes and belongs in the docs, not the suite. This pins the number
+    so that whoever raises it reads why it was not raised, and re-runs the
+    sweep against whatever the stroke is by then, rather than inheriting a
+    table measured on a stroke the animal no longer flies.
+    """
+    from wingloop.body.control import BANDWIDTH, gains_for
+
+    assert BANDWIDTH == 60.0
+    # And the gain really does scale as the square, which is why 100 is not
+    # "a bit more" than 60 but 2.8 times the loop gain.
+    assert gains_for(100.0)["pitch_gain"] / gains_for(60.0)["pitch_gain"] == pytest.approx(
+        (100.0 / 60.0) ** 2
+    )
