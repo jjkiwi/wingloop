@@ -520,6 +520,72 @@ the approximation that is off, not the choice of stroke to measure it on. One
 authority set serves both generators until the authority is identified in
 closed loop rather than statically.
 
+### The authorities identified in flight, and what the static ones miss
+
+Closed-loop identification: a small sinusoid on each knob during a real
+flight, and the plant is torque about the centre of mass divided by the
+*total* knob at that frequency (the loop's own command is inside the total).
+
+**At the loop's crossover it does not work**, and the failure is worth
+having. Injected at 20-40 rad/s the loop drives its command to cancel the
+excitation, the total knob goes to nearly nothing, and the ratio is noise:
+pitch 0.05-0.19 of static, roll 0.07-0.24, yaw the wrong sign, phases
+scattered. This is the tether's failure from the other side -- the tether had
+no loop and an unstable plant, this had a loop too effective to inject past.
+
+Well above crossover the loop cannot answer and the knob is the injection:
+
+| knob | 100 rad/s | 150 | 200 | 300 | static |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| bias (pitch) | -8.97 | -11.67 | -11.21 | **-17.42** | -17.40 |
+| asymmetry (roll) | 19.9 | 25.4 | 28.7 | **35.7** | 34.3 |
+| phase asymmetry (yaw) | -1.03 | -0.95 | -3.10 | -2.87 | -0.98 |
+
+Pitch and roll come back with the phase of a pure gain (near 180 and 0
+degrees respectively) and **recover the static value exactly at 300 rad/s**
+-- ratios 1.00 and 1.04. Below that the effective authority is 50-85% of
+static. Yaw does not identify cleanly at any of these frequencies: the phase
+sits near 130 degrees and the magnitude jumps threefold between 150 and 200
+rad/s, and it is left unexplained.
+
+Two explanations for the pitch and roll roll-off were measured and both are
+wrong. Aerodynamic damping, by imposing a body rate and reading the torque:
+
+| axis | torque per rad/s | time constant I/c |
+| --- | ---: | ---: |
+| roll | -0.00078 | 1.93 s |
+| pitch | -0.00116 | 1.73 s |
+| yaw | -0.0372 | **15.9 ms** |
+
+Pitch and roll have none to speak of. Attitude feedback at rest -- torque
+against body angle with the body still -- is exactly zero on both axes, as it
+has to be: tilting a still body rotates the whole aerodynamic picture rigidly
+and the torque in the body frame cannot change. Whatever reduces the
+effective authority at 100-200 rad/s exists only in flight, and the remaining
+candidate is the relative wind of a 1500 mm/s climb -- the same coupling that
+makes a rolled, climbing animal yaw. It is not quantified here; doing so
+needs the identification extended to record body velocity.
+
+Yaw's damping is a different matter: 16 ms is the loop's own timescale, and
+the gain formula `inertia * bandwidth^2 / authority` derives the rate gain as
+if the plant had no damping of its own. With it, critical damping wants
+`kd = (2 I w - c) / P`, about half the current yaw rate gain. Flown at three
+amplitudes one percent apart:
+
+| yaw rate gain | 78.62 | 79.41 | 80.20 | median |
+| --- | ---: | ---: | ---: | ---: |
+| as derived without damping (current) | 1461 | 1341 | 1223 | **1341** |
+| corrected for the measured damping | 1371 | 1281 | 1205 | 1281 |
+
+Four percent shorter, the same direction all three times. Not shipped. The
+loop spends much of a flight with the yaw knob saturated, where a linear
+critical-damping design does not describe it, and the surplus rate feedback
+appears to keep it off the limit a little longer. This is the third correct
+derivation in one session to fly worse than the number it was correcting:
+the corrected harmonic authorities, the muscle stroke's own authorities, and
+now this. The common factor is a loop that is not in the linear regime the
+formula assumes.
+
 ### The rest
 
 - MaleCNS contains the VNC: 12,967 `vnc_intrinsic`, 699 `vnc_motor`.

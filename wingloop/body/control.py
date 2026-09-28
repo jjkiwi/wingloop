@@ -428,6 +428,18 @@ class HaltereController:
     #: gain the loop stops saturating and starts drifting instead -- the
     #: heading wanders to 142 degrees at bandwidth 20 against 106 at 60 -- and
     #: flies no longer for it. Saturation is real and is not what limits this.
+    #:
+    #: **The rate gain is also knowingly wrong, and kept.** Yaw is the one axis
+    #: with real aerodynamic damping -- flapping counter-torque at 0.037 per
+    #: rad/s, a 16 ms time constant, the loop's own timescale -- and the
+    #: formula that sets these gains derives the rate term as if the plant
+    #: had none. With it, critical damping wants ``(2 I w - c) / P``, about
+    #: half of what is here. Flown at three amplitudes it is 4% shorter every
+    #: time: 1371/1281/1205 ms against 1461/1341/1223. The loop spends much
+    #: of a flight with this knob saturated, where a linear damping design
+    #: does not describe it, and the extra rate feedback appears to keep it
+    #: off the limit a little longer. Third time this session a correct
+    #: derivation has flown worse than the number it was correcting.
     yaw_gain: float = YAW_INERTIA * BANDWIDTH**2 / abs(YAW_PER_PHASE)
     yaw_rate_gain: float = YAW_INERTIA * 2 * BANDWIDTH / abs(YAW_PER_PHASE)
     #: Feed the yaw knob's roll cross-coupling forward into the roll knob,

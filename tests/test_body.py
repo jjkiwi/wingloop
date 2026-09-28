@@ -1785,3 +1785,142 @@ def test_the_muscle_stroke_flies_longer_on_the_stored_authorities_than_its_own(
     stored = np.median([holds(d) for d in drives])
     own_flight = np.median([holds(d, **own_gains) for d in drives])
     assert stored > 1.05 * own_flight, (stored, own_flight)
+
+
+@needs_model
+def test_only_yaw_has_aerodynamic_damping_worth_the_name(rigid, wing, tmp_path):
+    """The damping the gain formula ignores, measured on all three axes.
+
+    Impose a body rate about each axis and read the cycle-mean torque back.
+    Yaw carries flapping counter-torque at 0.037 per rad/s -- a time constant
+    of 16 ms, comparable to the loop's own 1/60 s -- so the yaw loop has been
+    damped twice, aerodynamically and by its rate gain, with the gain formula
+    unaware of the first. Pitch and roll have next to none: time constants
+    near two seconds, a hundred times slower than anything the loop does.
+
+    This is here because the pitch and roll numbers refute a hypothesis. In
+    flight, the authority per unit knob at 100-200 rad/s comes out at 50-85%
+    of the static value, and damping was the obvious explanation. It is not:
+    there is no pitch or roll damping to speak of.
+    """
+    from wingloop.body.control import (
+        PITCH_INERTIA,
+        ROLL_INERTIA,
+        TRIM_BIAS,
+        YAW_INERTIA,
+        HaltereController,
+    )
+    from wingloop.body.flight import harmonic_stroke
+
+    free = add_free_base(rigid[0], tmp_path / "damping.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+    stroke = HaltereController()
+
+    def torque(axis: int, rate: float) -> float:
+        body.data.qvel[body.root_dof + 3 : body.root_dof + 6] = 0.0
+        body.data.qvel[body.root_dof + 3 + axis] = rate
+        mujoco.mj_forward(body.model, body.data)
+        acc = []
+        for t in np.linspace(0, 1 / 218.0, 240, endpoint=False):
+            angles, rates = harmonic_stroke(
+                t, amplitude=stroke.amplitude, frequency=218.0, bias=TRIM_BIAS,
+                rates=True, sharpness=stroke.sharpness,
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            acc.append(body.wrench_about_com()[3 + axis])
+        body.data.qvel[body.root_dof + 3 : body.root_dof + 6] = 0.0
+        return float(np.mean(acc))
+
+    rates = np.deg2rad(np.array([-500.0, -250.0, 250.0, 500.0]))
+    tau = {}
+    for axis, (name, inertia) in enumerate(
+        (("roll", ROLL_INERTIA), ("pitch", PITCH_INERTIA), ("yaw", YAW_INERTIA))
+    ):
+        base = torque(axis, 0.0)
+        c = np.polyfit(rates, [torque(axis, w) - base for w in rates], 1)[0]
+        assert c < 0.0, f"{name} damping must oppose the rate, got {c}"
+        tau[name] = inertia / abs(c)
+
+    assert 0.010 < tau["yaw"] < 0.025, tau
+    assert tau["pitch"] > 1.0 and tau["roll"] > 1.0, tau
+    assert tau["pitch"] > 50.0 * tau["yaw"]
+
+
+@needs_model
+@pytest.mark.sweep
+def test_the_static_authorities_are_recovered_in_flight_above_the_loop(
+    rigid, wing, tmp_path
+):
+    """Closed-loop identification, and the one place it agrees with the tether.
+
+    Inject a small sinusoid on each knob during a real flight and take the
+    ratio of torque about the centre of mass to the *total* knob at that
+    frequency -- the loop's contribution is inside the total, so this is the
+    plant. At the loop's own crossover this cannot work: the loop drives its
+    command to cancel the injection and the ratio is two near-zero numbers
+    (measured, ratios of 0.05 to 0.24 with scrambled phases). Well above
+    crossover the loop cannot answer, the knob is the injection, and at 300
+    rad/s the static pitch and roll authorities come back to within a few
+    percent with the phase of a pure gain.
+
+    Between 100 and 200 rad/s they do not -- 50 to 85% of static -- and that
+    is neither damping (pitch and roll have none) nor attitude feedback at
+    rest (exactly zero, since tilting a still body rotates the whole picture
+    rigidly). It is something that exists only in flight, most likely the
+    relative wind of the climb, and it is not quantified here.
+    """
+    from wingloop.body.control import (
+        MAX_PHASE,
+        PITCH_PER_BIAS,
+        ROLL_PER_ASYMMETRY,
+        HaltereController,
+    )
+
+    free = add_free_base(rigid[0], tmp_path / "ident.xml", dofs="free")
+    amp = {"bias": np.deg2rad(2.0), "asymmetry": 0.03}
+    omega = {"bias": 300.0, "asymmetry": 250.0}
+
+    class Injected(HaltereController):
+        log: list = None
+
+        def knobs(self, body):
+            wrench = body.wrench_about_com()[3:6]
+            k = super().knobs(body)
+            for name, w in omega.items():
+                k[name] = float(k[name] + amp[name] * np.sin(w * body.t))
+            k["phase_asymmetry"] = float(np.clip(k["phase_asymmetry"], -MAX_PHASE, MAX_PHASE))
+            self.log.append((body.t, k["bias"], k["asymmetry"], *wrench))
+            return k
+
+    body = FlightBody(free, wing, timestep=2e-5)
+    controller = Injected()
+    controller.log = []
+    trace = controller.fly(body, 1.2)
+    a = np.asarray(controller.log)
+    back = np.flatnonzero(np.diff(a[:, 0]) < 0)
+    if len(back):
+        a = a[: back[0] + 1]
+    bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))[: len(a)]
+    over = np.flatnonzero(bad > 30.0)
+    if len(over):
+        a = a[: over[0]]
+    assert a[-1, 0] > 0.8, "the identification needs most of a second of flight"
+    t, u, tau = a[1:, 0], a[:-1, 1:3], a[1:, 3:6]
+    keep = t > 0.15
+    t, u, tau = t[keep], u[keep], tau[keep]
+
+    def plant(col_u, col_tau, w):
+        e = np.exp(-1j * w * t)
+        U = np.mean((u[:, col_u] - u[:, col_u].mean()) * e)
+        T = np.mean((tau[:, col_tau] - tau[:, col_tau].mean()) * e)
+        return T / U
+
+    pitch = plant(0, 1, omega["bias"])
+    roll = plant(1, 0, omega["asymmetry"])
+    assert abs(pitch) == pytest.approx(abs(PITCH_PER_BIAS), rel=0.15), pitch
+    assert abs(roll) == pytest.approx(ROLL_PER_ASYMMETRY, rel=0.25), roll
+    # The phase of a pure gain: near 180 degrees for the negative pitch
+    # authority, near zero for roll.
+    assert abs(abs(np.degrees(np.angle(pitch))) - 180.0) < 20.0, np.degrees(np.angle(pitch))
+    assert abs(np.degrees(np.angle(roll))) < 25.0, np.degrees(np.angle(roll))

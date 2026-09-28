@@ -909,6 +909,49 @@ than the stroke it was measured on. One authority set serves both generators,
 the errors are written down, and the fix -- identifying the authority in
 closed loop -- is a different project.
 
+### The authorities, identified in flight
+
+Twice now a "corrected" static authority set has flown shorter than a stale
+one, and both times the reading was that a cycle-averaged torque measured
+with the body held still is a slightly wrong plant for a loop in flight. So
+the plant was identified in flight: a small sinusoid on each knob during a
+real flight, and the ratio of torque about the centre of mass to the total
+knob at that frequency.
+
+**At the loop's own crossover this cannot work** -- the loop drives its
+command to cancel the injection, and the ratio is two near-zero numbers.
+Measured: 0.05-0.24 of static with scrambled phases. That is the pitch
+tether's failure from the other side, and it is kept as a negative result.
+
+Well above crossover, where the loop cannot answer, the plant is excited
+directly:
+
+| knob | 100 rad/s | 150 | 200 | **300** | static |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| pitch, per rad of bias | -8.97 | -11.67 | -11.21 | **-17.42** | -17.40 |
+| roll, per unit asymmetry | 19.9 | 25.4 | 28.7 | **35.7** | 34.3 |
+
+Pitch and roll come back with the phase of a pure gain and **recover the
+static value exactly at 300 rad/s**. So the static numbers are right as the
+knob-to-torque gain; what they miss is whatever reduces the effective
+authority to 50-85% at 100-200 rad/s. Two candidates were measured and both
+are wrong: pitch and roll have essentially no aerodynamic damping (time
+constants near two seconds), and torque against body angle at rest is
+exactly zero, because tilting a still body rotates the whole picture rigidly.
+What remains has to exist only in flight -- the relative wind of a 1500 mm/s
+climb is the candidate -- and quantifying it needs the identification
+extended to record velocity.
+
+Yaw is the exception on damping: 16 ms, the loop's own timescale, and the
+gain formula derives the rate gain as though the plant had none. Putting the
+damping into the derivation halves the yaw rate gain, and flying that is
+**4% shorter at all three amplitudes** -- 1371/1281/1205 ms against
+1461/1341/1223. Not shipped. That makes three correct derivations this
+session that flew worse than the numbers they were correcting, and the common
+factor is a loop that spends much of every flight with a knob saturated,
+where the linear design those derivations assume does not describe it. Yaw
+also does not identify cleanly at any frequency tried, and that is left open.
+
 ### The bandwidth, re-swept, and kept
 
 With the authorities right the loop had never actually run at 60 rad/s, so
