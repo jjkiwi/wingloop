@@ -483,6 +483,43 @@ against 750-830 for every row above it. `BANDWIDTH` stays at 60: a default
 inside 10% of a cliff, on terrain that chaotic, is the kind of optimum this
 project has already had to withdraw once.
 
+### Static authorities do not predict the closed loop, twice
+
+The muscle-driven stroke (`PowerStroke`, drive 3.0) settles at 75.6 degrees
+with the sinusoid's shape and 1.657 of body weight in lift. Its authorities,
+measured the same way as the stored ones:
+
+| constant | stored (harmonic 79.41, sharp) | PowerStroke | ratio |
+| --- | ---: | ---: | ---: |
+| TRIM_BIAS | -11.303 deg | -11.560 | |
+| PITCH_PER_BIAS | -17.401 | -21.003 | 1.21 |
+| ROLL_PER_ASYMMETRY | 34.342 | 41.006 | 1.19 |
+| YAW_PER_PHASE | -0.9804 | -0.7604 | 0.78 |
+| ROLL_FROM_PHASE at -45 | -0.003 | +0.349 | |
+
+Flight on the muscle path, three drive levels, attitude inside 30 degrees:
+
+| gains | feedforward | 2.97 | 3.00 | 3.03 | median |
+| --- | --- | ---: | ---: | ---: | ---: |
+| stored | stored | 743 | 721 | 698 | **721** |
+| PowerStroke's own | off | 543 | 534 | 497 | 534 |
+| PowerStroke's own | stored | 648 | 635 | 611 | 635 |
+| PowerStroke's own | its own curve | 644 | 607 | 675 | 644 |
+
+The feedforward is real (534 to 635 with it on). The "correct" authorities are
+not: they fly 11% shorter whichever curve they carry. The harmonic path did
+the same when *its* authorities were corrected -- 2011 ms against 2123 at 75
+degrees, 1244 against 1445 at 79.41. In both cases the error that happened to
+lower the pitch and roll gains flew longer.
+
+The consistent reading is that a cycle-averaged authority, measured at trim
+with the body held still, is a slightly wrong plant for a loop whose body is
+rotating through counter-torque, translating, and (on the muscle path)
+re-settling its amplitude under load. `inertia * bandwidth^2 / authority` is
+the approximation that is off, not the choice of stroke to measure it on. One
+authority set serves both generators until the authority is identified in
+closed loop rather than statically.
+
 ### The rest
 
 - MaleCNS contains the VNC: 12,967 `vnc_intrinsic`, 699 `vnc_motor`.

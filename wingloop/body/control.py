@@ -90,6 +90,21 @@ from .flight import harmonic_stroke
 #: numbers were already 15% out in pitch and roll and 49% out in yaw, so the
 #: loop ran on gains derived from a stroke it was no longer flying. These are
 #: measured at the default: 79.41 degrees, sharpness 0.9.
+#:
+#: **And the muscle-driven stroke flies on these too, on purpose.** It settles
+#: at 75.6 degrees with the sinusoid's shape, and its own static authorities
+#: differ from these by +21% in pitch, +19% in roll and -22% in yaw. Deriving
+#: its gains from its own numbers was tried and flies *shorter*: 635 ms
+#: against 721 with the stored feedforward, 644 with its own curve, over
+#: three drive levels. That is the second time a "corrected" authority set
+#: has flown worse than the stale one -- the harmonic path did the same,
+#: 2011 ms against 2123 -- and the consistent reading is that a cycle-averaged
+#: authority measured at trim with the body still is a slightly wrong plant
+#: for a loop whose body is rotating, translating and re-settling its stroke.
+#: The formula ``inertia * bandwidth^2 / authority`` is the approximation
+#: that is off, not which stroke's authority goes into it. Until the
+#: authority is identified in closed loop rather than statically, one set
+#: serves both generators and the errors are documented rather than chased.
 TRIM_BIAS = np.deg2rad(-11.303)
 
 #: Control authority, measured about the centre of mass at the nominal stroke.

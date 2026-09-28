@@ -887,6 +887,28 @@ All of them are now measured at the default stroke, and the tests that check
 them read the stroke off the controller instead of writing 75 degrees down
 again -- which is why they passed through the error in the first place.
 
+### The muscle-driven stroke flies on the wrong authorities, and should
+
+The connectome stack -- throttle, oscillator, `PowerStroke` -- flies a
+different stroke from the one every authority above was measured on: it
+settles at 75.6 degrees with the sinusoid's shape, and its own static
+authorities differ by +21% in pitch, +19% in roll and -22% in yaw. That is the
+same class of error the previous section fixed, so it was measured the same
+way. Deriving the muscle path's gains from its own numbers **flies shorter**:
+635 ms against 721 with the stored feedforward, 644 with its own curve, over
+three drive levels.
+
+That is the second time. Correcting the harmonic path's authorities two
+sections up also flew shorter -- 2011 ms against 2123 -- and both times the
+error that happened to lower the pitch and roll gains was the one that flew
+longer. The reading this repository adopts is that a cycle-averaged authority
+measured at trim with the body held still is a slightly wrong plant for a
+loop whose body is rotating, translating and re-settling its stroke, and that
+`inertia * bandwidth^2 / authority` is the approximation that is off rather
+than the stroke it was measured on. One authority set serves both generators,
+the errors are written down, and the fix -- identifying the authority in
+closed loop -- is a different project.
+
 ### The bandwidth, re-swept, and kept
 
 With the authorities right the loop had never actually run at 60 rad/s, so

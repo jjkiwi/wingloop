@@ -1718,3 +1718,70 @@ def test_the_bandwidth_stays_at_sixty_and_the_reason_is_a_cliff():
     assert gains_for(100.0)["pitch_gain"] / gains_for(60.0)["pitch_gain"] == pytest.approx(
         (100.0 / 60.0) ** 2
     )
+
+
+@needs_model
+@pytest.mark.sweep
+def test_the_muscle_stroke_flies_longer_on_the_stored_authorities_than_its_own(
+    rigid, wing, tmp_path
+):
+    """A refactor that was measured before it was written, and not written.
+
+    The muscle-driven stroke settles at 75.6 degrees with the sinusoid's
+    shape, and its own static authorities differ from the stored ones by +21%
+    in pitch, +19% in roll and -22% in yaw. That is the same class of error
+    the previous commit fixed for the harmonic path, so the obvious next thing
+    was one authority set per stroke generator. Measured first: gains derived
+    from its own numbers fly *shorter*, 644 ms against 721 over three drive
+    levels, whichever feedforward curve they carry.
+
+    It is the second time. The harmonic path also flew shorter on its
+    corrected authorities, 2011 ms against 2123. Both times the error that
+    happened to lower the pitch and roll gains flew longer, which says the
+    formula ``inertia * bandwidth^2 / static authority`` is the approximation
+    that is off, not the stroke it was measured on.
+
+    So one set serves both generators, and this pins that choice against the
+    day someone corrects it: if the muscle path ever flies longer on its own
+    authorities, the refactor is back on and this docstring is wrong.
+    """
+    from wingloop.body.control import (
+        BANDWIDTH,
+        PITCH_INERTIA,
+        ROLL_INERTIA,
+        YAW_INERTIA,
+        HaltereController,
+    )
+    from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
+
+    free = add_free_base(rigid[0], tmp_path / "muscle_auth.xml", dofs="free")
+    load = aerodynamic_load(wing)
+    # The muscle stroke's own static authorities, measured at its settled
+    # amplitude with the body held still. Kept here as numbers because the
+    # point of the test is what deriving gains from them costs.
+    own = dict(trim=-11.560, pitch=-21.003, roll=41.006, yaw=-0.7604)
+    own_gains = dict(
+        trim_bias=np.deg2rad(own["trim"]),
+        pitch_gain=PITCH_INERTIA * BANDWIDTH**2 / abs(own["pitch"]),
+        pitch_rate_gain=PITCH_INERTIA * 2 * BANDWIDTH / abs(own["pitch"]),
+        roll_gain=ROLL_INERTIA * BANDWIDTH**2 / own["roll"],
+        roll_rate_gain=ROLL_INERTIA * 2 * BANDWIDTH / own["roll"],
+        yaw_gain=YAW_INERTIA * BANDWIDTH**2 / abs(own["yaw"]),
+        yaw_rate_gain=YAW_INERTIA * 2 * BANDWIDTH / abs(own["yaw"]),
+    )
+
+    def holds(drive: float, **kw) -> float:
+        oscillator = PowerOscillator(drive=drive, load=load)
+        oscillator.angle = np.deg2rad(1.0)
+        body = FlightBody(free, wing, timestep=2e-5)
+        trace = HaltereController(stroke=PowerStroke(oscillator), **kw).fly(body, 2.0)
+        back = np.flatnonzero(np.diff(trace["t"]) < 0)
+        end = int(back[0]) + 1 if len(back) else len(trace["t"])
+        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))[:end]
+        over = np.flatnonzero(bad > 30.0)
+        return float(trace["t"][over[0] if len(over) else end - 1] * 1000)
+
+    drives = (2.97, 3.00, 3.03)
+    stored = np.median([holds(d) for d in drives])
+    own_flight = np.median([holds(d, **own_gains) for d in drives])
+    assert stored > 1.05 * own_flight, (stored, own_flight)
