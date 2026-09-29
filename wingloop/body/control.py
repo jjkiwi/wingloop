@@ -366,10 +366,20 @@ def angular_rate(body) -> np.ndarray:
     rotated out here. Reading it raw gives a signal that is correct only while
     the animal is upright, which is exactly when the controller is not needed.
     """
-    if body.root_body is None or body.root_translation != 3:
+    if body.root_body is None:
         return np.zeros(3)
-    r = body.data.xmat[body.root_body].reshape(3, 3)
-    return r @ np.asarray(body.data.qvel[body.root_dof + 3 : body.root_dof + 6])
+    if body.root_translation == 3:
+        r = body.data.xmat[body.root_body].reshape(3, 3)
+        return r @ np.asarray(body.data.qvel[body.root_dof + 3 : body.root_dof + 6])
+    if body.root_translation == 0 and getattr(body, "root_joint", None) is not None:
+        # A tether: one hinge, and its rate is the whole angular velocity,
+        # along the hinge axis as the world sees it. This used to return
+        # zeros, which left the tethered animal with a proportional loop and
+        # no haltere -- and it oscillated to +-78 degrees inside 300 ms on the
+        # very rig that exists to measure the pitch loop's phase margin.
+        axis = np.asarray(body.data.xaxis[body.root_joint], dtype=float)
+        return axis * float(body.data.qvel[body.root_dof])
+    return np.zeros(3)
 
 
 @dataclass

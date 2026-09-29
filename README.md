@@ -420,11 +420,15 @@ arm no trim can reach, and the tethered fly simply spins: a continuous
 rotation at 80-107 Hz, at every filter setting and every gain. That looks
 exactly like a control failure and is a rig failure.
 
-Pinned through the centre of mass it stops spinning -- and still holds only
-30-90 ms where the free animal holds 350. A tether is a *harder* problem here
-than free flight, not a cleaner one, so the phase margin in this README is
-still inferred from flight time rather than read off a Bode plot. The tether
-is kept because the spinning is worth having as a test.
+Pinned through the centre of mass it stops spinning -- and still held only
+30-90 ms where the free animal held 350. That was written up here as a tether
+being a *harder* problem than free flight, as if constraining the translation
+removed something stabilising. **It removed nothing: the tether had no
+haltere.** The angular-rate reading handled a free joint and returned zeros
+for anything else, so on the tether the loop ran on its proportional term
+alone and oscillated to +-78 degrees inside 300 ms. Reading the hinge rate,
+the same controller on the same rig stays inside four degrees, and the tether
+became the clean preparation it was built to be.
 
 Two bugs were written on the way, and both are now tests. Lagging the *force*
 rather than the circulation holds the mid-stroke peak through the reversal --
@@ -920,8 +924,9 @@ knob at that frequency.
 
 **At the loop's own crossover this cannot work** -- the loop drives its
 command to cancel the injection, and the ratio is two near-zero numbers.
-Measured: 0.05-0.24 of static with scrambled phases. That is the pitch
-tether's failure from the other side, and it is kept as a negative result.
+Measured: 0.05-0.24 of static with scrambled phases. It is kept as a
+negative result: at crossover the quantity to read is the loop gain, not the
+plant, and the tether below reads it.
 
 Well above crossover, where the loop cannot answer, the plant is excited
 directly:

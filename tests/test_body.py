@@ -1258,6 +1258,32 @@ def test_the_pitch_tether_pins_through_the_centre_of_mass(rigid, wing, tmp_path)
 
 
 @needs_model
+def test_the_tether_has_a_haltere(rigid, wing, tmp_path):
+    """The tether's angular rate is its hinge rate, and with it the loop holds.
+
+    ``angular_rate`` read a free joint's rate and returned zeros for anything
+    else, so on the pitch tether the controller had its proportional term and
+    no haltere. It oscillated to +-78 degrees inside 300 ms, and that was
+    written up as the tether being a harder preparation than free flight --
+    "constraining the translation removes something that stabilises". It
+    removed nothing; the sensor was missing. With the hinge rate read, the
+    same controller on the same rig stays inside four degrees.
+    """
+    from wingloop.body.control import HaltereController, angular_rate
+
+    tether = add_free_base(rigid[0], tmp_path / "haltere.xml", dofs="pitch")
+    body = FlightBody(tether, wing, timestep=2e-5)
+    body.data.qvel[body.root_dof] = 2.0
+    mujoco.mj_forward(body.model, body.data)
+    rate = angular_rate(body)
+    assert rate[1] == pytest.approx(2.0) and abs(rate[0]) + abs(rate[2]) < 1e-12
+
+    body = FlightBody(tether, wing, timestep=2e-5)
+    trace = HaltereController().fly(body, 0.3)
+    assert np.degrees(np.abs(trace["pitch"])).max() < 6.0
+
+
+@needs_model
 @pytest.mark.sweep
 def test_holding_yaw_helps_and_much_less_than_it_first_appeared(
     rigid, wing, tmp_path

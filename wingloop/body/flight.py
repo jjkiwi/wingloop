@@ -169,6 +169,9 @@ class FlightBody:
         self.root_body = (
             int(self.model.jnt_bodyid[root_joint]) if root_joint is not None else None
         )
+        #: The joint the world holds the animal by, if any. A tether's angular
+        #: rate lives on this joint's axis and nowhere else.
+        self.root_joint = root_joint
         self._capture_mounts()
         if massless_wings and self.joint_id:
             self._make_wings_massless()

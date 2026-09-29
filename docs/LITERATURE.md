@@ -220,9 +220,11 @@ aerodynamic force into a torque about the pin that no trim can cancel, and the
 tethered animal spins continuously at 80-107 Hz at every gain and every filter.
 Pinned through the centre of mass it does not.
 
-Even correct, the tether holds only 30-90 ms where the free animal holds 350:
-constraining the translation removes something that stabilises the free
-flight, so a tether is the harder preparation here, not the cleaner one.
+Even correct, the tether first held only 30-90 ms where the free animal held
+350, and that was read as the tether being the harder preparation. It was a
+missing sensor: the angular rate was read only off a free joint, the tether
+reported zero, and the loop had no derivative term. With the hinge rate the
+same controller holds the tether inside four degrees.
 
 ### Yaw: the axis with no loop on it
 
@@ -530,8 +532,8 @@ flight, and the plant is torque about the centre of mass divided by the
 having. Injected at 20-40 rad/s the loop drives its command to cancel the
 excitation, the total knob goes to nearly nothing, and the ratio is noise:
 pitch 0.05-0.19 of static, roll 0.07-0.24, yaw the wrong sign, phases
-scattered. This is the tether's failure from the other side -- the tether had
-no loop and an unstable plant, this had a loop too effective to inject past.
+scattered. The loop is too effective to inject past; at crossover the thing
+to read is the loop gain, not the plant.
 
 Well above crossover the loop cannot answer and the knob is the injection:
 
