@@ -495,7 +495,15 @@ class FlightBody:
             self.data.qvel[self.root_dof + 3 : self.root_dof + 6]
         )
         centre = np.asarray(hinge) + rot @ (self._gyration_radius * self.span[wing])
-        arm = centre - self.centre_of_mass()
+        # From the body's frame origin, not its centre of mass: the free
+        # joint's linear velocity is the origin's, and a rigid body's point
+        # velocity is that plus omega cross the arm *from the same point*.
+        # The arm was first taken from the centre of mass, which is 1.1 mm
+        # away, and that drops omega x (com - origin) from every wing -- a
+        # uniform wind of 1.07 mm/s per rad/s of pitch, which the fore-aft
+        # authority turned into +0.0032 of pitch torque per rad/s: an
+        # anti-damping three times the damping this model then reported.
+        arm = centre - np.asarray(self.data.xpos[self.root_body], dtype=float)
         return v + np.cross(omega, arm)
 
     def centre_of_mass(self) -> np.ndarray:

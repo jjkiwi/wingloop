@@ -595,7 +595,9 @@ symmetric stroke does not produce much of it. That is true and it is beside
 the point. **Yaw is the light axis** -- inertia 0.000591 against 0.002014 in
 pitch and 0.001502 in roll -- so the little it gets is plenty. Measured on an
 ordinary flight, the heading reached +40 degrees by 100 ms and -86 by 300, at
-up to 1587 deg/s, while pitch and roll stayed inside ten.
+up to 1587 deg/s, while pitch and roll stayed inside ten. *(Wrong axis: that was the inertia about the frame origin. About the
+centre of mass roll is the light one, and yaw is two thirds of pitch. See
+"Two frame errors".)*
 
 The knob is the left-right rotation-phase asymmetry, and it is the only one
 that yaws this animal at all:
@@ -746,7 +748,8 @@ With the standing load gone the loop stops holding a bias and starts
 while the knob bangs between its limits, saturated for whole stretches. That
 is because twelve degrees of heading error already asks for the entire knob --
 yaw carries a third of pitch's inertia, so the shared bandwidth of 60 rad/s
-puts the gain very high.
+puts the gain very high. *(The inertia ratio was the frame error; the saturation is real, and is
+why yaw now has its own bandwidth.)*
 
 Giving yaw its own, lower bandwidth widens the linear range exactly as the
 arithmetic says, and buys nothing:
@@ -945,7 +948,8 @@ constants near two seconds), and torque against body angle at rest is
 exactly zero, because tilting a still body rotates the whole picture rigidly.
 What remains has to exist only in flight -- the relative wind of a 1500 mm/s
 climb is the candidate -- and quantifying it needs the identification
-extended to record velocity.
+extended to record velocity. (It was the climb; see below. The damping
+numbers here were also wrong, for a reason that comes up below too.)
 
 Yaw is the exception on damping: 16 ms, the loop's own timescale, and the
 gain formula derives the rate gain as though the plant had none. Putting the
@@ -958,6 +962,10 @@ where the linear design those derivations assume does not describe it. Yaw
 also does not identify cleanly at any frequency tried, and that is left open.
 
 ### The bandwidth, re-swept, and kept
+
+*(Every number in this section is in units that turned out to be wrong: the
+gains came from inertias about the wrong point, and "60" was three different
+loops. See the next section.)*
 
 With the authorities right the loop had never actually run at 60 rad/s, so
 the sweep that chose it was measuring something else. Re-swept at three
@@ -984,7 +992,7 @@ is the same chaotic terrain that produced the filter-lag spike this README had
 to withdraw. A default that a 6% stroke change could push over a cliff is not
 a default.
 
-### Where it ends now
+### Where it ended, before the frame errors
 
 **1069 ms to about 1250, and the failure mode is unchanged.** The heading
 still departs before the attitude does, by twenty to fifty milliseconds, in
@@ -998,6 +1006,156 @@ stroke amplitudes -- which is exactly the situation that produced the
 filter-lag spike this README already had to withdraw. The next real step is a
 measurement that does not go through flight duration at all.
 
+## Two frame errors, and the loop read off the rig
+
+The measurement that does not go through flight duration was the pitch
+tether, and it had been written off. Fixing it (it had no haltere: see "A rig
+that was wrong") made it the cleanest preparation in the project, and the
+first thing it measured was the loop gain -- inject at the plant input, read
+``-C/(C+D)`` -- which came out **2.67 times the design at every frequency**.
+A constant factor at every frequency is not dynamics. It is a number.
+
+### The inertia was about the wrong point
+
+The gains are inertia times bandwidth squared over authority, and the inertia
+had been read off the free joint's block of the mass matrix. That block is
+about the joint's own point, the body's frame origin -- which sits 1.1 mm from
+the centre of mass, the same 1.1 mm that made the first torque readings push
+the wrong way. The torque had been moved to the centre of mass; the inertia it
+is divided by had not.
+
+| axis | about the origin (used) | about the centre of mass | ratio |
+| --- | ---: | ---: | ---: |
+| pitch | 0.002014 | **0.000753** | 2.67 |
+| roll | 0.001502 | **0.000335** | 4.48 |
+| yaw | 0.000591 | **0.000496** | 1.19 |
+
+Two independent readings agree on the right column: the whole-body inertia
+summed about the centre of mass, and the tether's own mass matrix, whose hinge
+passes through it. And the ratio is exactly the parallel-axis term.
+
+So "bandwidth 60" was three loops, none of them at 60 and none critically
+damped: **pitch at 98 rad/s and damping ratio 1.6, roll at 127 and 2.1, yaw
+at 65 and 1.1**. The cliff at "110" was pitch at 180 and roll at 233. And the
+README's claim that yaw is the light axis was wrong: about the centre of mass
+roll is, by a third.
+
+### And so was the wing's air speed
+
+The same pair of points, once more. A wing's air speed is the body's linear
+velocity plus omega cross the arm to the wing, and a free joint's linear
+velocity is the *origin's*. The arm was taken from the centre of mass. That
+drops omega cross (centre of mass minus origin) from both wings -- a uniform
+wind of 1.07 mm/s per rad/s of pitch that is not there -- and the fore-aft
+authority turns it into **+0.0032 of pitch torque per rad/s: an anti-damping
+three times the pitch damping the model then reported**. Checked now against
+the simulator's own kinematics, point by point. Corrected, the aerodynamic
+damping time constants are 180 ms in pitch, 120 in roll and 13 in yaw, not
+"near two seconds, a hundred times slower than the loop". Still thirty times
+slower than the attitude loop, so the earlier conclusion survives; the number
+it was drawn from did not.
+
+### The loop, read off the tether
+
+With both fixed, the tether measures the loop that was designed:
+
+| rad/s | measured gain | design | measured phase | design |
+| ---: | ---: | ---: | ---: | ---: |
+| 80 | 5.636 | 5.625 | -145.7 | -145.5 |
+| 160 | 2.196 | 2.186 | -137.5 | -137.6 |
+| 250 | 1.280 | 1.271 | -140.3 | -140.6 |
+| 329 | 0.917 | 0.909 | -146.6 | -146.9 |
+
+Within 1% in magnitude and 0.3 degrees in phase, at every frequency. The
+crossover is near 306 rad/s and **the phase margin is 35 degrees**, read off
+rather than inferred: the PD alone would have 76 there, and the one-wingbeat
+boxcar's half-period delay spends 40 of them. That is the first number in this
+README about the loop's stability that did not come from how long something
+flew.
+
+### What the in-flight deficit was: the climb
+
+The closed-loop identification above found pitch and roll authority at
+50-85% of static between 100 and 200 rad/s, and left it open. It is the
+climb. Tilt a still animal and nothing changes; tilt a climbing one and the
+climb acquires a component along the stroke path, one half-stroke meets
+faster air than the other, and the torque follows the tilt:
+
+| climb, mm/s | pitch torque per rad of pitch | roll torque per rad of roll |
+| ---: | ---: | ---: |
+| 0 | 0.000 | 0.000 |
+| 1000 | +2.82 | +1.88 |
+| 2000 | +5.64 | +3.76 |
+
+Linear in the climb, and destabilising. This stroke climbs at 2.2 m/s, where
+that is 6.1 per radian in pitch against an inertia of 0.000753: **an unstable
+pole at 90 rad/s** that the loop has to out-stiffen before it does anything
+else. Inside the loop the stiffness divides the apparent authority by
+``1 + K/(I w^2)``, and that predicts the deficit: 0.55 at 100 rad/s against
+0.47-0.50 measured, 0.83 at 200 against 0.84-0.87, 0.92 at 300 against 0.98.
+Hiding the climb from the wings, and nothing else, brings the pitch authority
+at 100 rad/s back to 1.08. On the tether, which cannot climb, it is 1.02, 0.97
+and 1.03 at 100, 150 and 200.
+
+It also explains which loops fly. With the right inertia and a critically
+damped loop at a true 60 rad/s, the climbing animal loses attitude in 21 ms:
+the loop is softer than the climb. With the altitude loop closed instead --
+the muscle-driven stroke, throttle through the connectome channel, holding
+zero -- there is no climb, and the same animal holds **the whole three
+seconds** at every bandwidth tried, 60 included: within 16 degrees of level
+at 60 and within 4 at 140, heading inside ten throughout. Hovering was never the hard problem. Climbing
+at two metres a second on a stroke that makes 1.36 body weights of lift was.
+
+### The bandwidth, chosen again
+
+Critically damped on every axis, on the corrected physics, three amplitudes
+one percent apart, flight in ms over three seconds of climbing:
+
+| rad/s | 78.62 deg | 79.41 deg | 80.20 deg | median |
+| --- | ---: | ---: | ---: | ---: |
+| old gains | 1391 | 1266 | 1139 | 1266 |
+| 100 | 922 | 878 | 817 | 878 |
+| 120 | 1364 | 1073 | 1109 | 1109 |
+| 140 | 1559 | 1913 | 1394 | 1559 |
+| 160 | 2031 | 1647 | 1617 | 1647 |
+| 180 | 1698 | 1910 | 1702 | 1702 |
+| 200 | 2155 | 735 | 1117 | 1117 |
+
+The shape is familiar -- a best row with a cliff just above it -- and so is
+the reason. At 160 the yaw gain is 12.95 and the phase knob saturates at 3.5
+degrees of heading error: the yaw loop chatters between its limits, drags
+roll and pitch with it, and steering reverses (a left object gave -3.7
+degrees of heading, a right one +13.1). Give yaw its own bandwidth and the
+cliff goes away:
+
+| pitch and roll, with yaw at 65 | 78.62 deg | 79.41 deg | 80.20 deg | median |
+| --- | ---: | ---: | ---: | ---: |
+| 120 | 1213 | 1130 | 1057 | 1130 |
+| 140 | 1477 | 1367 | 1276 | 1367 |
+| **160** | **1536** | **1441** | **1332** | **1441** |
+| 180 | 1563 | 1455 | 1362 | 1455 |
+| 200 | 1573 | 1458 | 1367 | 1458 |
+
+A plateau from 140 up with nothing falling off it. **160 in pitch and roll,
+65 in yaw**: 65 because it is the yaw loop the project has flown all along
+(the old gains ran yaw at 65, and these are within 2% of them), which keeps
+every steering result valid; 160 because it sits in the middle of the plateau
+and beats the old gains at every amplitude. Yaw at 90 flies about 10% longer
+again and was not taken, for the same reason 100 was not taken over 60 last
+time: the gain is where the knob starts saturating inside the errors steering
+produces. Amplitude steering changes with the faster roll loop -- the bank
+arrives sooner and the adverse-yaw phase shortens, +1.98 degrees at 30 ms and
+gone by 50 -- and that test was re-measured rather than loosened blindly.
+
+### Where it ends now
+
+The failure mode is still the heading. Every climbing flight in the tables
+above ends with it 90-170 degrees off; attitude goes second. But the question
+has changed shape. A hovering animal does not fail at all inside three
+seconds, and the climbing one fails because of a destabilising stiffness that
+grows with climb speed -- which is a property of flying straight up at 2 m/s,
+not of the controller.
+
 ## What does not exist yet
 
 
@@ -1005,15 +1163,16 @@ measurement that does not go through flight duration at all.
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 94 tests, about ten minutes
-pytest -q -m sweep    # the 7 measurement sweeps, about half an hour
+pytest -q             # 100 tests, about ten minutes on one core
+pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
+pytest -q -n 4        # with pytest-xdist: under four minutes on four cores
 ```
 
 The aerodynamics and the connectome readout run anywhere -- the wing mesh is
 checked in as vertices and the tuning curves as fixtures -- and everything
 that puts the wings on a body skips itself without MuJoCo.
 
-**The sweeps are deselected by default, on purpose.** Seven tests re-measure
+**The sweeps are deselected by default, on purpose.** Nine tests re-measure
 tables that already live in this README and in `docs/LITERATURE.md`: the
 filter-lag curve at three amplitudes, the sensing-against-bandwidth grid, the
 stroke-shape comparison, and the multi-window steering and yaw-hold

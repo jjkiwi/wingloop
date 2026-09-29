@@ -650,6 +650,10 @@ def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
 
     ``sharpness`` is now 0.9 by default, so the *sinusoid* is the special case
     here and this test asks for it explicitly.
+
+    With the inertia and the wing air speed corrected, and the loop re-tuned
+    on them, the advantage is smaller and still there: 1441 ms against 1178
+    at the default stroke, a factor of 1.22.
     """
     from wingloop.body.control import HaltereController
     from wingloop.body.flight import harmonic_stroke
@@ -683,7 +687,7 @@ def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
     plain = holds_until(sharpness=0.0)
     sharp = holds_until()
     assert plain > 900.0, plain
-    assert sharp > 1.3 * plain, (plain, sharp)
+    assert sharp > 1.15 * plain, (plain, sharp)
 
 
 @needs_model
@@ -785,7 +789,9 @@ def test_less_sensor_lag_buys_more_flight(rigid, wing, tmp_path):
     def holds_until(tau: float) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
         trace = HaltereController(
-            sensing="lowpass", tau=tau, **{**gains_for(LOWPASS_BANDWIDTH), **YAW_OFF}
+            sensing="lowpass",
+            tau=tau,
+            **{**gains_for(LOWPASS_BANDWIDTH, about="origin"), **YAW_OFF},
         ).fly(body, 1.50)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
@@ -829,6 +835,19 @@ def test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck(
     to whatever stroke the animal is flying and has to be found again each
     time that changes.
 
+    Then a fifth: with the wing air speed taken about the right point it is
+    at 3 ms, on the same gains, and again at all three amplitudes --
+
+    ======  =====  =====  =====  =====  =====
+    tau ms   1.5    2.0    2.5    3.0    4.0
+    ======  =====  =====  =====  =====  =====
+    78.62    138    257    397    667    402
+    79.41    137    239    388    652    401
+    80.20    136    234    378    596    415
+    ======  =====  =====  =====  =====  =====
+
+    -- so it moved with the plant, not with the amplitude.
+
     So this asserts the discriminator directly: three amplitudes, one peak.
     """
     from wingloop.body.control import (
@@ -845,13 +864,13 @@ def test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck(
             sensing="lowpass",
             tau=tau,
             amplitude=np.deg2rad(amplitude),
-            **{**gains_for(LOWPASS_BANDWIDTH), **YAW_OFF},
+            **{**gains_for(LOWPASS_BANDWIDTH, about="origin"), **YAW_OFF},
         ).fly(body, 2.0)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
         return float(trace["t"][over[0]] * 1000) if len(over) else 2000.0
 
-    taus = (0.003, 0.004, 0.005, 0.006)
+    taus = (0.002, 0.003, 0.004, 0.005)
     peaks = []
     # One percent either side of whatever the default stroke is, because the
     # discriminator is "does the peak move when something unrelated to the
@@ -1166,9 +1185,8 @@ def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
 
     def holds_until(bandwidth: float, **kwargs) -> float:
         body = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(**kwargs, **{**gains_for(bandwidth), **YAW_OFF}).fly(
-            body, 1.60
-        )
+        gains = {**gains_for(bandwidth, about="origin"), **YAW_OFF}
+        trace = HaltereController(**kwargs, **gains).fly(body, 1.60)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
         return float(trace["t"][over[0]] * 1000) if len(over) else 1600.0
@@ -1176,8 +1194,12 @@ def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
     low = dict(sensing="lowpass", tau=0.006)
     box = dict(sensing="stroke")
 
+    # Re-measured with the wing air speed corrected, on the same old gains:
+    # 342 against 813 at 40, 906 against 1147 at 60. The first-order filter
+    # gained more from the correction than the boxcar did, and the boxcar
+    # still wins both.
     assert holds_until(40.0, **box) > 2.0 * holds_until(40.0, **low)
-    assert holds_until(60.0, **box) > 1.3 * holds_until(60.0, **low)
+    assert holds_until(60.0, **box) > 1.2 * holds_until(60.0, **low)
     assert holds_until(60.0, **box) > holds_until(40.0, **box)
 
 
@@ -1281,6 +1303,59 @@ def test_the_tether_has_a_haltere(rigid, wing, tmp_path):
     body = FlightBody(tether, wing, timestep=2e-5)
     trace = HaltereController().fly(body, 0.3)
     assert np.degrees(np.abs(trace["pitch"])).max() < 6.0
+
+
+@needs_model
+def test_the_pitch_loop_on_the_tether_is_the_loop_that_was_designed(
+    rigid, wing, tmp_path
+):
+    """The loop gain read off the rig, not inferred from flight times.
+
+    Inject a sinusoid ``d`` at the plant input, so the knob is the
+    controller's own command ``c`` plus ``d``; the loop gain is ``-C/(C+D)``
+    at that frequency. Unlike identifying the plant, this works at crossover,
+    because the loop's cancellation is the thing being measured.
+
+    The design is a critically damped PD at :data:`BANDWIDTH` behind a
+    one-wingbeat boxcar, and on the tether it is exactly that: at 80, 160,
+    250 and 329 rad/s the measured magnitude is 1.002, 1.005, 1.007 and 1.009
+    of the design and the phase within 0.3 degrees. Crossover is near 306
+    rad/s, where the phase is -145: **a phase margin of 35 degrees**. The PD
+    alone would have 76 there; the boxcar's half-period delay spends 40.
+
+    Before the inertia was corrected the same measurement read 2.67 times
+    the design at every frequency, which is how the error was found.
+    """
+    from wingloop.body.control import BANDWIDTH, HaltereController
+
+    tether = add_free_base(rigid[0], tmp_path / "bode.xml", dofs="pitch")
+    w, amp = BANDWIDTH, np.deg2rad(1.0)
+
+    class Injected(HaltereController):
+        log: list = None
+
+        def knobs(self, body):
+            k = super().knobs(body)
+            d = amp * np.sin(w * body.t)
+            self.log.append((body.t, k["bias"], d))
+            k["bias"] = float(k["bias"] + d)
+            return k
+
+    controller = Injected()
+    controller.log = []
+    controller.fly(FlightBody(tether, wing, timestep=2e-5), 0.5)
+    t, c, d = np.asarray(controller.log).T
+    periods = int((t[-1] - 0.2) * w / (2 * np.pi))
+    keep = (t > 0.2) & (t < 0.2 + periods * 2 * np.pi / w)
+    e = np.exp(-1j * w * t[keep])
+    command = np.mean((c[keep] - c[keep].mean()) * e)
+    total = np.mean((c[keep] + d[keep] - (c[keep] + d[keep]).mean()) * e)
+    measured = -command / total
+
+    period = 1.0 / 218.0
+    design = -(1 + 2j) * np.sinc(w * period / (2 * np.pi)) * np.exp(-1j * w * period / 2)
+    assert abs(measured) == pytest.approx(abs(design), rel=0.03), (measured, design)
+    assert np.degrees(np.angle(measured / design)) == pytest.approx(0.0, abs=3.0)
 
 
 @needs_model
@@ -1543,11 +1618,192 @@ def test_the_wings_are_told_about_rotation_only_through_their_own_offset(
     # it lies along the fore-aft axis.
     assert abs(differential[0]) > 10.0 * abs(differential[1]), differential
     assert np.sign(extra["LWing"][0]) != np.sign(extra["RWing"][0])
-    # They also share a part, because the centre of mass is 0.30 mm behind the
-    # wing line and a spin about it carries both wings sideways together. That
-    # part is lateral and it cancels between the sides, which is why it is not
-    # what damps the spin.
+    # They also share a part, because the wing line is not on the axis the
+    # body spins about -- here the frame origin, which is what a free joint
+    # with no linear velocity holds still -- so the spin carries both wings
+    # sideways together. That part is lateral and it cancels between the
+    # sides, which is why it is not what damps the spin.
     assert abs(common[1]) > 10.0 * abs(common[0]), common
+
+
+@needs_model
+def test_the_wing_meets_the_air_its_own_point_moves_through(rigid, wing, tmp_path):
+    """The wing's air speed is the material velocity of the wing's point.
+
+    A free joint's linear velocity is the velocity of the body's *frame
+    origin*, so the velocity of any point on the body is that plus omega
+    cross the arm from the origin. The arm was taken from the centre of mass,
+    1.1 mm away, which drops ``omega x (com - origin)`` from both wings: at 10
+    rad/s of pitch, a uniform wind of 11 mm/s that is not there. Through the
+    fore-aft authority that is **+0.0032 of pitch torque per rad/s, an
+    anti-damping three times the pitch damping the model then reported** --
+    so the damping measurement said "none" partly because it was cancelling
+    a bug.
+
+    Checked against the simulator's own kinematics: move the body by a
+    microsecond of its velocity and difference where the wing's point went.
+    """
+    free = add_free_base(rigid[0], tmp_path / "point.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+    body.set_wings(*harmonic_stroke(0.0, frequency=FREQUENCY, rates=True))
+
+    def centre(w):
+        rot, hinge = body.wing_pose(w, body.wing_angles)
+        return np.asarray(hinge) + rot @ (body._gyration_radius * body.span[w])
+
+    for axis, rate in ((3, 10.0), (4, 10.0), (5, 10.0)):
+        body.data.qpos[:] = body.model.qpos0
+        body.data.qvel[:] = 0.0
+        body.data.qvel[body.root_dof + axis] = rate
+        body.data.qvel[body.root_dof : body.root_dof + 3] = (30.0, -20.0, 50.0)
+        mujoco.mj_forward(body.model, body.data)
+        before = {w: centre(w) for w in WINGS}
+        told = {w: body.air_velocity_at(w, *body.wing_pose(w, body.wing_angles)) for w in WINGS}
+        h = 1e-7
+        q = body.data.qpos.copy()
+        mujoco.mj_integratePos(body.model, q, body.data.qvel, h)
+        body.data.qpos[:] = q
+        mujoco.mj_forward(body.model, body.data)
+        for w in WINGS:
+            moved = (centre(w) - before[w]) / h
+            assert np.allclose(told[w], moved, atol=1e-3 * np.linalg.norm(moved)), (
+                axis, w, told[w], moved,
+            )
+
+
+@needs_model
+def test_climbing_makes_tilt_unstable_in_proportion_to_the_climb(rigid, wing, tmp_path):
+    """Why the attitude loop needs the stiffness it has, and why hovering doesn't.
+
+    Tilt a still animal and nothing changes: the stroke plane turns with the
+    body and the whole force picture turns rigidly with it. Tilt a climbing
+    one and the climb acquires a component along the stroke path, one
+    half-stroke meets faster air than the other, and the difference is a
+    torque **in the direction of the tilt**. Measured per radian of tilt per
+    m/s of climb: 2.8 in pitch and 1.9 in roll, linear in the climb speed.
+
+    At the 2.2 m/s this stroke climbs at, that is 6.1 per radian in pitch
+    against an inertia of 0.000753 -- an unstable pole at 90 rad/s that the
+    loop has to out-stiffen before it can do anything else. It is the whole of
+    the in-flight authority deficit that closed-loop identification found at
+    100-200 rad/s (see
+    ``test_the_static_authorities_are_recovered_in_flight_above_the_loop``),
+    and it is why the default loop is as fast as it is: at 60 rad/s the
+    climbing animal loses attitude in 21 ms while the hovering one, which has
+    no climb to be destabilised by, holds for three seconds.
+    """
+    from wingloop.body.control import TRIM_BIAS, HaltereController
+
+    free = add_free_base(rigid[0], tmp_path / "climb_tilt.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+    stroke = HaltereController()
+    dt = float(body.model.opt.timestep)
+    n = int(round(1.0 / (stroke.frequency * dt)))
+
+    def torque(climb: float, pitch: float = 0.0, roll: float = 0.0) -> np.ndarray:
+        body.data.qpos[:] = body.model.qpos0
+        body.data.qvel[:] = 0.0
+        q = np.zeros(4)
+        mujoco.mju_mulQuat(
+            q,
+            np.array([np.cos(pitch / 2), 0.0, np.sin(pitch / 2), 0.0]),
+            np.array([np.cos(roll / 2), np.sin(roll / 2), 0.0, 0.0]),
+        )
+        body.data.qpos[body.root_dof + 3 : body.root_dof + 7] = q
+        body.data.qvel[body.root_dof + 2] = climb
+        mujoco.mj_forward(body.model, body.data)
+        r = body.data.xmat[body.root_body].reshape(3, 3)
+        acc = np.zeros(3)
+        for i in range(n):
+            angles, rates = stroke._stroke(
+                i * dt, body, bias=TRIM_BIAS, asymmetry=0.0, phase_asymmetry=0.0
+            )
+            body.set_wings(angles, rates)
+            body.apply_aerodynamics()
+            acc += r.T @ body.wrench_about_com()[3:6]
+        return acc / n
+
+    tilt = np.deg2rad(5.0)
+
+    def stiffness(climb: float) -> tuple[float, float]:
+        pitch = (torque(climb, pitch=tilt)[1] - torque(climb, pitch=-tilt)[1]) / (2 * tilt)
+        roll = (torque(climb, roll=tilt)[0] - torque(climb, roll=-tilt)[0]) / (2 * tilt)
+        return pitch, roll
+
+    still = stiffness(0.0)
+    assert abs(still[0]) < 1e-6 and abs(still[1]) < 1e-6, still
+
+    slow, fast = stiffness(1000.0), stiffness(2000.0)
+    # Destabilising: the torque follows the tilt.
+    assert slow[0] > 0.0 and slow[1] > 0.0, slow
+    assert slow[0] == pytest.approx(2.82, rel=0.05), slow
+    assert slow[1] == pytest.approx(1.88, rel=0.05), slow
+    # And proportional to the climb.
+    assert fast[0] == pytest.approx(2.0 * slow[0], rel=0.02)
+    assert fast[1] == pytest.approx(2.0 * slow[1], rel=0.02)
+
+
+@needs_model
+def test_the_inertia_is_about_the_centre_of_mass(rigid, wing, tmp_path):
+    """The constant the gains are divided by, about the point the torque is.
+
+    The first numbers were read off the free joint's block of the mass
+    matrix, which is about the frame origin, 1.1 mm from the centre of mass --
+    2.67 times too heavy in pitch and 4.48 in roll. Two independent readings
+    of the right number: the whole-body inertia summed about the centre of
+    mass, and the mass matrix of the pitch tether, whose hinge passes through
+    it.
+    """
+    from wingloop.body.control import (
+        INERTIA_ABOUT_ORIGIN,
+        PITCH_INERTIA,
+        ROLL_INERTIA,
+        YAW_INERTIA,
+    )
+
+    free = add_free_base(rigid[0], tmp_path / "inertia.xml", dofs="free")
+    body = FlightBody(free, wing, timestep=2e-5)
+    m, d = body.model, body.data
+    root = body.root_body
+    com = d.subtree_com[root].copy()
+    inertia = np.zeros((3, 3))
+    mass = 0.0
+    for k in range(1, m.nbody):
+        p = k
+        while p not in (0, root):
+            p = m.body_parentid[p]
+        if p != root:
+            continue
+        rot = d.ximat[k].reshape(3, 3)
+        arm = d.xipos[k] - com
+        mass += m.body_mass[k]
+        inertia += rot @ np.diag(m.body_inertia[k]) @ rot.T + m.body_mass[k] * (
+            arm @ arm * np.eye(3) - np.outer(arm, arm)
+        )
+    roll, pitch, yaw = np.diag(inertia)
+    assert pitch == pytest.approx(PITCH_INERTIA, rel=0.01)
+    assert roll == pytest.approx(ROLL_INERTIA, rel=0.01)
+    assert yaw == pytest.approx(YAW_INERTIA, rel=0.01)
+    # Roll, not yaw, is the light axis.
+    assert ROLL_INERTIA < YAW_INERTIA < PITCH_INERTIA
+
+    # The old numbers are these moved to the origin by the parallel-axis
+    # theorem, which is exactly the error.
+    full = np.zeros((m.nv, m.nv))
+    mujoco.mj_fullM(m, full, d.qM)
+    at_origin = np.diag(full)[body.root_dof + 3 : body.root_dof + 6]
+    assert at_origin == pytest.approx(
+        [INERTIA_ABOUT_ORIGIN[k] for k in ("roll", "pitch", "yaw")], rel=0.01
+    )
+    arm = np.zeros(3) - com
+    moved = inertia + mass * (arm @ arm * np.eye(3) - np.outer(arm, arm))
+    assert np.diag(moved) == pytest.approx(at_origin, rel=1e-6)
+
+    tether = add_free_base(rigid[0], tmp_path / "inertia_tether.xml", dofs="pitch")
+    pinned = FlightBody(tether, wing, timestep=2e-5)
+    full = np.zeros((1, 1))
+    mujoco.mj_fullM(pinned.model, full, pinned.data.qM)
+    assert full[0, 0] == pytest.approx(PITCH_INERTIA, rel=0.01)
 
 
 @needs_model
@@ -1604,37 +1860,46 @@ def test_a_rolled_animal_that_is_climbing_yaws(rigid, wing, tmp_path):
 
 
 def test_the_yaw_knob_saturates_early_and_that_is_a_known_cost():
-    """The yaw loop is bang-bang for most of a flight, on purpose.
+    """The yaw loop is bang-bang for large errors, and why it has its own bandwidth.
 
-    Yaw carries a third of pitch's inertia, so the shared bandwidth puts the
-    gain high enough that twelve degrees of heading error already asks for the
-    whole knob. That was investigated as the cause of the flat spin and is
-    not: giving yaw its own lower bandwidth widens the linear range exactly as
-    the arithmetic says and buys no flight at all -- 1206 ms at bandwidth 20
-    where the knob stays linear to 108 degrees, against 1218 at the shared 60
-    where it saturates at 12. Below 60 the loop stops saturating and starts
-    drifting, and the heading wanders further for it.
+    The yaw knob is weak -- 0.98 of torque per radian of phase, against 17.4
+    per radian of bias in pitch -- and it stops at 45 degrees. So the gain a
+    bandwidth asks for runs out of knob early: at the yaw loop's own 65 rad/s
+    it saturates at 21 degrees of heading error. At the attitude loop's 160 it
+    would saturate at 3.5, and that was measured rather than argued: the knob
+    chatters between its limits, the roll and pitch it cross-couples come with
+    it, and steering reverses.
 
-    No simulation here: this pins the number so the trade stays visible.
+    This used to say the *light inertia* did it, yaw carrying a third of
+    pitch's. That was the inertia about the frame origin; about the centre of
+    mass yaw is two thirds of pitch and heavier than roll. It is the knob.
+
+    Lowering yaw further was tried on the old gains and bought nothing --
+    1206 ms at bandwidth 20, where the knob stays linear to 108 degrees,
+    against 1218 where it saturated at 12.
+
+    No simulation here: this pins the numbers so the trade stays visible.
     """
     from wingloop.body.control import (
         BANDWIDTH,
         MAX_PHASE,
-        YAW_INERTIA,
+        PITCH_PER_BIAS,
+        YAW_BANDWIDTH,
         YAW_PER_PHASE,
         HaltereController,
         gains_for,
     )
 
     controller = HaltereController()
-    assert controller.yaw_gain == pytest.approx(gains_for(BANDWIDTH)["yaw_gain"])
+    expected = gains_for(BANDWIDTH, yaw_bandwidth=YAW_BANDWIDTH)["yaw_gain"]
+    assert controller.yaw_gain == pytest.approx(expected)
     saturates_at = np.degrees(MAX_PHASE / controller.yaw_gain)
-    assert saturates_at == pytest.approx(20.7, abs=0.5), saturates_at
+    assert saturates_at == pytest.approx(21.0, abs=0.5), saturates_at
 
-    # And it is the light inertia that does it, not the knob being weak: at
-    # pitch's inertia the same bandwidth would stay linear three times further.
-    as_heavy = YAW_INERTIA * BANDWIDTH**2 / abs(YAW_PER_PHASE) * (0.002014 / YAW_INERTIA)
-    assert np.degrees(MAX_PHASE / as_heavy) < saturates_at / 3.0
+    shared = gains_for(BANDWIDTH)["yaw_gain"]
+    assert np.degrees(MAX_PHASE / shared) == pytest.approx(3.5, abs=0.2)
+    # The weak knob, in numbers.
+    assert abs(PITCH_PER_BIAS) > 15.0 * abs(YAW_PER_PHASE)
 
 
 @needs_model
@@ -1718,32 +1983,50 @@ def test_the_yaw_knob_drags_roll_with_it_and_the_loop_is_told_in_advance(
     assert float(np.interp(0.0, *ROLL_FROM_PHASE)) == 0.0
 
 
-def test_the_bandwidth_stays_at_sixty_and_the_reason_is_a_cliff():
-    """A default that was measured to be beatable, and left alone anyway.
+def test_the_bandwidth_is_what_the_old_sixty_actually_was_and_more():
+    """What "60" meant, and what replaced it.
 
-    With the authorities corrected and the stroke at its default, bandwidth
-    100 beats 60 at every one of three amplitudes -- 2092/1759/1349 against
-    1461/1341/1223 ms -- and that is the test every other default here was
-    moved on. It is not moved, because the cliff is at 110: two of the three
-    amplitudes collapse there (145 and 509 ms), so 100 sits inside 10% of it,
-    and the excursions at 100 are twice those at 60. Sixty is the only
-    bandwidth whose three amplitudes agree inside 240 ms; everything above it
-    spreads by 750-830 inside a 1% change of stroke.
+    The old default was bandwidth 60 on inertias taken about the body's frame
+    origin rather than its centre of mass. Its gains are kept reproducible,
+    and read back through the right inertias they are three different loops:
+    pitch at 98 rad/s and damping ratio 1.6, roll at 127 and 2.1, yaw at 65
+    and 1.1. None of them was at 60 and none was critically damped.
 
-    No simulation here -- the sweep is six flights of five seconds at three
-    amplitudes and belongs in the docs, not the suite. This pins the number
-    so that whoever raises it reads why it was not raised, and re-runs the
-    sweep against whatever the stroke is by then, rather than inheriting a
-    table measured on a stroke the animal no longer flies.
+    The replacement is critically damped at 160 in pitch and roll, where
+    every one of three stroke amplitudes flies longer than the old gains'
+    best, and 65 in yaw, which is the yaw loop the project already flew --
+    at 160 the yaw knob saturates at 3.5 degrees and the loop chatters. The
+    sweeps are in the docstrings of :data:`~wingloop.body.control.BANDWIDTH`
+    and :data:`~wingloop.body.control.YAW_BANDWIDTH`; this pins the numbers so
+    that whoever moves them reads why they are where they are.
     """
-    from wingloop.body.control import BANDWIDTH, gains_for
-
-    assert BANDWIDTH == 60.0
-    # And the gain really does scale as the square, which is why 100 is not
-    # "a bit more" than 60 but 2.8 times the loop gain.
-    assert gains_for(100.0)["pitch_gain"] / gains_for(60.0)["pitch_gain"] == pytest.approx(
-        (100.0 / 60.0) ** 2
+    from wingloop.body.control import (
+        BANDWIDTH,
+        PITCH_INERTIA,
+        ROLL_INERTIA,
+        YAW_BANDWIDTH,
+        YAW_INERTIA,
+        gains_for,
     )
+
+    assert BANDWIDTH == 160.0 and YAW_BANDWIDTH == 65.0
+
+    old = gains_for(60.0, about="origin")
+    assert old["pitch_gain"] == pytest.approx(0.41667, rel=1e-4)
+    assert old["yaw_gain"] == pytest.approx(2.1701, rel=1e-4)
+
+    # The old gains, read as bandwidth and damping ratio on the real body.
+    new = gains_for(1.0)  # gains per unit bandwidth squared / per unit bandwidth
+    measured = (("pitch", 98, 1.63), ("roll", 127, 2.12), ("yaw", 65, 1.09))
+    for axis, bandwidth, damping in measured:
+        omega = np.sqrt(old[f"{axis}_gain"] / new[f"{axis}_gain"])
+        zeta = old[f"{axis}_rate_gain"] / (new[f"{axis}_rate_gain"] * omega)
+        assert omega == pytest.approx(bandwidth, abs=1.0), (axis, omega)
+        assert zeta == pytest.approx(damping, abs=0.02), (axis, zeta)
+
+    # And gains_for really is inertia over authority, on the inertia about
+    # the centre of mass.
+    assert ROLL_INERTIA < YAW_INERTIA < PITCH_INERTIA
 
 
 @needs_model
@@ -1770,11 +2053,19 @@ def test_the_muscle_stroke_flies_longer_on_the_stored_authorities_than_its_own(
     So one set serves both generators, and this pins that choice against the
     day someone corrects it: if the muscle path ever flies longer on its own
     authorities, the refactor is back on and this docstring is wrong.
+
+    Re-measured with the inertia and wing air speed corrected and the loop
+    re-tuned: 863 ms against 836, stored ahead at every drive level but by 3%
+    rather than 12. It nearly came back on, and at first it looked as though
+    it had -- 1032 against 863 -- because this test was still deriving the
+    yaw gain from the attitude bandwidth, and yaw at 160 flies longer while
+    steering backwards. On the yaw loop's own bandwidth the stored set wins.
     """
     from wingloop.body.control import (
         BANDWIDTH,
         PITCH_INERTIA,
         ROLL_INERTIA,
+        YAW_BANDWIDTH,
         YAW_INERTIA,
         HaltereController,
     )
@@ -1792,8 +2083,8 @@ def test_the_muscle_stroke_flies_longer_on_the_stored_authorities_than_its_own(
         pitch_rate_gain=PITCH_INERTIA * 2 * BANDWIDTH / abs(own["pitch"]),
         roll_gain=ROLL_INERTIA * BANDWIDTH**2 / own["roll"],
         roll_rate_gain=ROLL_INERTIA * 2 * BANDWIDTH / own["roll"],
-        yaw_gain=YAW_INERTIA * BANDWIDTH**2 / abs(own["yaw"]),
-        yaw_rate_gain=YAW_INERTIA * 2 * BANDWIDTH / abs(own["yaw"]),
+        yaw_gain=YAW_INERTIA * YAW_BANDWIDTH**2 / abs(own["yaw"]),
+        yaw_rate_gain=YAW_INERTIA * 2 * YAW_BANDWIDTH / abs(own["yaw"]),
     )
 
     def holds(drive: float, **kw) -> float:
@@ -1808,9 +2099,9 @@ def test_the_muscle_stroke_flies_longer_on_the_stored_authorities_than_its_own(
         return float(trace["t"][over[0] if len(over) else end - 1] * 1000)
 
     drives = (2.97, 3.00, 3.03)
-    stored = np.median([holds(d) for d in drives])
-    own_flight = np.median([holds(d, **own_gains) for d in drives])
-    assert stored > 1.05 * own_flight, (stored, own_flight)
+    stored = [holds(d) for d in drives]
+    own_flight = [holds(d, **own_gains) for d in drives]
+    assert all(a > b for a, b in zip(stored, own_flight, strict=True)), (stored, own_flight)
 
 
 @needs_model
@@ -1818,16 +2109,23 @@ def test_only_yaw_has_aerodynamic_damping_worth_the_name(rigid, wing, tmp_path):
     """The damping the gain formula ignores, measured on all three axes.
 
     Impose a body rate about each axis and read the cycle-mean torque back.
-    Yaw carries flapping counter-torque at 0.037 per rad/s -- a time constant
-    of 16 ms, comparable to the loop's own 1/60 s -- so the yaw loop has been
+    Yaw carries flapping counter-torque at 0.038 per rad/s -- a time constant
+    of 13 ms, comparable to the yaw loop's own 1/65 s -- so the yaw loop is
     damped twice, aerodynamically and by its rate gain, with the gain formula
-    unaware of the first. Pitch and roll have next to none: time constants
-    near two seconds, a hundred times slower than anything the loop does.
+    unaware of the first. Pitch and roll have time constants of 180 and 120
+    ms, thirty times slower than the attitude loop's 1/160 s.
 
-    This is here because the pitch and roll numbers refute a hypothesis. In
-    flight, the authority per unit knob at 100-200 rad/s comes out at 50-85%
-    of the static value, and damping was the obvious explanation. It is not:
-    there is no pitch or roll damping to speak of.
+    Those two numbers were "near two seconds" until two errors were fixed:
+    the inertias divided by were about the frame origin (2.7 and 4.5 times
+    too heavy), and the wing air speed dropped the frame origin's rotation
+    about the centre of mass, which put an anti-damping of +0.0032 per rad/s
+    into pitch. Both made the damping look smaller than it is.
+
+    It was here first to refute a hypothesis, and that still stands. In
+    flight the authority per unit knob at 100-200 rad/s came out at 50-85% of
+    static, and damping was the obvious explanation. It is not -- damping
+    would show as phase, and the phase stayed that of a pure gain. The climb
+    is: see ``test_climbing_makes_tilt_unstable_in_proportion_to_the_climb``.
     """
     from wingloop.body.control import (
         PITCH_INERTIA,
@@ -1868,9 +2166,9 @@ def test_only_yaw_has_aerodynamic_damping_worth_the_name(rigid, wing, tmp_path):
         assert c < 0.0, f"{name} damping must oppose the rate, got {c}"
         tau[name] = inertia / abs(c)
 
-    assert 0.010 < tau["yaw"] < 0.025, tau
-    assert tau["pitch"] > 1.0 and tau["roll"] > 1.0, tau
-    assert tau["pitch"] > 50.0 * tau["yaw"]
+    assert 0.010 < tau["yaw"] < 0.016, tau
+    assert 0.15 < tau["pitch"] < 0.22 and 0.09 < tau["roll"] < 0.15, tau
+    assert tau["pitch"] > 10.0 * tau["yaw"] and tau["roll"] > 8.0 * tau["yaw"]
 
 
 @needs_model
@@ -1891,10 +2189,16 @@ def test_the_static_authorities_are_recovered_in_flight_above_the_loop(
     percent with the phase of a pure gain.
 
     Between 100 and 200 rad/s they do not -- 50 to 85% of static -- and that
-    is neither damping (pitch and roll have none) nor attitude feedback at
-    rest (exactly zero, since tilting a still body rotates the whole picture
-    rigidly). It is something that exists only in flight, most likely the
-    relative wind of the climb, and it is not quantified here.
+    is **the climb**. A tilted animal climbing at 2.2 m/s makes a torque in
+    the direction of its tilt, 6.1 per radian in pitch, and inside a loop
+    that stiffness divides the apparent authority by ``1 + K / (I w^2)``:
+    0.55 predicted at 100 rad/s against 0.47-0.50 measured, 0.83 at 200
+    against 0.84-0.87, 0.92 at 300 against 0.98. Three checks agree. Hiding
+    the climb from the wings -- and only the climb -- brings the pitch
+    authority at 100 rad/s back to 1.08 of static. On the pitch tether, which
+    cannot climb, it is 1.02, 0.97 and 1.03 at 100, 150 and 200. And the
+    static stiffness is pinned in
+    ``test_climbing_makes_tilt_unstable_in_proportion_to_the_climb``.
     """
     from wingloop.body.control import (
         MAX_PHASE,

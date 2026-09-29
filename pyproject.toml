@@ -7,7 +7,7 @@ dependencies = ["numpy", "pandas", "scipy"]
 
 [project.optional-dependencies]
 body = ["mujoco", "flygym-gymnasium"]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "pytest-xdist", "ruff"]
 
 [tool.ruff]
 line-length = 96

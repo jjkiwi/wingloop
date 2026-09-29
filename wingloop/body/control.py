@@ -26,8 +26,10 @@ not assumed:
 
 **Yaw is the third loop, and it turned out to be the one that mattered.** It
 was left out because nothing in a symmetric stroke produces much of it --
-true, and beside the point: yaw is the light axis, inertia 0.000591 against
-0.002014 in pitch, so the little it gets is enough. A normal flight reached
+true, and beside the point: nothing resists it either, so the little it
+gets is enough. (This said yaw was the light axis, a third of pitch; that was
+the inertia about the frame origin, and about the centre of mass roll is the
+light one -- see :data:`PITCH_INERTIA`.) A normal flight reached
 +40 degrees of heading by 100 ms and -86 by 300, at up to 1587 deg/s, while
 pitch and roll stayed inside ten.
 
@@ -114,12 +116,34 @@ TRIM_BIAS = np.deg2rad(-11.303)
 PITCH_PER_BIAS = -17.401
 ROLL_PER_ASYMMETRY = 34.342
 
-#: Pitch, roll and yaw inertia of the whole animal, from the model's mass
-#: matrix. **Yaw is the light axis**, a third of pitch, which is why an
-#: uncontrolled yaw runs away faster than either of the others.
-PITCH_INERTIA = 0.002014
-ROLL_INERTIA = 0.001502
-YAW_INERTIA = 0.000591
+#: Pitch, roll and yaw inertia of the whole animal **about its centre of
+#: mass**, which is the point every torque here is referred to.
+#:
+#: They were first read off the free joint's block of the mass matrix, and
+#: that block is about the joint's own point -- the body's frame origin, 1.1
+#: mm from the centre of mass. The same frame error :meth:`~wingloop.body.
+#: flight.FlightBody.wrench_about_com` was written to fix for the torque, left
+#: in the inertia it is divided by. The parallel-axis term is not small on an
+#: animal a millimetre long: about the origin the numbers were 0.002014,
+#: 0.001502 and 0.000591, which is **2.67 times too heavy in pitch, 4.48 in
+#: roll and 1.19 in yaw**. Found on the pitch tether, whose one hinge passes
+#: through the centre of mass: its mass matrix is 0.000753, and the loop gain
+#: read there was 2.67 times the design value at every frequency.
+#:
+#: So every gain in this project was derived too high by those factors, and
+#: every "bandwidth" was really three: the old 60 ran pitch at 98 rad/s and
+#: damping ratio 1.6, roll at 127 and 2.1, yaw at 65 and 1.1. The note that
+#: yaw is the light axis was also wrong -- about the centre of mass roll is.
+#: :func:`gains_for` with ``about="origin"`` reproduces the old gains, which
+#: is what every measurement before the correction was made with.
+PITCH_INERTIA = 0.000753
+ROLL_INERTIA = 0.000335
+YAW_INERTIA = 0.000496
+
+#: The same three about the body's frame origin: what the gains were derived
+#: from until the error above was found. Kept only so that the measurements
+#: made on those gains can still be reproduced, and named for what it is.
+INERTIA_ABOUT_ORIGIN = {"pitch": 0.002014, "roll": 0.001502, "yaw": 0.000591}
 
 #: Roll torque the yaw knob drags with it, as the measured curve itself.
 #:
@@ -237,7 +261,57 @@ MAX_PHASE = np.deg2rad(45.0)
 #: above it spread by 750-830. A default that a 6% change of stroke could
 #: push over a cliff is not a default, and this project has already had to
 #: withdraw one optimum that was chosen from terrain like that.
-BANDWIDTH = 60.0
+#:
+#: **Every number above is in the old units.** The gains were derived from
+#: inertias about the body's frame origin, not its centre of mass (see
+#: :data:`PITCH_INERTIA`), so "60" ran pitch at 98 rad/s and roll at 127,
+#: overdamped, and "110" -- the cliff -- ran them at 180 and 233. The tables
+#: are kept as measured; :func:`gains_for` with ``about="origin"`` reproduces
+#: them.
+#:
+#: **160, with the inertia right and the wing air speed taken about the right
+#: point.** Critically damped on every axis, three amplitudes one percent
+#: apart, flight in ms over three seconds:
+#:
+#: ============  =========  =========  =========  ======
+#: rad/s         78.62 deg  79.41 deg  80.20 deg  median
+#: ============  =========  =========  =========  ======
+#: old 60           1391       1266       1139     1266
+#: 100               922        878        817      878
+#: 120              1364       1073       1109     1109
+#: 140              1559       1913       1394     1559
+#: **160**          2031       1647       1617     1647
+#: 180              1698       1910       1702     1702
+#: 200              2155        735       1117     1117
+#: ============  =========  =========  =========  ======
+#:
+#: 180 has the best row and 200 is the cliff, 11% above it -- the same
+#: arrangement 100 and 110 were in, and it gets the same answer. At 160 every
+#: amplitude flies longer than the old gains' best, the worst is 1.42 times
+#: the old worst, and the cliff is 25% away. Below 120 the loop is too soft
+#: for the climb: tilting while climbing at 2 m/s makes a destabilising
+#: torque of 2.8 per radian per m/s in pitch and 1.9 in roll, and a loop whose
+#: stiffness is below that cannot hold the animal level however well damped.
+BANDWIDTH = 160.0
+
+#: The yaw loop's bandwidth, rad/s, set apart from the other two.
+#:
+#: At :data:`BANDWIDTH` the yaw gain is 12.95 and the phase knob saturates at
+#: 3.5 degrees of heading error, so the loop is bang-bang for anything bigger:
+#: the knob swings between +-45 degrees, the roll and pitch it cross-couples
+#: come with it, and steering reverses -- measured, a left object gave -3.7
+#: degrees of heading and a right one +13.1. The yaw knob is weak (0.98 of
+#: torque per radian against 17.4 in pitch) and it saturates early, and a
+#: bandwidth is only a bandwidth while the loop is linear.
+#:
+#: 65 is the yaw loop this project has flown all along: the old gains, derived
+#: from the origin inertia at "60", ran yaw at 65 rad/s and damping ratio 1.09,
+#: and these gains are within 2% of those. Pitch and roll at 160 with yaw at
+#: 65, three amplitudes, ms: 1536 / 1441 / 1332, against 1391 / 1266 / 1139
+#: for the old gains. With yaw at 65 there is no cliff at 200 either -- 1573 /
+#: 1458 / 1367 -- so that cliff was the yaw loop chattering, not pitch or roll
+#: running out of margin.
+YAW_BANDWIDTH = 65.0
 
 #: What the sensing change is worth, and the measurement that nearly hid it.
 #:
@@ -269,20 +343,36 @@ SENSING = ("lowpass", "stroke")
 LOWPASS_BANDWIDTH = 40.0
 
 
-def gains_for(bandwidth: float) -> dict:
-    """The four attitude gains for a bandwidth, critically damped.
+def gains_for(
+    bandwidth: float, *, yaw_bandwidth: float | None = None, about: str = "com"
+) -> dict:
+    """The six attitude gains for a bandwidth, critically damped.
 
     A gain is inertia times the desired closed-loop dynamics divided by the
     measured control authority -- the same formula the defaults use, exposed
     so that anything comparing bandwidths states the one it means.
+
+    ``yaw_bandwidth`` sets the yaw loop separately, as the defaults do (see
+    :data:`YAW_BANDWIDTH`); left out, yaw runs at ``bandwidth`` too.
+
+    ``about="origin"`` uses :data:`INERTIA_ABOUT_ORIGIN` instead, and gives
+    the gains every result before the inertia correction was measured on:
+    ``gains_for(60, about="origin")`` is the old default.
     """
+    yaw_bandwidth = bandwidth if yaw_bandwidth is None else yaw_bandwidth
+    if about == "com":
+        pitch, roll, yaw = PITCH_INERTIA, ROLL_INERTIA, YAW_INERTIA
+    elif about == "origin":
+        pitch, roll, yaw = (INERTIA_ABOUT_ORIGIN[k] for k in ("pitch", "roll", "yaw"))
+    else:
+        raise ValueError(f"about must be 'com' or 'origin', not {about!r}")
     return {
-        "pitch_gain": PITCH_INERTIA * bandwidth**2 / abs(PITCH_PER_BIAS),
-        "pitch_rate_gain": PITCH_INERTIA * 2 * bandwidth / abs(PITCH_PER_BIAS),
-        "roll_gain": ROLL_INERTIA * bandwidth**2 / ROLL_PER_ASYMMETRY,
-        "roll_rate_gain": ROLL_INERTIA * 2 * bandwidth / ROLL_PER_ASYMMETRY,
-        "yaw_gain": YAW_INERTIA * bandwidth**2 / abs(YAW_PER_PHASE),
-        "yaw_rate_gain": YAW_INERTIA * 2 * bandwidth / abs(YAW_PER_PHASE),
+        "pitch_gain": pitch * bandwidth**2 / abs(PITCH_PER_BIAS),
+        "pitch_rate_gain": pitch * 2 * bandwidth / abs(PITCH_PER_BIAS),
+        "roll_gain": roll * bandwidth**2 / ROLL_PER_ASYMMETRY,
+        "roll_rate_gain": roll * 2 * bandwidth / ROLL_PER_ASYMMETRY,
+        "yaw_gain": yaw * yaw_bandwidth**2 / abs(YAW_PER_PHASE),
+        "yaw_rate_gain": yaw * 2 * yaw_bandwidth / abs(YAW_PER_PHASE),
     }
 
 
@@ -413,11 +503,16 @@ class HaltereController:
     pitch_rate_gain: float = PITCH_INERTIA * 2 * BANDWIDTH / abs(PITCH_PER_BIAS)
     roll_gain: float = ROLL_INERTIA * BANDWIDTH**2 / ROLL_PER_ASYMMETRY
     roll_rate_gain: float = ROLL_INERTIA * 2 * BANDWIDTH / ROLL_PER_ASYMMETRY
-    #: Yaw, through the rotation-phase asymmetry. Set both to zero for the
-    #: uncontrolled yaw every result before this was measured with.
+    #: Yaw, through the rotation-phase asymmetry, at :data:`YAW_BANDWIDTH`.
+    #: Set both to zero for the uncontrolled yaw every result before the yaw
+    #: loop was measured with.
     #:
-    #: **The bandwidth is shared with pitch and roll, and a sweep says it
-    #: should be.** Yaw carries a third of pitch's inertia, so at 60 rad/s the
+    #: *Everything below is in the old units* -- bandwidths computed on the
+    #: inertia about the frame origin, so its "60" is a true 65. The yaw loop
+    #: now has its own bandwidth, and it is that same 65.
+    #:
+    #: **The bandwidth was shared with pitch and roll, and a sweep said it
+    #: should be.** Yaw appeared to carry a third of pitch's inertia, so at 60 rad/s the
     #: gain is high enough that 12 degrees of heading error saturates the
     #: knob, and the loop spends the whole flight bang-bang -- visibly so,
     #: 100% saturated for stretches while the heading swings plus or minus
@@ -440,8 +535,8 @@ class HaltereController:
     #: flies no longer for it. Saturation is real and is not what limits this.
     #:
     #: **The rate gain is also knowingly wrong, and kept.** Yaw is the one axis
-    #: with real aerodynamic damping -- flapping counter-torque at 0.037 per
-    #: rad/s, a 16 ms time constant, the loop's own timescale -- and the
+    #: with real aerodynamic damping -- flapping counter-torque at 0.038 per
+    #: rad/s, a 13 ms time constant, the loop's own timescale -- and the
     #: formula that sets these gains derives the rate term as if the plant
     #: had none. With it, critical damping wants ``(2 I w - c) / P``, about
     #: half of what is here. Flown at three amplitudes it is 4% shorter every
@@ -450,8 +545,8 @@ class HaltereController:
     #: does not describe it, and the extra rate feedback appears to keep it
     #: off the limit a little longer. Third time this session a correct
     #: derivation has flown worse than the number it was correcting.
-    yaw_gain: float = YAW_INERTIA * BANDWIDTH**2 / abs(YAW_PER_PHASE)
-    yaw_rate_gain: float = YAW_INERTIA * 2 * BANDWIDTH / abs(YAW_PER_PHASE)
+    yaw_gain: float = YAW_INERTIA * YAW_BANDWIDTH**2 / abs(YAW_PER_PHASE)
+    yaw_rate_gain: float = YAW_INERTIA * 2 * YAW_BANDWIDTH / abs(YAW_PER_PHASE)
     #: Feed the yaw knob's roll cross-coupling forward into the roll knob,
     #: from :data:`ROLL_FROM_PHASE`, instead of leaving the roll loop to
     #: discover it as a disturbance.

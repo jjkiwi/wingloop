@@ -156,7 +156,7 @@ def test_a_right_turn_command_yaws_left_first(rig):
     animal *away* from the commanded turn. Only once the bank develops does the
     tilted lift vector turn it the intended way, and the crossover here is
     somewhere between 70 and 90 ms -- four to five wingbeats of turning the
-    wrong way first.
+    wrong way first. (That was the old, softer roll loop; see below.)
 
     Real flies do not steer on amplitude alone; they shift the timing of wing
     rotation, which moves lift and drag differently. This model has only the
@@ -183,8 +183,13 @@ def test_a_right_turn_command_yaws_left_first(rig):
     # crosses over: +3.2 degrees at 30 ms, +2.1 at 50, -2.7 at 70, -13.5 at
     # 90. Flapping counter-torque both shrank the adverse phase and brought
     # the crossover in from 70-90 ms to 50-70.
+    #
+    # With the inertia corrected the roll loop runs critically damped at 160
+    # rad/s instead of overdamped at 127, the bank arrives sooner, and the
+    # crossover moves in again: +1.98 at 30 ms, -0.08 at 50, -5.49 at 70,
+    # -14.25 at 90. The adverse phase is shorter; it is still there.
     early = yaw_at(30, True) - yaw_at(30, False)
-    assert early > 2.0, f"expected adverse yaw, got {early}"
+    assert early > 1.0, f"expected adverse yaw, got {early}"
     late = yaw_at(90, True) - yaw_at(90, False)
     assert late < -5.0, f"expected the turn to come good, got {late}"
 
@@ -194,8 +199,10 @@ def test_a_right_turn_command_yaws_left_first(rig):
     # controller stopped advancing the sensor filter twice per step -- it
     # called the stabiliser and then recomputed the knobs, running the filter
     # at double rate and halving the time constant everything else here argues
-    # about. With one advance per step the same 50 ms banks 11 degrees. The
-    # old number measured the bug.
+    # about. With one advance per step the same 50 ms banked 11 degrees. The
+    # old number measured the bug. On the corrected, faster roll loop it banks
+    # 22 -- the loop reaches its own steady bank sooner rather than holding a
+    # smaller one.
     body = FlightBody(free, wing, timestep=2e-5)
     SteeringController(
         readout=flat, bearing=0.0, steer_mode="amplitude", **YAW_OFF

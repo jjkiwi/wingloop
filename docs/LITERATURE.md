@@ -230,7 +230,8 @@ same controller holds the tether inside four degrees.
 
 Inertia about the three body axes, from the model's mass matrix: **roll
 0.001502, pitch 0.002014, yaw 0.000591**. Yaw is the light one by a factor of
-three, which is why it ran away first.
+three, which is why it ran away first. *(About the frame origin. About the centre of mass: roll 0.000335, pitch
+0.000753, yaw 0.000496 -- see "Two frame errors, found on the tether".)*
 
 Stroke-averaged torque about the centre of mass, by knob, at 75 degrees of
 amplitude:
@@ -587,6 +588,47 @@ derivation in one session to fly worse than the number it was correcting:
 the corrected harmonic authorities, the muscle stroke's own authorities, and
 now this. The common factor is a loop that is not in the linear regime the
 formula assumes.
+
+### Two frame errors, found on the tether
+
+Both are the frame-origin-versus-centre-of-mass error again, 1.1 mm apart on
+this model, in places the first fix did not reach.
+
+- **Inertia.** The gains divide by inertias read off the free joint's block
+  of the mass matrix, which is about the frame origin. About the centre of
+  mass: pitch 0.000753 (not 0.002014), roll 0.000335 (not 0.001502), yaw
+  0.000496 (not 0.000591) -- 2.67, 4.48 and 1.19 times lighter. Confirmed by
+  summing the body inertias about the centre of mass and by the pitch
+  tether's own mass matrix. The old "bandwidth 60" was pitch at 98 rad/s and
+  damping ratio 1.6, roll at 127 and 2.1, yaw at 65 and 1.1. Roll, not yaw,
+  is the light axis.
+- **Wing air speed.** A free joint's linear velocity is the origin's, and the
+  arm to the wing was taken from the centre of mass, dropping omega x (com -
+  origin): +0.0032 of pitch torque per rad/s of anti-damping. Corrected, the
+  aerodynamic damping time constants are 180 ms pitch, 120 ms roll, 13 ms yaw.
+
+On the tether, with the angular rate read off its hinge, the pitch loop gain
+measured by injection at the plant input matches the design (critically
+damped PD behind a one-wingbeat boxcar) within 1% in magnitude and 0.3
+degrees in phase at 80, 160, 250 and 329 rad/s. Phase margin 35 degrees at
+about 306 rad/s, of an ideal 76; the boxcar's half-period delay spends 40.
+
+### The in-flight authority deficit is the climb
+
+Tilting a still body changes no torque. Tilting a climbing one gives a torque
+along the tilt: +2.82 per rad of pitch and +1.88 per rad of roll per m/s of
+climb, linear. At the stroke's 2.2 m/s climb that is an unstable pole near 90
+rad/s in pitch. Inside a loop it divides the apparent authority by
+``1 + K/(I w^2)``: predicted 0.55, 0.83, 0.92 at 100, 200, 300 rad/s against
+measured 0.47-0.50, 0.84-0.87, 0.98. Hiding the climb from the wings restores
+1.08 at 100 rad/s; the tether, which cannot climb, gives 1.02, 0.97, 1.03.
+
+A hovering animal (muscle stroke, altitude loop holding zero) holds three
+seconds at every bandwidth tried; a climbing one at a true 60 rad/s loses
+attitude in 21 ms. The new defaults are pitch and roll at 160 rad/s, yaw at 65
+(at 160 the yaw knob saturates at 3.5 degrees and chatters); climbing flight
+1536 / 1441 / 1332 ms at three amplitudes against 1391 / 1266 / 1139 for the
+old gains.
 
 ### The rest
 
