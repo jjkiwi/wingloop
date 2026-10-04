@@ -198,6 +198,8 @@ def cmd_check(args) -> dict:
         "install from a clone of the repository: pip install -e .[body,lab]",
     )
     print("ready" if ok else "not ready: fix the lines marked MISSING, then run this again")
+    if not ok:
+        raise SystemExit(1)
     return {}
 
 

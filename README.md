@@ -48,7 +48,13 @@ flylab drone --memory memory.npz --object bar@120:5 sphere@-100:5
 flylab demo                                          # all of it, one HTML report
 ```
 
-**On Windows**, in PowerShell. Python must be 3.10-3.12: flyvis and flygym
+**On Windows, the short way:** double-click `flylab.bat` in this folder. The
+first run creates `.venv`, installs everything and downloads the optic-lobe
+weights (10-20 minutes); every run then checks the install, runs the demo and
+opens the report. It needs Python 3.12 installed (`winget install
+Python.Python.3.12`).
+
+**On Windows, by hand**, in PowerShell. Python must be 3.10-3.12: flyvis and flygym
 do not install on 3.13 or newer. Install Python 3.12 from python.org (or
 `winget install Python.Python.3.12`), then:
 
