@@ -5,6 +5,9 @@
     flylab teach   --reward bar=1 sphere=-1 [--sessions 16]  training flights
     flylab drone   --memory memory.npz [--object bar@120:5]  autonomous mission
     flylab demo                                              all of it, one report
+    flylab check                                             is everything installed?
+
+``python -m wingloop.lab ...`` does the same where ``flylab`` is not on PATH.
 
 Every command writes its results as JSON next to ``--out`` and ``flylab
 report`` (or ``demo``) turns them into one self-contained HTML page.
@@ -144,6 +147,60 @@ def cmd_drone(args) -> dict:
     }
 
 
+def cmd_check(args) -> dict:
+    """Say what is installed, what is missing, and how to get it."""
+    import importlib.util
+    import sys
+
+    ok = True
+
+    def line(good: bool, what: str, fix: str = "") -> None:
+        nonlocal ok
+        ok &= good
+        print(
+            ("  ok   " if good else "  MISSING ")
+            + what
+            + ("" if good else f"\n         -> {fix}")
+        )
+
+    v = sys.version_info
+    line(
+        (3, 10) <= v[:2] <= (3, 12),
+        f"Python {v[0]}.{v[1]} (flyvis and flygym need 3.10-3.12)",
+        "install Python 3.12 and make a virtual environment with it (see README, 'Windows')",
+    )
+    for module, package in (
+        ("numpy", "numpy"),
+        ("mujoco", "mujoco"),
+        ("flygym_gymnasium", "flygym-gymnasium"),
+        ("torch", "torch"),
+        ("flyvis", "flyvis"),
+        ("sklearn", "scikit-learn"),
+        ("matplotlib", "matplotlib"),
+        ("googleapiclient", "google-api-python-client"),
+    ):
+        line(importlib.util.find_spec(module) is not None, module, f'pip install "{package}"')
+    if importlib.util.find_spec("flyvis") is not None:
+        try:
+            import flyvis
+
+            have = (flyvis.results_dir / "flow/0000/000").exists()
+        except Exception:  # pragma: no cover - a broken install
+            have = False
+        line(
+            have,
+            "flyvis pretrained models",
+            "python -m flyvis_cli.download_pretrained_models --skip_large_files",
+        )
+    line(
+        (FIXTURES / "rwing_vertices.npy").exists(),
+        "wing mesh and connectome fixtures",
+        "install from a clone of the repository: pip install -e .[body,lab]",
+    )
+    print("ready" if ok else "not ready: fix the lines marked MISSING, then run this again")
+    return {}
+
+
 def cmd_report(args) -> dict:
     from .report import build
 
@@ -192,6 +249,7 @@ COMMANDS = {
     "teach": (cmd_teach, "training flights with dopamine"),
     "drone": (cmd_drone, "autonomous drone mission"),
     "report": (cmd_report, "build the HTML report"),
+    "check": (cmd_check, "is everything installed?"),
     "demo": (cmd_demo, "everything, one report"),
 }
 

@@ -48,6 +48,25 @@ flylab drone --memory memory.npz --object bar@120:5 sphere@-100:5
 flylab demo                                          # all of it, one HTML report
 ```
 
+**On Windows**, in PowerShell. Python must be 3.10-3.12: flyvis and flygym
+do not install on 3.13 or newer. Install Python 3.12 from python.org (or
+`winget install Python.Python.3.12`), then:
+
+```powershell
+git clone https://github.com/jjkiwi/wingloop
+cd wingloop
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1          # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+python -m pip install --upgrade pip
+python -m pip install -e ".[body,lab]"
+python -m flyvis_cli.download_pretrained_models --skip_large_files
+python -m wingloop.lab check         # says what is missing, if anything
+python -m wingloop.lab demo          # about ten minutes; writes flylab-run\flylab.html
+```
+
+`python -m wingloop.lab` is the same program as `flylab`, and works when
+pip's Scripts folder is not on PATH.
+
 **What each part does, measured:**
 
 - **Recognition.** A linear readout of the optic lobe tells a sphere, a bar
