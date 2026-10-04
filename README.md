@@ -25,6 +25,62 @@ steering result in `flyloop`, supplies 0.21% of the descending drive onto wing
 motor neurons. Flight runs on a different set of descending neurons entirely.
 So this is a new project rather than a branch.
 
+## flylab: the whole animal in one program
+
+`wingloop.lab` puts the pieces together behind one command, and borrows every
+piece someone else has already built properly:
+
+| part | what it is | from |
+| --- | --- | --- |
+| flight | NeuroMechFly with blade-element wings, haltere, throttle and steering loops | this repository |
+| brain | the descending and motor neurons the MaleCNS connectome wires to the wings | MaleCNS v1.0 ([Berg et al. 2025](https://www.biorxiv.org/content/10.1101/2025.10.09.680999v2), [neuPrint](https://male-cns.janelia.org)), via `connectome-interpreter` |
+| vision | the pretrained, connectome-constrained optic lobe: 45,669 neurons, 65 cell types, 721 columns | [`flyvis`](https://github.com/TuragaLab/flyvis), Lappalainen et al., *Nature* 2024 |
+| learning | Kenyon cells and the dopamine rule that depresses their output synapses | the fly's rule, as used in `flyloop` |
+| drone | a Crazyflie 2.x quadrotor flown on the fly's three control laws | parameters from `gym-pybullet-drones` |
+
+```bash
+pip install -e ".[body,lab]"
+flyvis download-pretrained --skip_large_files         # once: the optic lobe weights
+flylab fly --seconds 0.5 --height 5 --target 50 50   # the fly, and its flight neurons
+flylab see                                           # object recognition, with controls
+flylab teach --reward bar=1 sphere=-1                # training flights with dopamine
+flylab drone --memory memory.npz --object bar@120:5 sphere@-100:5
+flylab demo                                          # all of it, one HTML report
+```
+
+**What each part does, measured:**
+
+- **Recognition.** A linear readout of the optic lobe tells a sphere, a bar
+  and a box apart in 77% of flights past them, against 59% from the
+  photoreceptors alone and 35% with the labels shuffled (chance 33%). The bar
+  is recognised 98% of the time; the sphere and the box are what this eye
+  confuses -- a box is called a sphere 40% of the time.
+- **Learning.** Dopamine paired with a bar and punishment paired with a
+  sphere teach the mushroom body to choose correctly in 92-95% of new
+  flights, against 38-64% for unpaired dopamine. In the drone, from its own
+  hovering fixations, it reaches 80% on new flights after twenty training
+  flights -- once its input is taken from the middle of the eye, where a
+  fixated object is.
+- **The autonomous mission.** Trained on forty such flights with the bar
+  rewarded and the sphere punished, the drone turns a full circle, fixates
+  each object, values the bar at +0.27 to +0.34 and the sphere at -0.19 to
+  -0.26, and flies to the bar -- stopping 1.9 m short of it, never closer to
+  the sphere than where it started, in both object layouts tried. With the
+  dopamine reversed, the same drone in the same world flies to the sphere.
+- **The drone** uses the fly's attitude law (gain = inertia times bandwidth
+  squared over authority, critically damped), the throttle law for height,
+  visual steering on the bearing the optic lobe reports, and the mushroom
+  body to decide what to approach and what to avoid.
+
+**What this is not.** The brain recorded in flight is the connectome's
+steady-state readout of the flight neurons, not a spiking whole-brain model
+running alongside the body. The optic lobe stops where the fly's
+object-selective neurons begin, so recognition is a trained readout, not a
+model of the lobula. The mushroom body's Kenyon cells sample their inputs at
+random rather than through the measured visual-projection wiring. And the
+drone reads its speed from its own state, as a drone with a flow sensor
+would, rather than from the optic flow its eye computes.
+
 ## What exists so far
 
 Quasi-steady flapping-wing aerodynamics, which is the part nothing else
@@ -1163,9 +1219,9 @@ not of the controller.
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 100 tests, about ten minutes on one core
+pytest -q             # 115 tests, about fifteen minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
-pytest -q -n 4        # with pytest-xdist: under four minutes on four cores
+pytest -q -n 4        # with pytest-xdist: about five minutes on four cores
 ```
 
 The aerodynamics and the connectome readout run anywhere -- the wing mesh is

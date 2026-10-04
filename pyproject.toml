@@ -7,13 +7,22 @@ dependencies = ["numpy", "pandas", "scipy"]
 
 [project.optional-dependencies]
 body = ["mujoco", "flygym-gymnasium"]
+# The optic lobe (flyvis, with its pretrained models), recognition and plots.
+lab = ["flyvis", "torch", "scikit-learn", "matplotlib"]
 dev = ["pytest", "pytest-xdist", "ruff"]
+
+[project.scripts]
+flylab = "wingloop.lab.cli:main"
 
 [tool.ruff]
 line-length = 96
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# An HTML template: its lines are the page's, not Python's.
+"wingloop/lab/report.py" = ["E501"]
 
 [tool.pytest.ini_options]
 markers = [
