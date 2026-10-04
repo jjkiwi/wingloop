@@ -15,8 +15,10 @@ axis convention.
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass, field
 from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 
@@ -27,8 +29,50 @@ MOTION_TYPES = ("T4a", "T4b", "T4c", "T4d", "T5a", "T5b", "T5c", "T5d")
 CONTRAST_TYPES = ("Mi1", "Tm3", "Tm1", "Tm2", "Tm9")
 
 
+def _write_h5(path, val) -> None:
+    """datamate's HDF5 writer, without the step that fails on Windows.
+
+    datamate 1.0.0 opens the file for writing, finds it empty, and then
+    deletes it *while its own handle is still open*. Linux allows that;
+    Windows refuses ("the process cannot access the file because it is being
+    used by another process"), so flyvis could never build its connectome
+    cache there and the first optic-lobe load always failed. The original
+    opened with mode "w", which truncates, so its update-in-place branch could
+    never succeed anyway: removing any old file first and writing fresh is
+    the same result with no open handle in the way.
+    """
+    import h5py
+
+    val = np.asarray(val)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_dir():
+        path.rmdir()
+    elif path.exists():
+        path.unlink()
+    with h5py.File(path, libver="latest", mode="w") as f:
+        f["data"] = val
+        f.swmr_mode = True
+
+
+def _prepare_flyvis_cache() -> None:
+    """Use the safe writer, and drop cache builds a crash left half-written."""
+    import datamate.directory
+    import datamate.io
+    import flyvis
+
+    datamate.io._write_h5 = _write_h5
+    datamate.directory._write_h5 = _write_h5
+    cache = Path(flyvis.root_dir) / "connectome"
+    for build in cache.glob("ConnectomeFromAvgFilters_*"):
+        meta = build / "_meta.yaml"
+        if not meta.exists() or "status: done" not in meta.read_text():
+            shutil.rmtree(build, ignore_errors=True)
+
+
 @lru_cache(maxsize=2)
 def _load(model: str):
+    _prepare_flyvis_cache()
     import flyvis
     from flyvis import NetworkView
 

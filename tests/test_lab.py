@@ -261,3 +261,40 @@ def test_and_reversing_the_reward_reverses_the_choice():
     assert m.phase == "arrived", m.phase
     d = m.distances()
     assert d["sphere"] < 2.5 and d["bar"] > 5.0, d
+
+
+def test_the_cache_writer_never_deletes_a_file_it_holds_open(tmp_path, monkeypatch):
+    """The Windows failure: datamate deleted an HDF5 file while its handle was open.
+
+    Linux allows that and Windows refuses, so flyvis could not build its
+    connectome cache on Windows at all. The replacement removes any old file
+    before opening, so no unlink can happen with a handle open -- checked here
+    by making every unlink fail while any file is open.
+    """
+    pytest.importorskip("h5py")
+    pytest.importorskip("datamate")
+    import h5py
+    from datamate.io import H5Reader
+
+    from wingloop.lab import vision
+
+    opened = []
+    real_file, real_unlink = h5py.File, Path.unlink
+
+    class Tracked(real_file):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            opened.append(self)
+
+    def unlink(self, *a, **k):
+        assert not any(f.id.valid for f in opened), "unlinked a file that is still open"
+        return real_unlink(self, *a, **k)
+
+    monkeypatch.setattr(h5py, "File", Tracked)
+    monkeypatch.setattr(Path, "unlink", unlink)
+
+    path = tmp_path / "deep" / "unique_cell_types.h5"
+    vision._write_h5(path, np.array([b"T4a", b"T5b"]))
+    vision._write_h5(path, np.arange(5))  # over an existing file
+    monkeypatch.undo()
+    assert H5Reader(path)[()].tolist() == [0, 1, 2, 3, 4]
