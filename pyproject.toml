@@ -11,6 +11,9 @@ body = ["mujoco", "flygym-gymnasium"]
 lab = ["flyvis", "torch", "scikit-learn", "matplotlib"]
 dev = ["pytest", "pytest-xdist", "ruff"]
 
+[tool.setuptools.package-data]
+wingloop = ["lab/*.html"]
+
 [project.scripts]
 flylab = "wingloop.lab.cli:main"
 

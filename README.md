@@ -76,8 +76,9 @@ pip's Scripts folder is not on PATH.
 **Watching it fly.** `flylab watch` (on Windows: double-click `latanie.bat`)
 opens a 3-D window with the fly flapping its way over a chequered floor past
 coloured columns, and you fly it from the keyboard: arrows for speed and
-turns, W/S for height, space to pause, C to free the camera. A second window
-shows the nervous system as it flies: what the fly sees, its photoreceptors,
+turns, W/S for height, space to pause, C to free the camera. A page in the
+browser shows the nervous system as it flies, refreshed a few times a second
+from a server on this computer only: what the fly sees, its photoreceptors,
 the pretrained optic lobe running on that view (T4 and T5 motion detectors,
 Mi1 and Tm9 contrast cells, one dot per column), the haltere signals, the
 descending and motor neurons, and the three wing commands. B switches the

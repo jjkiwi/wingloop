@@ -22,9 +22,10 @@ neurons as it goes):
     C                camera: follow the fly / free (drag with the mouse)
     B                optic lobe on / off (off flies faster)
 
-A second window shows the brain as it flies: what the fly sees, its optic
-lobe (45,669 neurons of the pretrained flyvis model, one dot per column), the
-haltere signals, the descending and motor neurons, and the wing commands.
+A page in the browser shows the brain as it flies: what the fly sees, its
+optic lobe (45,669 neurons of the pretrained flyvis model, one dot per
+column), the haltere signals, the descending and motor neurons, and the wing
+commands. It is served from this computer only (127.0.0.1).
 
 The fly is a few millimetres long and beats its wings 218 times a second, so
 what you see is slow motion: physics this detailed runs 30-100 times slower
@@ -391,9 +392,9 @@ def _status(s: dict, slowdown: float) -> str:
     )
 
 
-def interactive(brain: bool = True, pretty: bool = False) -> None:
-    """Open the 3-D window and the brain panel, and fly."""
-    from .brainpanel import BrainPanel
+def interactive(brain: bool = True, pretty: bool = False, browser: bool = True) -> None:
+    """Open the 3-D window and the brain page in the browser, and fly."""
+    from .livebrain import LiveBrain
 
     print(__doc__.split("Controls in the window")[1].split("The fly is")[0])
     eye = None
@@ -405,48 +406,56 @@ def interactive(brain: bool = True, pretty: bool = False) -> None:
     import mujoco.viewer
 
     flight, view, pilot = Flight(), FlyView(pretty=pretty), Pilot()
-    panel = BrainPanel(eye.eye if eye else None, live=True)
-    print("The window opens in a moment.")
-    with mujoco.viewer.launch_passive(view.model, view.data, key_callback=pilot.key) as viewer:
-        last_print = last_panel = 0.0
-        wall0, sim0, next_look = time.time(), flight.t, 0.0
-        while viewer.is_running() and panel.is_open():
-            with pilot.lock:
-                paused, every = pilot.paused, pilot.frame_every
-                flight.command(pilot.pitch_deg, pilot.heading_deg, pilot.height_mm)
-                looking = pilot.brain and eye is not None
-            if paused:
-                time.sleep(0.03)
+    live = LiveBrain(eye.eye if eye else None)
+    print(f"The brain page: {live.url}  (it opens in your browser)")
+    if browser:
+        live.open()
+    print("The 3-D window opens in a moment.")
+    try:
+        with mujoco.viewer.launch_passive(
+            view.model, view.data, key_callback=pilot.key
+        ) as viewer:
+            last_print = last_snap = 0.0
+            wall0, sim0, next_look = time.time(), flight.t, 0.0
+            while viewer.is_running():
+                with pilot.lock:
+                    paused, every = pilot.paused, pilot.frame_every
+                    flight.command(pilot.pitch_deg, pilot.heading_deg, pilot.height_mm)
+                    looking = pilot.brain and eye is not None
+                if paused:
+                    time.sleep(0.03)
+                    viewer.sync()
+                    continue
+                flight.step(every)
+                if not flight.upright():
+                    print("\nThe fly lost control. Close the window and start again.")
+                    break
+                if looking and flight.t >= next_look:
+                    eye.look(flight.body)
+                    next_look = flight.t + eye.every_ms / 1000.0
+                view.pose(flight.body)
+                if pilot.follow:
+                    with viewer.lock():
+                        view.chase(viewer.cam, flight.state()["heading"])
                 viewer.sync()
-                panel.plt.pause(0.001)
-                continue
-            flight.step(every)
-            if not flight.upright():
-                print("\nThe fly lost control. Close the window and start again.")
-                break
-            if looking and flight.t >= next_look:
-                eye.look(flight.body)
-                next_look = flight.t + eye.every_ms / 1000.0
-            view.pose(flight.body)
-            if pilot.follow:
-                with viewer.lock():
-                    view.chase(viewer.cam, flight.state()["heading"])
-            viewer.sync()
-            now = time.time()
-            if now - last_panel > 0.4:
-                panel.update(
-                    flight.state(),
-                    flight.knobs,
-                    flight.rates(),
-                    eye.image if looking else None,
-                    eye.activity if looking else None,
-                )
-                last_panel = time.time()
-            if now - last_print > 0.5:
+                now = time.time()
                 wall, sim = now - wall0, flight.t - sim0
                 slow = wall / sim if sim > 0 else 0.0
-                print("\r" + _status(flight.state(), slow), end="", flush=True)
-                last_print = now
+                if now - last_snap > 0.25:
+                    live.update(
+                        flight.state(),
+                        flight.knobs,
+                        flight.rates(),
+                        slow,
+                        eye.image if looking else None,
+                        eye.activity if looking else None,
+                    )
+                    last_snap = now
+                if now - last_print > 0.5:
+                    print("\r" + _status(flight.state(), slow), end="", flush=True)
+                    last_print = now
+    finally:
+        live.close()
 
 
 def video(
@@ -467,6 +476,7 @@ def video(
 
     eye = FlysEye() if brain else None  # before MuJoCo; see interactive()
     import mujoco
+
     flight, view = Flight(), FlyView(pretty=True)
     panel = BrainPanel(eye.eye, live=False) if brain else None
     renderer = mujoco.Renderer(view.model, height, width)

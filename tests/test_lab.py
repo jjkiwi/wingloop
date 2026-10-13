@@ -410,3 +410,47 @@ def test_the_optic_lobe_runs_on_what_the_flying_fly_sees():
     # Ground below, sky above, and the view changes as the fly moves.
     assert eye.image[:5].mean() > eye.image[-5:].mean()
     assert np.abs(images[-1] - images[0]).mean() > 1e-3
+
+
+def test_the_brain_page_is_served_with_live_state():
+    """The page, its layout and a snapshot come back from the local server."""
+    import json
+    import urllib.request
+
+    from wingloop.lab.livebrain import LiveBrain
+
+    live = LiveBrain(None)
+    try:
+        assert live.url.startswith("http://127.0.0.1:")
+        page = urllib.request.urlopen(live.url, timeout=5).read().decode()
+        assert "Mózg muchy w locie" in page and "/state.json" in page
+        assert json.load(urllib.request.urlopen(live.url + "layout.json", timeout=5)) == {
+            "eye": False
+        }
+        assert (
+            json.load(urllib.request.urlopen(live.url + "state.json", timeout=5))["ready"]
+            is False
+        )
+        state = {
+            "t": 0.25,
+            "speed": 210.0,
+            "z": 5.0,
+            "heading": 12.0,
+            "pitch": 8.0,
+            "roll": -1.0,
+            "neurons": {
+                "DNa08/DNp31 drive": 0.7,
+                "power MNs (DLMn, DVMn)": 0.27,
+                "steering MNs": 0.013,
+                "DNbe001 L-R": 0.0,
+            },
+        }
+        live.update(
+            state, {"bias": -0.2, "asymmetry": 0.01, "phase_asymmetry": 0.1}, np.zeros(3), 40.0
+        )
+        snap = json.load(urllib.request.urlopen(live.url + "state.json", timeout=5))
+        assert snap["ready"] and snap["speed"] == 210.0 and snap["slowdown"] == 40.0
+        assert snap["eye"] is None and len(snap["history"]["t"]) == 1
+        assert -1 <= snap["bars"]["wing: rotation phase L-R"] <= 1
+    finally:
+        live.close()
