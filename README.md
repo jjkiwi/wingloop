@@ -73,6 +73,22 @@ python -m wingloop.lab demo          # about ten minutes; writes flylab-run\flyl
 `python -m wingloop.lab` is the same program as `flylab`, and works when
 pip's Scripts folder is not on PATH.
 
+**Watching it fly.** `flylab watch` (on Windows: double-click `latanie.bat`)
+opens a 3-D window with the fly flapping its way over a chequered floor past
+coloured columns, and you fly it from the keyboard: arrows for speed and
+turns, W/S for height, space to pause, C to free the camera. The console
+prints speed, height, heading, attitude and the flight neurons as it goes.
+`flylab video` flies a scripted tour (hover, forward, turn, climb, turn back)
+and saves it as an MP4 with the same readout burned in.
+
+What you watch is the validated physics, not an animation: the rigid
+NeuroMechFly with blade-element wings is simulated, and a second copy of the
+fly with its wing joints left in is posed from it every frame. Forward flight
+is the hover loop with a pitch setpoint -- tilting the stroke plane tilts the
+lift -- and it is stable: 8 degrees nose-down cruises at 216 mm/s and 15
+degrees at 376 mm/s, roll inside 4 degrees, height held. It runs 20-40 times
+slower than real time on a laptop, and says so.
+
 **What each part does, measured:**
 
 - **Recognition.** A linear readout of the optic lobe tells a sphere, a bar

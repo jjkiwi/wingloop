@@ -574,6 +574,10 @@ class HaltereController:
     #: turn past half a circle is a large error and not a small one of the
     #: wrong sign.
     target_heading: float = 0.0
+    #: Pitch the loop holds, radians, positive nose-down. Zero hovers. Tilting
+    #: the stroke plane tilts the lift with it, so a nose-down setpoint is how
+    #: this animal flies forward -- the same way a real fly does.
+    target_pitch: float = 0.0
     #: Bounds on what the loop may ask for, in the units of the two knobs. A
     #: stroke bias beyond this is no longer a bias and an asymmetry beyond it
     #: stops one wing entirely.
@@ -826,7 +830,7 @@ class HaltereController:
         i_pitch, i_roll = self._integrate(pitch, roll, dt)
         bias = (
             self.trim_bias
-            + self.pitch_gain * pitch
+            + self.pitch_gain * (pitch - self.target_pitch)
             + self.pitch_rate_gain * rate[1]
             + i_pitch
         )

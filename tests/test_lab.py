@@ -25,6 +25,16 @@ def _flyvis_ready() -> bool:
         return False
 
 
+def _body_model_ready() -> bool:
+    try:
+        from wingloop.body.hinge import neuromechfly_model
+
+        return neuromechfly_model().exists()
+    except Exception:
+        return False
+
+
+needs_model_lab = pytest.mark.skipif(not _body_model_ready(), reason="needs FlyGym's MJCF")
 needs_flyvis = pytest.mark.skipif(
     not _flyvis_ready(), reason="needs flyvis and its pretrained models"
 )
@@ -298,3 +308,55 @@ def test_the_cache_writer_never_deletes_a_file_it_holds_open(tmp_path, monkeypat
     vision._write_h5(path, np.arange(5))  # over an existing file
     monkeypatch.undo()
     assert H5Reader(path)[()].tolist() == [0, 1, 2, 3, 4]
+
+
+# ------------------------------------------------------------------ the 3-D view
+
+
+def test_the_pilot_keys_do_what_the_help_says():
+    from wingloop.lab.watch import Pilot
+
+    p = Pilot()
+    for key in (265, 265, 263, 87):  # up, up, left, W
+        p.key(key)
+    assert p.pitch_deg == 6.0 and p.heading_deg == 15.0 and p.height_mm == 8.0
+    p.key(72)  # H: hover
+    assert p.pitch_deg == 0.0
+    p.key(32)
+    assert p.paused
+    for _ in range(20):
+        p.key(265)
+    assert p.pitch_deg == 20.0, "the nose-down setpoint is capped"
+
+
+@needs_model_lab
+def test_the_drawn_fly_is_where_the_physics_fly_is():
+    """The view is posed from the physics, wings included, and never stepped."""
+    from wingloop.lab.watch import Flight, FlyView
+
+    flight, view = Flight(), FlyView()
+    flight.step(500)
+    view.pose(flight.body)
+    i = flight.body.root_dof
+    assert np.allclose(
+        view.data.qpos[view.root_qpos : view.root_qpos + 7], flight.body.data.qpos[i : i + 7]
+    )
+    assert len(view.wing_qpos) == 6
+    for name, angle in flight.body.wing_angles.items():
+        assert view.data.qpos[view.wing_qpos[name]] == pytest.approx(angle)
+    # Both wings are drawn somewhere other than their rest pose mid-stroke.
+    assert any(abs(flight.body.wing_angles[n]) > 0.1 for n in flight.body.wing_angles)
+
+
+@needs_model_lab
+def test_a_nose_down_setpoint_flies_the_fly_forward():
+    """Forward flight is the hover loop with a pitch setpoint: 8 degrees, about 0.2 m/s."""
+    from wingloop.lab.watch import Flight
+
+    hover, forward = Flight(), Flight()
+    forward.command(8.0, 0.0, 5.0)
+    hover.command(0.0, 0.0, 5.0)
+    for f in (hover, forward):
+        f.step(int(0.3 / 2e-5))
+    assert forward.state()["x"] > hover.state()["x"] + 15.0, (forward.state(), hover.state())
+    assert abs(forward.state()["roll"]) < 10 and forward.upright()

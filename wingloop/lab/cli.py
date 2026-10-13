@@ -6,6 +6,8 @@
     flylab drone   --memory memory.npz [--object bar@120:5]  autonomous mission
     flylab demo                                              all of it, one report
     flylab check                                             is everything installed?
+    flylab watch                                             3-D window, fly it yourself
+    flylab video   [--seconds 2.4]                           a scripted flight as MP4
 
 ``python -m wingloop.lab ...`` does the same where ``flylab`` is not on PATH.
 
@@ -203,6 +205,24 @@ def cmd_check(args) -> dict:
     return {}
 
 
+def cmd_watch(args) -> dict:
+    """Open the 3-D window and fly the fly from the keyboard."""
+    from .watch import interactive
+
+    interactive()
+    return {}
+
+
+def cmd_video(args) -> dict:
+    """Fly the scripted tour and save it as a video."""
+    from .watch import video
+
+    t0 = time.time()
+    path = video(args.output, seconds=args.seconds)
+    print(f"video -> {path} ({time.time() - t0:.0f} s)")
+    return {}
+
+
 def cmd_report(args) -> dict:
     from .report import build
 
@@ -252,6 +272,8 @@ COMMANDS = {
     "drone": (cmd_drone, "autonomous drone mission"),
     "report": (cmd_report, "build the HTML report"),
     "check": (cmd_check, "is everything installed?"),
+    "watch": (cmd_watch, "3-D window: fly the fly from the keyboard"),
+    "video": (cmd_video, "fly a scripted tour and save it as an MP4"),
     "demo": (cmd_demo, "everything, one report"),
 }
 
@@ -291,6 +313,9 @@ def main(argv=None) -> None:
         if name == "report":
             s.add_argument("runs", nargs="+")
             s.add_argument("--html", default="flylab.html")
+        if name == "video":
+            s.add_argument("--seconds", type=float, default=2.4)
+            s.add_argument("--output", default="lot_muchy.mp4")
         if name == "demo":
             s.add_argument("--dir", default="flylab-run")
             s.add_argument("--sessions", type=int, default=16)
