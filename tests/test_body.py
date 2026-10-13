@@ -703,12 +703,19 @@ def test_wake_memory_changes_the_forces_barely_and_the_flight_a_lot(
     lift is identical to two decimals and the torque swing moves 4%, in the
     wrong direction.
 
-    What it does do is end the flight, and that is the informative part: the
+    What it does do is shake the flight, and that is the informative part: the
     lag sits inside the attitude feedback loop. Adding delay there costs phase
-    margin, and the flight collapses from 300 ms to under 50 -- while the
-    aerodynamics it changed are the same aerodynamics. That is what identified
-    the real limit, and dropping the sensor filter from 20 ms to 5 then nearly
-    doubled the controlled flight.
+    margin, and the attitude swings grow -- while the aerodynamics it changed
+    are the same aerodynamics. That is what identified the real limit, and
+    dropping the sensor filter from 20 ms to 5 then nearly doubled the
+    controlled flight.
+
+    It used to end the flight outright, at 618 ms. Part of that was not the
+    lag at all: the haltere rates were read in the room's axes, and an animal
+    that yawed far enough had its pitch rate fed to its roll loop. The lagged
+    flight yaws more, so it reached that point first. With the rates read
+    about the animal's own axes both flights last, and what the lag costs is
+    visible as what it is -- margin.
     """
     from wingloop.body.control import HaltereController
     from wingloop.body.flight import harmonic_stroke
@@ -739,24 +746,22 @@ def test_wake_memory_changes_the_forces_barely_and_the_flight_a_lot(
     # And it is not the reduction the suspicion predicted.
     assert lagged_swing > plain_swing
 
-    def holds_until(wake: bool) -> float:
+    def flight(wake: bool) -> tuple[float, float]:
+        """How long it holds within 30 degrees, ms, and its worst swing, degrees."""
         body = FlightBody(free, wing, timestep=2e-5, wake_memory=wake)
         trace = HaltereController().fly(body, 1.0)
         bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
         over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 1000.0
+        held = float(trace["t"][over[0]] * 1000) if len(over) else 1000.0
+        return held, float(bad.max())
 
     # The flight, however, notices a great deal: same forces, added delay.
-    # Measured 300 ms against 104 with the filter at its tuned 5 ms, and
-    # 187 against 27 back when the filter itself was costing most of the
-    # margin -- the ratio survives the retuning, which is the point.
-    plain_flight = holds_until(False)
-    assert plain_flight > 900.0
-    # 618 ms against the full 1000, a factor of 0.62 where this once measured
-    # 0.35. Flapping counter-torque gives the animal something to fall back on
-    # that the circulation lag cannot take away, so the lag costs less than it
-    # did -- and still costs plainly more than the forces it changes.
-    assert holds_until(True) < 0.8 * plain_flight
+    plain_held, plain_worst = flight(False)
+    lagged_held, lagged_worst = flight(True)
+    assert plain_held > 900.0 and lagged_held > 900.0
+    # Measured: worst swing 10.9 degrees plain, 19.8 with the lag -- the
+    # forces moved 2% and the attitude error nearly doubled.
+    assert lagged_worst > 1.5 * plain_worst
 
 
 @needs_model

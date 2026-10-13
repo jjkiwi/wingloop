@@ -70,6 +70,7 @@ whichever command was typed.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -450,17 +451,34 @@ def altitude(body) -> tuple[float, float]:
 
 
 def angular_rate(body) -> np.ndarray:
-    """Body angular velocity in world axes -- what a haltere reports.
+    """Body angular velocity about the animal's own level axes -- roll, pitch, yaw.
 
-    MuJoCo stores a free joint's angular velocity in the body frame, so it is
-    rotated out here. Reading it raw gives a signal that is correct only while
-    the animal is upright, which is exactly when the controller is not needed.
+    MuJoCo stores a free joint's angular velocity in the body frame. It is
+    rotated into the *heading frame*: the vertical stays vertical (so the yaw
+    rate is the rate of change of heading whatever the tilt), and the other two
+    turn with the animal, so x is always roll about its own long axis and y is
+    always pitch -- the same axes :func:`attitude` measures its angles about.
+    A haltere senses in the body's frame, not the room's, and so does this.
+
+    This used to return the rate in world axes. That is the heading frame only
+    while the animal points along world x, so every flight that had not turned
+    flew well -- and once it turned through about 90 degrees the pitch rate was
+    being fed to the roll loop and the roll rate to the pitch loop, and it fell
+    out of the air. Measured before the fix: every sustained turn, fast or slow,
+    saccadic or smooth, hovering or flying forward, crashed between 85 and 120
+    degrees of heading.
     """
     if body.root_body is None:
         return np.zeros(3)
     if body.root_translation == 3:
         r = body.data.xmat[body.root_body].reshape(3, 3)
-        return r @ np.asarray(body.data.qvel[body.root_dof + 3 : body.root_dof + 6])
+        world = r @ np.asarray(body.data.qvel[body.root_dof + 3 : body.root_dof + 6])
+        c, s = r[0, 0], r[1, 0]
+        norm = math.hypot(c, s)
+        if norm < 1e-9:  # nose straight up or down: heading undefined, keep the room's
+            return world
+        c, s = c / norm, s / norm
+        return np.array([c * world[0] + s * world[1], -s * world[0] + c * world[1], world[2]])
     if body.root_translation == 0 and getattr(body, "root_joint", None) is not None:
         # A tether: one hinge, and its rate is the whole angular velocity,
         # along the hinge axis as the world sees it. This used to return
