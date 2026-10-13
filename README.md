@@ -1349,8 +1349,25 @@ organ reports.
 controller's climbing flight, 1441 ms in the bandwidth table, now holds the
 whole three seconds with its worst swing at 10.9 degrees. The tables above
 were measured with the error in place and are kept as the record of what was
-measured; they rank settings against each other under the same error, and
-the sweeps that pin them (`pytest -m sweep`) were measured with it too.
+measured; they rank settings against each other under the same error.
+
+The measurement sweeps (`pytest -m sweep`) were re-run on the fixed loop,
+and five of the nine had to change, because flight time stopped telling
+the settings apart -- most of these flights now last as long as they are
+asked to. They compare the attitude error now, and what they found:
+
+| sweep | before the fix | after |
+| --- | --- | --- |
+| sharp stroke against the sinusoid | 1441 against 1178 ms | both 3000 ms; RMS error 5.9 against 7.7 degrees: **still better** |
+| stored authorities against the muscle stroke's own | stored ahead by 3% | both 2000 ms; RMS 7.9-8.2 against 10.5-10.8: **still better, by more** |
+| one-wingbeat boxcar against a 6 ms low-pass | boxcar ahead at 40 and 60 rad/s | level at 40 (about 1 s each, ended by the climb); at 60 both 1.6 s, worst swing 7.6 against 10.5: **still better at 60** |
+| the low-pass filter's optimum | a peak at 3 ms at all three amplitudes | **gone**: 0.93-1.06 s at every tau from 1.5 to 8 ms -- the climb ends these flights, and the peak was the frame error's |
+| the yaw loop | worth 1.15-1.29 in flight time | **refuted on this rig**: both fly 2.5 s; climbing with no throttle the yaw knob saturates, the animal turns 1467 degrees with the loop and 902 without, and the loop costs attitude (RMS 5.2 against 1.7) |
+
+The yaw loop does its job where it is meant to -- in level flight on the
+throttle it turns the fly to any commanded heading, which is what flying to
+a target needs -- but the free climbing flight this README's tables use
+outruns it.
 
 One test changed what it asserts. The wake-memory test recorded the
 circulation lag ending the flight at 618 ms against a full second without

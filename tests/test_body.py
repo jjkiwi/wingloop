@@ -616,6 +616,39 @@ def test_deviation_moves_the_wing_out_of_the_stroke_plane_twice_a_beat():
     assert crossings == 4, crossings
 
 
+def _attitude_hold(free, wing, seconds: float, stroke=None, **kwargs) -> dict:
+    """One flight: how long it holds within 30 degrees, and how well.
+
+    ``held`` in ms; ``worst`` and ``rms`` are the attitude error, degrees,
+    over the part that was held. Flight time alone stopped discriminating
+    once the haltere rates were read about the body's own axes -- most of
+    these flights now last as long as they are asked to -- so the sweeps
+    that compared flight times compare the error as well.
+
+    The trace is cut by index where time first runs backwards: MuJoCo resets
+    the clock when it diverges, and samples after that are not a flight.
+    """
+    from wingloop.body.control import HaltereController
+
+    body = FlightBody(free, wing, timestep=2e-5)
+    if stroke is not None:
+        kwargs["stroke"] = stroke
+    trace = HaltereController(**kwargs).fly(body, seconds)
+    back = np.flatnonzero(np.diff(trace["t"]) < 0)
+    end = int(back[0]) + 1 if len(back) else len(trace["t"])
+    bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))[:end]
+    over = np.flatnonzero(bad > 30.0)
+    stop = int(over[0]) if len(over) else end
+    seg = bad[: max(stop, 1)]
+    return {
+        "held": float(trace["t"][stop if len(over) else end - 1] * 1000),
+        "worst": float(seg.max()),
+        "rms": float(np.sqrt(np.mean(seg**2))),
+        "heading": np.asarray(trace["heading"][: stop if len(over) else end]),
+        "t": np.asarray(trace["t"][: stop if len(over) else end]),
+    }
+
+
 @needs_model
 @pytest.mark.sweep
 def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
@@ -654,8 +687,13 @@ def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
     With the inertia and the wing air speed corrected, and the loop re-tuned
     on them, the advantage is smaller and still there: 1441 ms against 1178
     at the default stroke, a factor of 1.22.
+
+    With the haltere rates read about the body's own axes both strokes fly
+    the whole three seconds, so flight time no longer tells them apart. The
+    attitude error still does, and in the same direction: the sharper stroke
+    holds the animal within 10.9 degrees (RMS 5.9) where the sinusoid needs
+    12.5 (RMS 7.7).
     """
-    from wingloop.body.control import HaltereController
     from wingloop.body.flight import harmonic_stroke
 
     free = add_free_base(rigid[0], tmp_path / "shape.xml", dofs="free")
@@ -674,20 +712,10 @@ def test_realistic_kinematics_cut_the_torque_swing_and_fly_better(
 
     assert swing(sharpness=0.9) < 0.85 * swing(sharpness=0.0)
 
-    def holds_until(**kwargs) -> float:
-        b = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(**kwargs).fly(b, 3.0)
-        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
-        back = np.flatnonzero(np.diff(trace["t"]) < 0)
-        end = int(back[0]) + 1 if len(back) else len(trace["t"])
-        bad, t = bad[:end], trace["t"][:end]
-        over = np.flatnonzero(bad > 30.0)
-        return float(t[over[0]] * 1000) if len(over) else float(t[-1] * 1000)
-
-    plain = holds_until(sharpness=0.0)
-    sharp = holds_until()
-    assert plain > 900.0, plain
-    assert sharp > 1.15 * plain, (plain, sharp)
+    plain = _attitude_hold(free, wing, 3.0, sharpness=0.0)
+    sharp = _attitude_hold(free, wing, 3.0)
+    assert plain["held"] > 2900.0 and sharp["held"] > 2900.0, (plain, sharp)
+    assert sharp["rms"] < 0.85 * plain["rms"], (plain, sharp)
 
 
 @needs_model
@@ -853,30 +881,46 @@ def test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck(
 
     -- so it moved with the plant, not with the amplitude.
 
-    So this asserts the discriminator directly: three amplitudes, one peak.
+    And then it went away. With the haltere rates read about the body's own
+    axes -- they had been read in the room's, and fed pitch rate to the roll
+    loop whenever the animal had yawed far enough -- every one of these
+    flights lasts 0.93-1.06 s whatever the filter, at all three amplitudes:
+
+    ======  =====  =====  =====  =====  =====  =====  =====
+    tau ms   1.5    2.0    3.0    4.0    5.0    6.0    8.0
+    ======  =====  =====  =====  =====  =====  =====  =====
+    -1%      993   1012   1021   1039   1055   1041   1019
+    nominal  956    965    970    970    966    965    965
+    +1%      928    933    938    933    929    924    910
+    ======  =====  =====  =====  =====  =====  =====  =====
+
+    What ends them is the climb -- they are 1.6 m up by then, on a yaw-free
+    loop at the low-pass bandwidth -- not the filter, and the RMS attitude
+    error simply falls as the filter smooths more (8.0 to 6.4 degrees across
+    the row). The peak at 3 ms was the frame error's: the faster the animal
+    yawed off, the sooner the wrong-axis feedback ended the flight, and the
+    filter that best slowed that yaw looked like an optimum. So this asserts
+    what is left: a flat curve, at every amplitude.
     """
     from wingloop.body.control import (
         LOWPASS_BANDWIDTH,
-        HaltereController,
         gains_for,
     )
 
     free = add_free_base(rigid[0], tmp_path / "spike.xml", dofs="free")
 
     def holds_until(tau: float, amplitude: float) -> float:
-        body = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(
+        return _attitude_hold(
+            free,
+            wing,
+            2.0,
             sensing="lowpass",
             tau=tau,
             amplitude=np.deg2rad(amplitude),
             **{**gains_for(LOWPASS_BANDWIDTH, about="origin"), **YAW_OFF},
-        ).fly(body, 2.0)
-        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
-        over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 2000.0
+        )["held"]
 
     taus = (0.002, 0.003, 0.004, 0.005)
-    peaks = []
     # One percent either side of whatever the default stroke is, because the
     # discriminator is "does the peak move when something unrelated to the
     # filter moves" -- and a fixed 75 degrees stopped being unrelated to the
@@ -886,15 +930,10 @@ def test_the_filter_optimum_moves_with_the_stroke_and_not_with_luck(
     nominal = np.degrees(DEFAULT_STROKE)
     for amplitude in (nominal * 0.99, nominal, nominal * 1.01):
         curve = [holds_until(tau, amplitude) for tau in taus]
-        # It climbs to the peak and falls away from it, rather than standing
-        # out from both neighbours the way the discredited spike did.
-        assert curve[0] < curve[1] > curve[2] > curve[3], curve
-        peaks.append(taus[int(np.argmax(curve))])
-    assert len(set(peaks)) == 1, (
-        f"the peak moved with stroke amplitude ({peaks}), which is what the "
-        "first version of this curve did and the reason its optimum was not "
-        "believed. If this fires, the 3.5 ms figure needs withdrawing."
-    )
+        # Flat: no tau buys more than a few percent over any other. A peak
+        # coming back would mean something other than the climb ends these
+        # flights again, and that is worth knowing.
+        assert min(curve) > 850.0 and max(curve) < 1.15 * min(curve), curve
 
 
 @needs_model
@@ -1183,29 +1222,32 @@ def test_stroke_sensing_buys_bandwidth_and_bandwidth_buys_flight(
     exactly what a one-period boxcar nulls and a first-order filter can only
     smear -- and the first-order filter's own optimum moved to 3.5 ms for the
     same reason, so 6 ms is further off its best than it used to be.
+
+    With the haltere rates read about the body's own axes the gap closed at
+    40: both filters fly about a second there (965 and 1006 ms), ended by the
+    climb rather than by either filter. At 60 both fly the whole 1.6 s and the
+    boxcar holds the attitude tighter, worst swing 7.6 degrees against 10.5.
+    The bandwidth still buys flight: the boxcar at 60 outlasts it at 40.
     """
-    from wingloop.body.control import HaltereController, gains_for
+    from wingloop.body.control import gains_for
 
     free = add_free_base(rigid[0], tmp_path / "sensing.xml", dofs="free")
 
-    def holds_until(bandwidth: float, **kwargs) -> float:
-        body = FlightBody(free, wing, timestep=2e-5)
+    def flight(bandwidth: float, **kwargs) -> dict:
         gains = {**gains_for(bandwidth, about="origin"), **YAW_OFF}
-        trace = HaltereController(**kwargs, **gains).fly(body, 1.60)
-        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
-        over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0]] * 1000) if len(over) else 1600.0
+        return _attitude_hold(free, wing, 1.60, **kwargs, **gains)
 
     low = dict(sensing="lowpass", tau=0.006)
     box = dict(sensing="stroke")
 
     # Re-measured with the wing air speed corrected, on the same old gains:
-    # 342 against 813 at 40, 906 against 1147 at 60. The first-order filter
-    # gained more from the correction than the boxcar did, and the boxcar
-    # still wins both.
-    assert holds_until(40.0, **box) > 2.0 * holds_until(40.0, **low)
-    assert holds_until(60.0, **box) > 1.2 * holds_until(60.0, **low)
-    assert holds_until(60.0, **box) > holds_until(40.0, **box)
+    # 342 against 813 at 40, 906 against 1147 at 60. Then with the rates in
+    # the body's axes, as the docstring's last paragraph says.
+    box40, low40 = flight(40.0, **box), flight(40.0, **low)
+    box60, low60 = flight(60.0, **box), flight(60.0, **low)
+    assert box40["held"] >= 0.95 * low40["held"], (box40, low40)
+    assert box60["held"] >= low60["held"] and box60["worst"] < 0.85 * low60["worst"]
+    assert box60["held"] > 1.3 * box40["held"], (box40, box60)
 
 
 @needs_model
@@ -1386,44 +1428,32 @@ def test_holding_yaw_helps_and_much_less_than_it_first_appeared(
 
     A loop measured against a broken plant flatters itself. The claim that
     survives is that it helps and that the heading stays a heading.
+
+    And the plant was broken once more. The haltere rates were read in the
+    room's axes, so whichever flight yawed further fed more of its pitch rate
+    to its roll loop -- and the loose animal yawed further. With the rates in
+    the body's own axes both fly the whole 2.5 s, and on this rig, climbing
+    with no throttle loop to stop it, the yaw loop helps with nothing: the
+    climb saturates the yaw knob, the animal turns 1467 degrees with the loop
+    and 902 without, and the loop costs attitude, RMS 5.2 degrees against 1.7.
+    Neither claim above survives here. Where the yaw loop does its job is in
+    level flight on the throttle, where it is what turns the fly to a
+    commanded heading (``test_lab``, ``test_autopilot``).
     """
-    from wingloop.body.control import HaltereController
 
     free = add_free_base(rigid[0], tmp_path / "yaw.xml", dofs="free")
 
-    def fly(seconds, **kw):
-        """Returns the trace cut to the samples that are still a flight.
+    loose = _attitude_hold(free, wing, 2.5, **YAW_OFF)
+    held = _attitude_hold(free, wing, 2.5)
+    assert loose["held"] > 2400.0 and held["held"] > 2400.0, (loose, held)
+    # In the climb the loop holds no heading and pays for trying.
+    assert np.abs(held["heading"]).max() > 360.0
+    assert held["rms"] > 1.5 * loose["rms"], (loose, held)
 
-        Cut by **index**, not by time. MuJoCo resets the clock when it
-        diverges, so post-divergence samples carry small times and sail
-        through a ``t <= held`` mask while the recorded heading keeps
-        accumulating -- which reported 9000 degrees of spin inside a flight
-        whose heading never left ten. ``fly`` stops at the reset, so the last
-        good index is the first place time goes backwards.
-        """
-        body = FlightBody(free, wing, timestep=2e-5)
-        controller = HaltereController(**kw)
-        trace = controller.fly(body, seconds)
-        backwards = np.flatnonzero(np.diff(trace["t"]) < 0)
-        end = int(backwards[0]) + 1 if len(backwards) else len(trace["t"])
-        trace = {k: v[:end] for k, v in trace.items()}
-        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))
-        over = np.flatnonzero(bad > 30.0)
-        end = int(over[0]) + 1 if len(over) else end
-        trace = {k: v[:end] for k, v in trace.items()}
-        return trace, float(trace["t"][-1] * 1000)
-
-    _, loose = fly(2.5, **YAW_OFF)
-    held_trace, held = fly(2.5)
-    assert held > 1.1 * loose, (loose, held)
-    assert held > 1100.0, held
-
-    # And the heading it holds is a heading, not a slow spin: inside ten
-    # degrees at 200, 400, 600 and 800 ms, departing only in the last fifty
-    # milliseconds as the attitude goes.
-    for ms in (200, 400, 600, 800):
-        i = int(np.argmin(np.abs(held_trace["t"] - ms / 1000.0)))
-        assert abs(held_trace["heading"][i]) < 20.0, (ms, held_trace["heading"][i])
+    # Early, before the climb is fast, the heading it holds is a heading.
+    for ms in (200, 400):
+        i = int(np.argmin(np.abs(held["t"] - ms / 1000.0)))
+        assert abs(held["heading"][i]) < 20.0, (ms, held["heading"][i])
 
 
 @needs_model
@@ -2065,6 +2095,12 @@ def test_the_muscle_stroke_flies_longer_on_the_stored_authorities_than_its_own(
     it had -- 1032 against 863 -- because this test was still deriving the
     yaw gain from the attitude bandwidth, and yaw at 160 flies longer while
     steering backwards. On the yaw loop's own bandwidth the stored set wins.
+
+    With the haltere rates read about the body's own axes both sets fly the
+    whole two seconds at every drive level, so the comparison moved to the
+    attitude error -- and the stored set still wins at every level, by more
+    than it did on flight time: RMS 7.9-8.2 degrees against 10.5-10.8, worst
+    swing 12.4-12.8 against 16.1-16.5.
     """
     from wingloop.body.control import (
         BANDWIDTH,
@@ -2072,7 +2108,6 @@ def test_the_muscle_stroke_flies_longer_on_the_stored_authorities_than_its_own(
         ROLL_INERTIA,
         YAW_BANDWIDTH,
         YAW_INERTIA,
-        HaltereController,
     )
     from wingloop.body.power import PowerOscillator, PowerStroke, aerodynamic_load
 
@@ -2092,21 +2127,19 @@ def test_the_muscle_stroke_flies_longer_on_the_stored_authorities_than_its_own(
         yaw_rate_gain=YAW_INERTIA * 2 * YAW_BANDWIDTH / abs(own["yaw"]),
     )
 
-    def holds(drive: float, **kw) -> float:
+    def holds(drive: float, **kw) -> dict:
         oscillator = PowerOscillator(drive=drive, load=load)
         oscillator.angle = np.deg2rad(1.0)
-        body = FlightBody(free, wing, timestep=2e-5)
-        trace = HaltereController(stroke=PowerStroke(oscillator), **kw).fly(body, 2.0)
-        back = np.flatnonzero(np.diff(trace["t"]) < 0)
-        end = int(back[0]) + 1 if len(back) else len(trace["t"])
-        bad = np.degrees(np.maximum(np.abs(trace["pitch"]), np.abs(trace["roll"])))[:end]
-        over = np.flatnonzero(bad > 30.0)
-        return float(trace["t"][over[0] if len(over) else end - 1] * 1000)
+        return _attitude_hold(free, wing, 2.0, stroke=PowerStroke(oscillator), **kw)
 
     drives = (2.97, 3.00, 3.03)
     stored = [holds(d) for d in drives]
     own_flight = [holds(d, **own_gains) for d in drives]
-    assert all(a > b for a, b in zip(stored, own_flight, strict=True)), (stored, own_flight)
+    for a, b in zip(stored, own_flight, strict=True):
+        # Longer, or as long and steadier.
+        assert a["held"] > b["held"] or (
+            a["held"] >= b["held"] and a["rms"] < 0.9 * b["rms"]
+        ), (a, b)
 
 
 @needs_model
