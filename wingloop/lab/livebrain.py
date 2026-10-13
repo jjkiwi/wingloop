@@ -91,8 +91,14 @@ class LiveBrain:
     def open(self) -> None:
         webbrowser.open(self.url)
 
-    def update(self, state, knobs, rates, slowdown: float, image=None, activity=None) -> None:
-        """Take a new snapshot. Cheap: no drawing happens here."""
+    def update(
+        self, state, knobs, rates, slowdown: float, image=None, activity=None, autopilot=None
+    ) -> None:
+        """Take a new snapshot. Cheap: no drawing happens here.
+
+        ``autopilot`` is :meth:`~.autopilot.Autopilot.status` when the fly is
+        flying itself; the page then shows the mission above the brain.
+        """
         values = signals(state, knobs, rates)
         h = self.history
         t = state["t"]
@@ -125,6 +131,7 @@ class LiveBrain:
             },
             "history": {k: list(v) for k, v in h.items()},
             "eye": None,
+            "autopilot": autopilot,
         }
         if image is not None and activity is not None and self.eye is not None:
             img = (np.clip(np.asarray(image), 0, 1) * 255).astype(np.uint8)

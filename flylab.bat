@@ -45,6 +45,8 @@ if errorlevel 1 goto :fail
 
 echo == Gotowe. Otwieram raport.
 start "" "flylab-run\flylab.html"
+echo.
+echo Dalej: latanie.bat - sterujesz mucha sam; cel.bat - mucha leci sama do celu.
 pause
 exit /b 0
 

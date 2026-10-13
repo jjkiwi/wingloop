@@ -7,7 +7,8 @@
     flylab demo                                              all of it, one report
     flylab check                                             is everything installed?
     flylab watch                                             3-D window, fly it yourself
-    flylab video   [--seconds 2.4]                           a scripted flight as MP4
+    flylab video   [--seconds 2.4] [--cel kula]              a flight as MP4
+    flylab cel     kula [--seed 0] [--bez-okna]              it flies to its targets alone
 
 ``python -m wingloop.lab ...`` does the same where ``flylab`` is not on PATH.
 
@@ -214,13 +215,54 @@ def cmd_watch(args) -> dict:
 
 
 def cmd_video(args) -> dict:
-    """Fly the scripted tour and save it as a video."""
-    from .watch import video
-
+    """Fly the scripted tour, or an autonomous mission, and save it as a video."""
     t0 = time.time()
-    path = video(args.output, seconds=args.seconds, brain=not args.no_brain)
+    if args.cel:
+        from .autopilot import kind_of, video
+
+        targets = {kind_of(n) for n in args.cel}
+        path = video(
+            args.output,
+            targets,
+            seed=args.seed,
+            seconds=args.seconds or 30.0,
+        )
+    else:
+        from .watch import video
+
+        path = video(args.output, seconds=args.seconds or 2.4, brain=not args.no_brain)
     print(f"video -> {path} ({time.time() - t0:.0f} s)")
     return {}
+
+
+def cmd_cel(args) -> dict:
+    """Teach the fly its targets, then let it fly to them on its own."""
+    from .autopilot import kind_of
+
+    targets = {kind_of(n) for n in args.target}
+    if not args.bez_okna:
+        from .autopilot import window
+
+        window(
+            targets,
+            seed=args.seed,
+            per_kind=args.ile,
+            pretty=args.pretty,
+            retrain=args.od_nowa,
+        )
+        return {}
+    from . import arena
+    from .autopilot import _print_valence, learned, run
+    from .watch import FlysEye
+
+    items = arena.mission(args.seed, per_kind=args.ile)
+    eye = FlysEye(items=items)
+    mb, valence = learned(eye, targets, retrain=args.od_nowa)
+    _print_valence(valence, targets)
+    t0 = time.time()
+    pilot = run(items, mb, eye, valence, targets, seconds=args.seconds)
+    print(pilot.summary(), f"({time.time() - t0:.0f} s obliczeń)")
+    return {"autopilot": pilot.status()}
 
 
 def cmd_report(args) -> dict:
@@ -273,7 +315,8 @@ COMMANDS = {
     "report": (cmd_report, "build the HTML report"),
     "check": (cmd_check, "is everything installed?"),
     "watch": (cmd_watch, "3-D window: fly the fly from the keyboard"),
-    "video": (cmd_video, "fly a scripted tour and save it as an MP4"),
+    "video": (cmd_video, "fly a scripted tour (or a mission: --cel) and save it as an MP4"),
+    "cel": (cmd_cel, "teach it targets, then it flies to them on its own"),
     "demo": (cmd_demo, "everything, one report"),
 }
 
@@ -314,9 +357,28 @@ def main(argv=None) -> None:
             s.add_argument("runs", nargs="+")
             s.add_argument("--html", default="flylab.html")
         if name == "video":
-            s.add_argument("--seconds", type=float, default=2.4)
+            s.add_argument(
+                "--seconds", type=float, default=None, help="2.4 for the tour, 30 for a mission"
+            )
             s.add_argument("--output", default="lot_muchy.mp4")
             s.add_argument("--no-brain", action="store_true", help="no brain panel")
+            s.add_argument(
+                "--cel", nargs="+", default=None, help="record an autonomous mission to these"
+            )
+            s.add_argument("--seed", type=int, default=0, help="which arena")
+        if name == "cel":
+            s.add_argument(
+                "target",
+                nargs="*",
+                default=["kula"],
+                help="what to fly to: kula, płytka, słupek (default: kula)",
+            )
+            s.add_argument("--seed", type=int, default=0, help="which arena")
+            s.add_argument("--ile", type=int, default=2, help="objects of each kind")
+            s.add_argument("--seconds", type=float, default=30.0, help="longest mission, s")
+            s.add_argument("--bez-okna", action="store_true", help="no window: just fly")
+            s.add_argument("--od-nowa", action="store_true", help="teach again from scratch")
+            s.add_argument("--pretty", action="store_true", help="shadows on (slower)")
         if name == "watch":
             s.add_argument(
                 "--no-brain", action="store_true", help="no optic lobe: lighter, flies faster"

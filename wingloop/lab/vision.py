@@ -70,6 +70,19 @@ def _prepare_flyvis_cache() -> None:
             shutil.rmtree(build, ignore_errors=True)
 
 
+def _copy_state(x):
+    """A copy of a flyvis network state (nested dicts of tensors).
+
+    ``copy.deepcopy`` fails on flyvis's attribute-access dicts, so the copy is
+    by hand: every tensor cloned, every dict rebuilt as its own type.
+    """
+    if isinstance(x, dict):
+        return type(x)({k: _copy_state(v) for k, v in dict.items(x)})
+    if hasattr(x, "clone"):
+        return x.clone()
+    return x
+
+
 @lru_cache(maxsize=2)
 def _load(model: str):
     _prepare_flyvis_cache()
@@ -131,9 +144,16 @@ class FlyEye:
         return len(self.types)
 
     def reset(self) -> None:
-        """Back to the steady state the network reaches under grey light."""
-        with self._torch.no_grad():
-            self._state = self.net.steady_state(1.0, self.dt, 1)
+        """Back to the steady state the network reaches under grey light.
+
+        That state is a second of grey integrated step by step -- 200 steps at
+        5 ms, most of the cost of a short look -- and it is the same every
+        time, so it is computed once and copied.
+        """
+        if getattr(self, "_steady", None) is None:
+            with self._torch.no_grad():
+                self._steady = self.net.steady_state(1.0, self.dt, 1)
+        self._state = _copy_state(self._steady)
         self.baseline = None
 
     def _hex(self, images: np.ndarray):
@@ -222,6 +242,31 @@ class FlyEye:
             out.append(a[centre].mean() - a.mean())
         return np.asarray(out, dtype=np.float32)
 
+    def fovea_shape(self, activity: np.ndarray) -> np.ndarray:
+        """The fixated object's shape, as the middle of the eye sees it.
+
+        Like :meth:`fovea` -- each cell type relative to its whole-eye mean --
+        but in five places instead of one: the centre, and a band above, below,
+        left and right of it. A pole runs through the vertical bands, a flat
+        slab through the horizontal ones, a ball fills only the centre. 325
+        numbers.
+        """
+        out = []
+        for t in self.cell_types:
+            idx = self._by_type[t]
+            a, x, y = activity[idx], self.x[idx], self.y[idx]
+            whole = a.mean()
+            tall, wide = np.abs(x) < 0.12, np.abs(y) < 0.12
+            for region in (
+                tall & wide,
+                tall & (y >= 0.12) & (y < 0.45),
+                tall & (y <= -0.12) & (y > -0.45),
+                wide & (x >= 0.12) & (x < 0.45),
+                wide & (x <= -0.12) & (x > -0.45),
+            ):
+                out.append(a[region].mean() - whole if region.any() else 0.0)
+        return np.asarray(out, dtype=np.float32)
+
     def salience(self, activity: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Where something stands out: per-column deviation of the contrast cells.
 
@@ -250,15 +295,28 @@ class FlyEye:
         hot = w > threshold * w.max()
         return float(np.average(x[hot], weights=w[hot])), float(hot.mean())
 
-    def dark(self, threshold: float = 0.2) -> tuple[float, float]:
+    def dark(
+        self, threshold: float = 0.2, within: float = 1.0, centre: float = 0.0
+    ) -> tuple[float, float]:
         """How much of the view is dark, and where: (fraction, bearing).
 
         Read off the photoreceptor layer, not the network: the optic lobe
         model has no looming detectors (LC4 and LPLC2 sit downstream of what
         flyvis covers), so the angular size of a dark object is taken where
         the eye takes it in. Its growth over time is looming.
+
+        ``within`` narrows it to the columns near ``centre`` (|bearing -
+        centre| < ``within``, in the units of the bearing, 1 being the edge of
+        the view; the centre defaults to straight ahead). The fraction stays a
+        fraction of the whole eye, so it reads the same as the full-eye number
+        for an object in the window -- but an object outside it no longer
+        counts. Without that, a fly that has just reached one object and turns
+        to the next reads the one beside it as the one it is flying to, and
+        "arrives" on the spot.
         """
         hot = self.photoreceptors < threshold
+        if within < 1.0:
+            hot &= np.abs(self.column_x - centre) < within
         if not hot.any():
             return 0.0, 0.0
         return float(hot.mean()), float(self.column_x[hot].mean())

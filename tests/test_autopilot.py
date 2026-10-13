@@ -1,0 +1,339 @@
+"""The fly flying to its targets on its own: arena, teaching, navigator, page."""
+
+from __future__ import annotations
+
+import json
+import urllib.request
+
+import numpy as np
+import pytest
+from test_lab import needs_flyvis, needs_model_lab
+
+from wingloop.lab import arena
+from wingloop.lab.autopilot import POLISH, kind_of, map_image
+from wingloop.lab.learning import MushroomBody
+from wingloop.lab.navigate import Navigator, teach
+
+# ------------------------------------------------------------------- the arena
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_a_mission_spreads_its_objects_around_the_start(seed):
+    items = arena.mission(seed, per_kind=2)
+    assert sorted(it.kind for it in items) == sorted(2 * list(arena.KINDS))
+    headings = np.sort([it.bearing_from(0, 0) % 360 for it in items])
+    gaps = np.diff(np.r_[headings, headings[0] + 360])
+    assert gaps.min() >= 360 / len(items) - 20 - 1e-6
+    for it in items:
+        assert 50 <= it.distance_from(0, 0) <= 80
+
+
+def test_one_list_of_items_draws_both_scenes():
+    import xml.etree.ElementTree as ET
+
+    items = arena.mission(0)
+    world = ET.Element("worldbody")
+    arena.add_to_mjcf(world, items)
+    geoms = world.findall("geom")
+    assert len(geoms) == len(items)
+    assert {g.get("type") for g in geoms} == {"sphere", "box", "cylinder"}
+    assert all(g.get("contype") == "0" for g in geoms)  # scenery, nothing to hit
+    things = arena.eye_things(items)
+    assert [t.label for t in things] == [it.name for it in items]
+    # Every object is darker than the floor's darkest tile, so the eye sees it as an object.
+    assert all(t.brightness < 0.25 for t in things)
+
+
+def test_the_names_people_type_are_the_kinds():
+    assert kind_of("kula") == "sphere" and kind_of("Słupek") == "bar"
+    assert kind_of("plytka") == "slab" and kind_of("bar") == "bar"
+    with pytest.raises(SystemExit):
+        kind_of("kot")
+
+
+# ----------------------------------------------------------------- teaching
+
+
+def test_balanced_dopamine_makes_the_target_the_only_liked_kind():
+    """One target against two punished kinds still ends with the target liked.
+
+    Unbalanced, punishment depresses the approach output twice as often as
+    reward depresses avoidance and every kind ends up disliked.
+    """
+    rng = np.random.default_rng(0)
+    kinds = ("sphere", "slab", "bar")
+    centres = {k: rng.normal(0, 1, 60) for k in kinds}
+    F = np.array([centres[k] + rng.normal(0, 0.5, 60) for k in kinds for _ in range(30)])
+    K = np.array([k for k in kinds for _ in range(30)])
+    for target in kinds:
+        mb = MushroomBody(60, seed=1)
+        teach(mb, F, K, {k: 1.0 if k == target else -1.0 for k in kinds})
+        for k in kinds:
+            views = centres[k] + rng.normal(0, 0.5, (20, 60))
+            v = np.mean([mb.valence(x) for x in views])
+            assert (v > 0) == (k == target), (target, k, v)
+
+
+def test_the_tethered_views_are_looked_at_once_and_any_target_taught_from_them(
+    tmp_path, monkeypatch
+):
+    from wingloop.lab import autopilot
+
+    calls = []
+    rng = np.random.default_rng(2)
+    centres = {k: rng.normal(0, 1, 40) for k in arena.KINDS}
+
+    def look(eye, kinds, samples, seed, progress):
+        calls.append(samples)
+        K = np.array([kinds[i % len(kinds)] for i in range(samples)])
+        return np.array([centres[k] + rng.normal(0, 0.4, 40) for k in K]), K
+
+    monkeypatch.setattr(autopilot, "tethered_training", look)
+    monkeypatch.setattr(autopilot, "SHIPPED", tmp_path / "not-shipped.npz")
+    for target in ("sphere", "bar"):
+        mb, valence = autopilot.learned(None, {target}, folder=tmp_path, progress=None)
+        assert max(valence, key=valence.get) == target
+    assert calls == [90]  # looked once, taught twice
+    # A change to the objects makes the saved views stale.
+    monkeypatch.setitem(arena.KINDS["bar"], "size", 9.0)
+    autopilot.learned(None, {"bar"}, folder=tmp_path, progress=None)
+    assert calls == [90, 90]
+
+
+def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
+    """Change an object's size and this fails: run ``flylab cel --od-nowa`` and ship that."""
+    from wingloop.lab import autopilot
+
+    with np.load(autopilot.SHIPPED) as d:
+        assert str(d["signature"]) == autopilot._signature(90, 0)
+        assert d["F"].shape == (90, 325)
+        assert sorted(set(d["K"].tolist())) == sorted(arena.KINDS)
+
+
+# --------------------------------------------------------------- navigating
+
+
+class _Eye:
+    """A stand-in for the fly's eye: dark objects, their bearing and size."""
+
+    class camera:  # noqa: N801 - mirrors FlysEye.camera
+        fov = 120.0
+
+    def __init__(self, world, value):
+        self.world, self.value = world, value
+        self.activity = 0
+        self.eye = self
+        self.pose = (0.0, 0.0, 0.0)
+
+    def _visible(self, within=1.0, centre=0.0):
+        x, y, h = self.pose
+        out = []
+        for ox, oy, kind in self.world:
+            d = max(np.hypot(ox - x, oy - y), 1.0)
+            off = (np.degrees(np.arctan2(oy - y, ox - x)) - h + 180) % 360 - 180
+            # The real eye's numbers for the ball: 0.017 of the eye at 48 mm,
+            # and nothing it can make out beyond about 80.
+            size = min(1.0, 39.0 / d**2)
+            if abs(off) < 60 and abs(off - 60 * centre) < 60 * within and size > 0.006:
+                out.append((size, off, kind))
+        return out
+
+    def dark(self, threshold, within=1.0, centre=0.0):
+        seen = self._visible(within, centre)
+        if not seen:
+            return 0.0, 0.0
+        total = sum(s for s, _, _ in seen)
+        return total, sum(s * o for s, o, _ in seen) / total / 60.0
+
+    def fovea_shape(self, activity):
+        seen = self._visible()
+        if not seen:
+            return np.zeros(1)
+        _, _, kind = min(seen, key=lambda v: abs(v[1]))
+        return np.array([self.value[kind]])
+
+
+class _Judge:
+    def __init__(self):
+        self.taught = []
+
+    def valence(self, f):
+        return float(f[0])
+
+    def learn(self, f, dopamine):
+        self.taught.append((float(f[0]), dopamine))
+
+
+def _fly(world, value, seconds=40.0, reward=None):
+    """Kinematic stand-in for the fly: heading as asked, speed from the pitch."""
+    eye, nav, dt = _Eye(world, value), Navigator(_Judge(), reward=reward), 0.005
+    x = y = h = 0.0
+    nav.start(h)
+    t, path = 0.0, []
+    while t < seconds and nav.phase != "done":
+        eye.pose = (x, y, h)
+        pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+        h += np.clip(heading - h, -3.0, 3.0)  # a few degrees per look, like the fly
+        v = max(pitch, 0.0) * 20.0
+        x, y = x + v * dt * np.cos(np.deg2rad(h)), y + v * dt * np.sin(np.deg2rad(h))
+        path.append((x, y))
+        t += dt
+    return nav, np.array(path)
+
+
+def test_the_navigator_flies_to_each_liked_object_and_not_the_others():
+    world = [(65.0, 0.0, "sphere"), (-35.0, 55.0, "bar"), (-10.0, -70.0, "sphere")]
+    nav, path = _fly(world, {"sphere": 0.3, "bar": -0.3})
+    assert nav.phase == "done"
+
+    def closest(ox, oy):
+        return np.hypot(path[:, 0] - ox, path[:, 1] - oy).min()
+
+    assert closest(65, 0) < 30 and closest(-10, -70) < 30
+    assert closest(-35, 55) > 40
+    assert len(nav.visited) == 2
+
+
+def test_turning_to_its_target_it_does_not_latch_onto_what_it_turns_past():
+    """The pole at 45 degrees crosses the middle of the eye on the way to the ball at 125."""
+    world = [(40.0, 40.0, "bar"), (-35.0, 50.0, "sphere")]
+    nav, path = _fly(world, {"sphere": 0.3, "bar": -0.3})
+    assert np.hypot(path[:, 0] + 35, path[:, 1] - 50).min() < 30
+    assert np.hypot(path[:, 0] - 40, path[:, 1] - 40).min() > 40
+
+
+def test_with_nothing_liked_in_sight_it_goes_home_and_looks_from_there():
+    """From the first target the second is out of sight; from home it is not."""
+    world = [(70.0, 0.0, "sphere"), (-60.0, 5.0, "sphere")]
+    nav, path = _fly(world, {"sphere": 0.3})
+    phases = [entry["phase"] for entry in nav.log]
+    assert "home" in phases
+    assert np.hypot(path[:, 0] + 60, path[:, 1] - 5).min() < 30
+    assert nav.phase == "done" and len(nav.visited) == 2
+
+
+def test_where_it_lands_it_is_rewarded_or_punished_for_what_it_chose():
+    """The dopamine goes onto the view the choice was made on."""
+    world = [(65.0, 0.0, "sphere"), (-35.0, 55.0, "bar")]
+
+    def sugar(x, y):  # only the ball is sweet
+        return 1.0 if np.hypot(x - 65, y) < 30 else -1.0
+
+    nav, _ = _fly(world, {"sphere": 0.3, "bar": 0.2}, reward=sugar)
+    assert sorted(d for _, d, _ in nav.lessons) == [-1.0, 1.0]
+    # The ball's view (0.3) was rewarded, the pole's (0.2) punished.
+    taught = sorted((round(v, 6), d) for v, d in nav.mushroom_body.taught)
+    assert taught == [(0.2, -1.0), (0.3, 1.0)]
+
+
+def test_a_fly_that_likes_nothing_stays_put():
+    world = [(65.0, 0.0, "bar"), (-40.0, 50.0, "slab")]
+    nav, path = _fly(world, {"bar": -0.2, "slab": -0.1})
+    assert nav.phase == "done" and not nav.visited
+    assert np.abs(path).max() < 1.0
+
+
+# -------------------------------------------------------------- the display
+
+
+def _status():
+    return {
+        "phase": "approach",
+        "phase_pl": "leci do celu",
+        "valence_now": 0.21,
+        "learned": {"kula": 0.25, "płytka": -0.4, "słupek": -0.2},
+        "items": [
+            dict(kind="sphere", name="kula", x=60.0, y=5.0, reached=True, target=True),
+            dict(kind="bar", name="słupek", x=-40.0, y=-50.0, reached=False, target=False),
+        ],
+        "sightings": [dict(heading=5.0, valence=0.21, name="kula", chosen=True)],
+        "fly": dict(x=30.0, y=2.0, heading=4.0),
+        "trail": [(0.0, 0.0), (15.0, 1.0), (30.0, 2.0)],
+        "visited": [[62.0, 5.0]],
+        "reached": ["kula"],
+        "targets_left": 0,
+    }
+
+
+def test_the_map_draws_the_arena_the_track_and_the_fly():
+    img = map_image(_status(), size=200)
+    assert img.shape == (200, 200, 3)
+    # The fly (black) is drawn where it is: 30 mm right of the start.
+    fx, fy = int(100 + 30 / 110 * 100), int(100 - 2 / 110 * 100)
+    assert img[fy - 2 : fy + 3, fx - 2 : fx + 3].min() < 40
+    # And the reached object is ringed in green.
+    assert (np.abs(img.astype(int) - (12, 163, 12)).sum(axis=2) < 30).any()
+
+
+def test_the_brain_page_shows_the_autopilot():
+    from wingloop.lab.livebrain import LiveBrain
+
+    live = LiveBrain(None)
+    try:
+        page = urllib.request.urlopen(live.url, timeout=5).read().decode()
+        assert "Autopilot" in page and "renderAuto" in page
+        state = {
+            "t": 1.0,
+            "speed": 100.0,
+            "z": 5.0,
+            "heading": 4.0,
+            "pitch": 8.0,
+            "roll": 0.0,
+            "neurons": {
+                "DNa08/DNp31 drive": 0.7,
+                "power MNs (DLMn, DVMn)": 0.27,
+                "steering MNs": 0.01,
+                "DNbe001 L-R": 0.0,
+            },
+        }
+        live.update(state, {}, np.zeros(3), 50.0, autopilot=_status())
+        snap = json.load(urllib.request.urlopen(live.url + "state.json", timeout=5))
+        assert snap["autopilot"]["phase"] == "approach"
+        assert snap["autopilot"]["items"][0]["name"] == POLISH["sphere"]
+    finally:
+        live.close()
+
+
+# ----------------------------------------------------------- the real thing
+
+
+@needs_model_lab
+def test_the_fly_turns_all_the_way_round_and_keeps_flying():
+    """Half a turn and more, in saccades, without losing the attitude.
+
+    Before the haltere rates were read about the fly's own axes every turn
+    past about 90 degrees ended the flight: the pitch rate went to the roll
+    loop. Here it turns 225 degrees in one second.
+    """
+    from wingloop.lab.watch import Flight
+
+    flight = Flight()
+    flight.command(0.0, 0.0, 5.0)
+    flight.step(5000)
+    worst = 0.0
+    while flight.t < 1.2:
+        k = int((flight.t - 0.1) / 0.2) + 1
+        flight.command(0.0, 45.0 * k, 5.0)
+        flight.step(250)
+        s = flight.state()
+        worst = max(worst, abs(s["roll"]), abs(s["pitch"]))
+    assert flight.upright() and worst < 20.0
+    assert flight.state()["heading"] > 200.0
+
+
+@needs_flyvis
+@needs_model_lab
+def test_the_fly_flies_to_its_target_by_itself(tmp_path):
+    """Taught on the tether that balls are good, it flies to a ball."""
+    from wingloop.lab.autopilot import Autopilot, learned
+    from wingloop.lab.watch import FlysEye
+
+    items = (arena.Item("sphere", 70.0, 0.0), arena.Item("bar", -40.0, 55.0))
+    eye = FlysEye(items=items)
+    mb, valence = learned(eye, {"sphere"}, folder=tmp_path, progress=None)
+    assert valence["sphere"] > 0 > max(valence["slab"], valence["bar"])
+    pilot = Autopilot(items, mb, eye, valence, {"sphere"})
+    while pilot.flight.t < 4.0 and not pilot.reached():
+        pilot.step()
+        assert pilot.flight.upright()
+    assert [it.kind for it in pilot.reached()] == ["sphere"]

@@ -6,3 +6,5 @@ __pycache__/
 .ruff_cache/
 out/
 flylab-run/
+flylab_widoki_na_uwiezi.npz
+*.mp4

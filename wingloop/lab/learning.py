@@ -51,6 +51,18 @@ choices on 20 new ones**, against 39-47% for unpaired dopamine. A linear
 readout of the same 65 numbers transfers perfectly, so the gap is the price
 of a random sparse expansion trained on twenty examples.
 
+**ON and OFF inputs.** ``on_off=True`` gives each input two lines into the
+calyx -- its rise above its usual level and its fall below it, both
+rectified -- as visual projection neurons come in ON and OFF kinds. The
+default reads ``|z|``, which tells a Kenyon cell *that* an input moved but
+not which way, so "darker than usual here" and "brighter than usual here"
+look alike to it. On the autopilot's tethered views (90 to teach, 45 new),
+one kind rewarded and two punished, three wirings each: **96% correct
+against 87%**, and the margins two to three times wider (a rewarded bar at
++0.50 against the others at -0.34 and -0.75, where ``|z|`` gave +0.18
+against -0.12 and -0.19). The autopilot uses it; everything measured above
+was measured without it, and the default stays as it was.
+
 One measured trap: with a high learning rate, every confidently misrecognised
 sample depresses the synapses its Kenyon cells use for *both* outputs, and
 with enough of them both outputs reach zero and every valence reads 0. On a
@@ -73,14 +85,16 @@ class MushroomBody:
     sparseness: float = 0.05
     learning_rate: float = 0.6
     seed: int = 0
+    on_off: bool = False
     mean: np.ndarray = field(default=None, repr=False)
     scale: np.ndarray = field(default=None, repr=False)
 
     def __post_init__(self):
         rng = np.random.default_rng(self.seed)
-        self.wiring = np.zeros((self.n_kc, self.n_inputs), dtype=np.float32)
+        lines = self.n_inputs * (2 if self.on_off else 1)
+        self.wiring = np.zeros((self.n_kc, lines), dtype=np.float32)
         for k in range(self.n_kc):
-            self.wiring[k, rng.choice(self.n_inputs, self.claws, replace=False)] = 1.0
+            self.wiring[k, rng.choice(lines, self.claws, replace=False)] = 1.0
         self.reset()
 
     def reset(self) -> None:
@@ -96,7 +110,10 @@ class MushroomBody:
     def kenyon(self, x: np.ndarray) -> np.ndarray:
         """The sparse KC code for one input: a 0/1 vector with 5% ones."""
         z = (x - self.mean) / self.scale if self.mean is not None else x
-        drive = self.wiring @ np.abs(z)  # rectified: KCs are excited by deviations
+        if self.on_off:  # an ON line and an OFF line per input, each rectified
+            drive = self.wiring @ np.concatenate([np.maximum(z, 0.0), np.maximum(-z, 0.0)])
+        else:
+            drive = self.wiring @ np.abs(z)  # rectified: KCs are excited by deviations
         k = max(1, int(round(self.sparseness * self.n_kc)))
         code = np.zeros(self.n_kc, dtype=np.float32)
         code[np.argpartition(drive, -k)[-k:]] = 1.0
@@ -144,16 +161,30 @@ def save(mb: MushroomBody, path) -> None:
         mean=mb.mean,
         scale=mb.scale,
         params=np.array(
-            [mb.n_inputs, mb.n_kc, mb.claws, mb.sparseness, mb.learning_rate, mb.seed]
+            [
+                mb.n_inputs,
+                mb.n_kc,
+                mb.claws,
+                mb.sparseness,
+                mb.learning_rate,
+                mb.seed,
+                mb.on_off,
+            ]
         ),
     )
 
 
 def load(path) -> MushroomBody:
     d = np.load(path)
-    n_inputs, n_kc, claws, sparseness, lr, seed = d["params"]
+    n_inputs, n_kc, claws, sparseness, lr, seed, *rest = d["params"]
     mb = MushroomBody(
-        int(n_inputs), int(n_kc), int(claws), float(sparseness), float(lr), int(seed)
+        int(n_inputs),
+        int(n_kc),
+        int(claws),
+        float(sparseness),
+        float(lr),
+        int(seed),
+        on_off=bool(rest[0]) if rest else False,
     )
     mb.wiring, mb.approach, mb.avoid = d["wiring"], d["approach"], d["avoid"]
     mb.mean, mb.scale = d["mean"], d["scale"]

@@ -87,6 +87,66 @@ for with `--pretty`.
 `flylab video` flies a scripted tour (hover, forward, turn, climb, turn back)
 and saves it as an MP4 with the same readout burned in.
 
+**Flying to targets on its own.** `flylab cel kula` (on Windows: `cel.bat`,
+which asks what to fly to) teaches the fly a target and then lets it fly
+there with nobody at the controls. Three kinds of dark object stand in the
+arena -- a ball (`kula`), a flat slab (`płytka`) and a pole (`słupek`), round,
+horizontal and vertical like the shapes of the classic fly experiments --
+two of each, spread around the start.
+
+1. *Teaching, on the tether*, as it is done with real flies in a flight
+   simulator: the eye is shown every kind from many sides and distances, the
+   way a flying fly meets them -- the panorama turning past at the speed the
+   fly turns, then held in the middle of the eye while it fixates -- and the
+   mushroom body gets dopamine for the target kind and punishment for the
+   others. The looking is done once and shipped (`--od-nowa` repeats it on
+   your computer, a few minutes); the teaching happens on every run and
+   takes a fraction of a second, so any target is one command away.
+2. *The mission*, in the physics: the fly turns on the spot, fixates each
+   dark object it sees, and asks its mushroom body what it is worth. It flies
+   at the best one, tracking it in the middle of its eye, brakes as it
+   looms, and remembers the place by path integration. Then it looks again.
+   When nothing it likes is in sight -- from one target the others can be too
+   far to make out -- it flies home and looks from there, and when nothing
+   is in sight from home either, it is done.
+3. *Learning in flight*: where it lands, the world answers -- reward on a
+   target, the sugar of the real experiment, punishment on anything else --
+   and the dopamine goes onto the Kenyon cells of the very view it chose on.
+   A mistake makes the next object that looks like it less attractive; a
+   find makes the next one more.
+
+The brain page gains a section for it: the arena from above with the fly's
+track, what it has learned, each object it judged on its last look and what
+it is flying to now. `flylab video --cel kula` records a whole mission;
+`flylab cel kula --bez-okna` flies it without a window and prints the result.
+
+Measured, nine missions -- three arenas, each kind the target once, two of
+each kind in every arena, the shipped tethered views -- flying without help
+and never losing the air:
+
+| target | arena 0 | arena 1 | arena 2 |
+| --- | --- | --- | --- |
+| ball | 2 of 2, 2 mistakes | 2 of 2, 2 mistakes | 2 of 2, 2 mistakes |
+| slab | 2 of 2, 1 mistake | 2 of 2 | 1 of 2 |
+| pole | 2 of 2 | 2 of 2, 1 mistake | 1 of 2 |
+
+16 of the 18 targets found, in 5 to 25 seconds of flight, and 8 landings on
+something else -- 6 of them by the fly sent to the balls. The ball is the
+eye's hard case: on 53 fixations the physical fly made in nine other arenas,
+the mushroom body taught on the tether calls the ball right 83% of the time
+against 96% for the slab and 91% for the pole, because a ball looks like a
+small dark blob from every side and so, a little, does everything else far
+enough away. Those numbers took three fixes to reach, each found by flying:
+teaching on views shaped like a flying fly's fixation rather than a still
+one (in flight every object had been valued below zero), giving the Kenyon
+cells ON and OFF inputs instead of ``|z|`` (87% to 96% on new tethered
+views), and turning the panorama in from further away so the eye arrives
+at the object in the state a scanning eye is in (the ball from 81% to 89%
+on the same 45 views). Learning in flight is on in every run; in these
+missions the mistakes were on different kinds each time, so the one
+punishment per kind came too late to change a choice -- what it changes
+is the second visit to a kind, and there was none.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
@@ -1259,6 +1319,45 @@ seconds, and the climbing one fails because of a destabilising stiffness that
 grows with climb speed -- which is a property of flying straight up at 2 m/s,
 not of the controller.
 
+## The halteres read the room
+
+Teaching the fly to fly to things on its own (see flylab, above) needed it to
+turn on the spot, and it could not: **every sustained turn ended the flight
+once the heading passed about 90 degrees** -- fast or slow, saccadic or
+smooth, hovering or flying forward, between 85 and 120 degrees every time.
+
+`angular_rate`, the haltere signal, returned the body's rotation rate in the
+room's axes. The pitch and roll angles were (correctly) measured about the
+animal's own axes. The two agree only while the animal points along the
+room's x axis, which is how every flight in this README starts. Turned 90
+degrees, the pitch rate was fed to the roll loop and the roll rate to the
+pitch loop -- a derivative term on the wrong axis, which is positive
+feedback -- and the animal fell. The rates are now rotated into the heading
+frame: yaw about the vertical, roll and pitch about the animal's own level
+axes. A haltere senses in the body's frame, so this is also simply what the
+organ reports.
+
+| turn command | before | after |
+| --- | ---: | ---: |
+| 30 degrees every 0.4 s, hovering | fell at 1.06 s, heading 117 | 3.1 s, heading 240, roll under 7 |
+| 45 degrees every 0.25 s, hovering | -- | 3.1 s, heading 542 |
+| 120 degrees/s, hovering | fell at 1.05 s | 3.1 s, heading 354, roll under 3 |
+| 90 degrees/s at 8 degrees nose-down | fell at 1.14 s | 3.1 s, heading 261, roll under 3 |
+
+"Where it ends now", above, says the climbing flights fail with the heading
+90-170 degrees off and attitude second. That was this. The default
+controller's climbing flight, 1441 ms in the bandwidth table, now holds the
+whole three seconds with its worst swing at 10.9 degrees. The tables above
+were measured with the error in place and are kept as the record of what was
+measured; they rank settings against each other under the same error, and
+the sweeps that pin them (`pytest -m sweep`) were measured with it too.
+
+One test changed what it asserts. The wake-memory test recorded the
+circulation lag ending the flight at 618 ms against a full second without
+it. With the rates fixed both flights last the second, and the lag shows up
+as what it is -- lost margin, the worst attitude swing going from 10.9 to
+19.8 degrees -- and that is what the test now pins.
+
 ## What does not exist yet
 
 
@@ -1266,9 +1365,9 @@ not of the controller.
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 115 tests, about fifteen minutes on one core
+pytest -q             # 142 tests, about half an hour on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
-pytest -q -n 4        # with pytest-xdist: about five minutes on four cores
+pytest -q -n 4        # with pytest-xdist: about eight minutes on four cores
 ```
 
 The aerodynamics and the connectome readout run anywhere -- the wing mesh is

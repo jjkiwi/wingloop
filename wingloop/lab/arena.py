@@ -1,0 +1,170 @@
+"""Things to fly to: the objects of a mission, shared by the 3-D view and the eye.
+
+The scenery columns are bright on purpose and stay background. Mission
+objects are dark, because flies fixate dark objects and because the eye's
+object detector (:meth:`~wingloop.lab.vision.FlyEye.dark`) looks for exactly
+that. Three kinds that differ the way the classic fly experiments' shapes do --
+round, horizontal, vertical: a ball, a flat slab and a thin pole. A cube was
+tried first in the slab's place and the eye could not tell it from the ball:
+both are compact dark blobs, and the mushroom body valued them alike.
+
+Sizes are set by the eye, not by taste. An ommatidium sees about five degrees,
+so an object has to fill most of one to read as dark at all: a 5 mm pole
+vanished at 120 mm, and a slab 4.4 mm thick, seen edge-on from flight height,
+was flown past without being noticed.
+
+One list of :class:`Item` drives both the MuJoCo scene the person watches
+and the numpy scene the fly's eye renders, so what is drawn and what is seen
+cannot drift apart.
+"""
+
+from __future__ import annotations
+
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+
+import numpy as np
+
+#: The floor of the arena, mm (the fly starts at the origin).
+FLOOR = -12.0
+#: Kinds, their colour in the 3-D view, and their size, mm.
+KINDS = {
+    "sphere": {"rgb": (0.45, 0.07, 0.07), "size": 8.0, "pl": "kula"},
+    "slab": {"rgb": (0.07, 0.12, 0.42), "size": (14.0, 14.0, 6.0), "pl": "płytka"},
+    "bar": {"rgb": (0.12, 0.12, 0.12), "size": 5.0, "pl": "słupek"},
+}
+#: Height of a pole, mm, from the floor.
+BAR_HEIGHT = 40.0
+
+
+@dataclass(frozen=True)
+class Item:
+    kind: str
+    x: float
+    y: float
+    z: float = 5.0
+    label: str = ""
+
+    @property
+    def size(self):
+        return KINDS[self.kind]["size"]
+
+    @property
+    def rgb(self) -> tuple:
+        return KINDS[self.kind]["rgb"]
+
+    @property
+    def name(self) -> str:
+        return self.label or self.kind
+
+    def bearing_from(self, x: float, y: float) -> float:
+        """Compass heading from (x, y) to this item, degrees."""
+        return float(np.degrees(np.arctan2(self.y - y, self.x - x)))
+
+    def distance_from(self, x: float, y: float) -> float:
+        return float(np.hypot(self.x - x, self.y - y))
+
+
+def luminance(rgb) -> float:
+    """What a green-sensitive photoreceptor makes of an RGB colour."""
+    r, g, b = rgb
+    return 0.3 * r + 0.55 * g + 0.15 * b
+
+
+def mission(
+    seed: int = 0,
+    kinds=("sphere", "slab", "bar"),
+    per_kind: int = 1,
+    distance=(50.0, 80.0),
+    height: float = 5.0,
+) -> tuple[Item, ...]:
+    """A random arena: ``per_kind`` of each kind around the start, well apart.
+
+    Headings are spread evenly, each jittered by up to 10 degrees, so that
+    seen from the start no two objects are closer than 360/n - 20 degrees
+    (100 for three objects, 40 for six). That keeps one object in the middle
+    of the eye at a time while the fly looks around.
+    """
+    rng = np.random.default_rng(seed)
+    wanted = [k for k in kinds for _ in range(per_kind)]
+    n = len(wanted)
+    slots = np.linspace(0, 360, n, endpoint=False) + rng.uniform(0, 360)
+    rng.shuffle(wanted)
+    items = []
+    for kind, heading in zip(wanted, slots, strict=True):
+        h = np.deg2rad(heading + rng.uniform(-10, 10))
+        d = rng.uniform(*distance)
+        items.append(
+            Item(kind, round(float(d * np.cos(h)), 1), round(float(d * np.sin(h)), 1), height)
+        )
+    return tuple(items)
+
+
+def add_to_mjcf(world: ET.Element, items) -> None:
+    """Draw the items in the MuJoCo scene (no collisions: they are scenery)."""
+    for i, it in enumerate(items):
+        rgba = " ".join(f"{c:.3f}" for c in it.rgb) + " 1"
+        common = dict(name=f"flylab_item{i}", rgba=rgba, contype="0", conaffinity="0")
+        if it.kind == "sphere":
+            ET.SubElement(
+                world,
+                "geom",
+                type="sphere",
+                size=f"{it.size}",
+                pos=f"{it.x} {it.y} {it.z}",
+                **common,
+            )
+        elif it.kind == "slab":
+            sx, sy, sz = it.size
+            ET.SubElement(
+                world,
+                "geom",
+                type="box",
+                size=f"{sx} {sy} {sz}",
+                pos=f"{it.x} {it.y} {it.z}",
+                **common,
+            )
+        else:
+            ET.SubElement(
+                world,
+                "geom",
+                type="cylinder",
+                size=f"{it.size} {BAR_HEIGHT / 2}",
+                pos=f"{it.x} {it.y} {FLOOR + BAR_HEIGHT / 2}",
+                **common,
+            )
+
+
+def eye_things(items) -> list:
+    """The same items as :class:`~wingloop.lab.scene.Thing` for the eye's renderer."""
+    from .scene import Thing
+
+    out = []
+    for it in items:
+        bright = luminance(it.rgb)
+        if it.kind == "bar":
+            out.append(
+                Thing(
+                    "bar",
+                    [it.x, it.y, FLOOR],
+                    it.size,
+                    height=BAR_HEIGHT,
+                    brightness=bright,
+                    label=it.name,
+                )
+            )
+        elif it.kind == "slab":
+            out.append(
+                Thing(
+                    "box",
+                    [it.x, it.y, it.z],
+                    np.asarray(it.size),
+                    brightness=bright,
+                    label=it.name,
+                )
+            )
+        else:
+            out.append(
+                Thing(it.kind, [it.x, it.y, it.z], it.size, brightness=bright, label=it.name)
+            )
+    return out

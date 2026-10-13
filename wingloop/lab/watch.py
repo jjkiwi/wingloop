@@ -69,7 +69,7 @@ COLUMNS = [
 ]
 
 
-def _decorate(source: Path, destination: Path, pretty: bool = False) -> Path:
+def _decorate(source: Path, destination: Path, pretty: bool = False, items=()) -> Path:
     """Add a sky, a chequered floor, light and columns to the hinged fly.
 
     Shadows are the expensive part of drawing this scene, so they are off
@@ -156,29 +156,32 @@ def _decorate(source: Path, destination: Path, pretty: bool = False) -> Path:
         if element is None:
             element = ET.SubElement(visual, tag)
         element.attrib.update(attrs)
+    from .arena import add_to_mjcf
+
+    add_to_mjcf(world, items)
     tree.write(destination)
     return destination
 
 
-@lru_cache(maxsize=2)
-def _visual_model_path(pretty: bool = False) -> Path:
+@lru_cache(maxsize=8)
+def _visual_model_path(pretty: bool = False, items: tuple = ()) -> Path:
     from ..body.hinge import add_free_base, add_wing_hinges, neuromechfly_model, tuck_legs
 
     d = Path(tempfile.mkdtemp(prefix="flylab-view-"))
     rigid, _ = tuck_legs(neuromechfly_model(), d / "rigid.xml", keep="__none__")
     hinged = add_wing_hinges(rigid, d / "hinged.xml")
     free = add_free_base(getattr(hinged, "path", hinged), d / "free.xml", dofs="free")
-    return _decorate(Path(free), d / "scene.xml", pretty)
+    return _decorate(Path(free), d / "scene.xml", pretty, items)
 
 
 class FlyView:
     """The posed copy of the fly that gets drawn."""
 
-    def __init__(self, pretty: bool = False):
+    def __init__(self, pretty: bool = False, items: tuple = ()):
         import mujoco
 
         self._mj = mujoco
-        self.model = mujoco.MjModel.from_xml_path(str(_visual_model_path(pretty)))
+        self.model = mujoco.MjModel.from_xml_path(str(_visual_model_path(pretty, tuple(items))))
         self.data = mujoco.MjData(self.model)
         root = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "free_FlyBody")
         self.root_qpos = int(self.model.jnt_qposadr[root])
@@ -326,6 +329,8 @@ class Flight:
             y=float(pos[1]),
             z=float(pos[2]),
             speed=float(np.hypot(vel[0], vel[1])),
+            vx=float(vel[0]),
+            vy=float(vel[1]),
             climb=float(vel[2]),
             pitch=float(np.degrees(pitch)),
             roll=float(np.degrees(roll)),
@@ -354,7 +359,7 @@ class Flight:
 class FlysEye:
     """The arena as the fly sees it, and its optic lobe looking at it."""
 
-    def __init__(self, every_ms: float = 5.0):
+    def __init__(self, every_ms: float = 5.0, items: tuple = ()):
         from .scene import Camera, Thing, World
         from .vision import FlyEye
 
@@ -363,7 +368,10 @@ class FlysEye:
             r, g, b = (float(v) for v in rgb.split())
             luminance = 0.3 * r + 0.55 * g + 0.15 * b
             things.append(Thing("bar", [x, y, FLOOR], 3.0, height=60.0, brightness=luminance))
-        self.world = World(things, ground_height=FLOOR)
+        from .arena import eye_things
+
+        self.background = list(things)
+        self.world = World(things + eye_things(items), ground_height=FLOOR)
         self.camera = Camera(size=64, fov=120.0)
         self.eye = FlyEye(dt=every_ms / 1000.0)
         self.every_ms = every_ms

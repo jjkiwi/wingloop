@@ -12,6 +12,7 @@
   --neg: #2a78d6; --pos: #e34948;
   --g-haltere: #2a78d6; --g-dn: #eb6834; --g-mn: #1baf7a; --g-wing: #6250d6;
   --good: #0ca30c; --warn: #fab219;
+  --k-sphere: #a8322e; --k-slab: #2b4aa8; --k-bar: #3a3a38; --trail: #2a78d6;
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
@@ -20,6 +21,7 @@
     --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --mid: #383835;
     --neg: #3987e5; --pos: #e66767;
     --g-haltere: #3987e5; --g-dn: #d95926; --g-mn: #199e70; --g-wing: #9085e9;
+    --k-sphere: #e66767; --k-slab: #6f8fe8; --k-bar: #c3c2b7; --trail: #3987e5;
   }
 }
 :root[data-theme="dark"] {
@@ -28,6 +30,7 @@
   --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --mid: #383835;
   --neg: #3987e5; --pos: #e66767;
   --g-haltere: #3987e5; --g-dn: #d95926; --g-mn: #199e70; --g-wing: #9085e9;
+  --k-sphere: #e66767; --k-slab: #6f8fe8; --k-bar: #c3c2b7; --trail: #3987e5;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink);
@@ -85,6 +88,14 @@ h2 { font-size: 1.1rem; margin: 28px 0 4px; }
   border-radius: 8px; padding: 4px 8px; font-size: .8rem; display: none; color: var(--ink); }
 footer { margin-top: 28px; color: var(--ink-2); font-size: .88rem; max-width: 85ch; }
 footer li { margin: 4px 0; }
+.auto-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+@media (max-width: 760px) { .auto-grid { grid-template-columns: 1fr; } }
+#c-map { aspect-ratio: 1; }
+.phase { font-size: 1.5rem; font-weight: 600; margin: 4px 0 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); font-size: .8rem; margin-top: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.sub { margin: 14px 0 0; font-size: .9rem; color: var(--ink-2); }
+.chosen { color: var(--ink); font-weight: 600; }
 .off { color: var(--muted); display: grid; place-items: center; aspect-ratio: 1; text-align: center; font-size: .9rem; }
 </style>
 </head>
@@ -104,6 +115,31 @@ footer li { margin: 4px 0; }
     <div class="tile"><div class="label">Pochylenie</div><div class="value"><span id="pitch">–</span><span class="unit">°</span></div></div>
     <div class="tile"><div class="label">Przechył</div><div class="value"><span id="roll">–</span><span class="unit">°</span></div></div>
   </div>
+
+  <section id="auto" hidden>
+  <h2>Autopilot: muszka leci sama</h2>
+  <p class="lead">Nikt nią nie steruje. Muszka obraca się w miejscu, zatrzymuje wzrok na każdym ciemnym
+  obiekcie i pyta swoje ciało grzybkowate, ile jest wart. Leci do najlepszego, hamuje, gdy rośnie
+  w oczach, a potem rozgląda się za następnym. Gdy nic nie widzi, wraca na start i patrzy stamtąd.</p>
+  <div class="auto-grid">
+    <div class="card"><h3>Arena z góry</h3><p>Mapa jest tylko dla Ciebie: muszka jej nie ma, pamięta tylko,
+      gdzie już była (integracja drogi, jak u pszczół i mrówek).</p><canvas id="c-map"></canvas>
+      <div class="legend"><span><i style="background:var(--k-sphere)"></i>kula</span>
+        <span><i style="background:var(--k-slab)"></i>płytka</span>
+        <span><i style="background:var(--k-bar)"></i>słupek</span>
+        <span><i style="background:transparent;box-shadow:inset 0 0 0 2px var(--warn)"></i>cel</span>
+        <span><i style="background:transparent;box-shadow:inset 0 0 0 2px var(--good)"></i>osiągnięty</span>
+        <span><i style="background:var(--trail);border-radius:2px;height:3px;vertical-align:3px"></i>droga</span></div></div>
+    <div class="card"><h3>Co robi teraz</h3>
+      <div class="phase" id="a-phase">–</div>
+      <p id="a-reached">–</p>
+      <div id="a-now"></div>
+      <div class="sub">Czego się nauczyła na uwięzi</div><div id="a-learned"></div>
+      <div class="sub">Ostatnie rozejrzenie: oceny obiektów</div><div id="a-sightings"></div>
+      <div class="sub">Nauka w locie: po doleceniu nagroda (cel) albo kara (nie cel)</div><p id="a-lessons">–</p>
+    </div>
+  </div>
+  </section>
 
   <h2>1. Oko i płat wzrokowy</h2>
   <p class="lead">Obraz z oka muchy w jej aktualnym położeniu i to, co z nim robi jej płat wzrokowy:
@@ -240,7 +276,66 @@ function drawSparks(history) {
   }
 }
 
+const KIND = { sphere: '--k-sphere', slab: '--k-slab', bar: '--k-bar' };
+const val = (v) => (v > 0 ? '+' : '') + v.toFixed(2);
+function drawMap(a) {
+  const canvas = $('c-map'), [ctx, w, h] = prepare(canvas);
+  ctx.fillStyle = css('--surface'); ctx.fillRect(0, 0, w, h);
+  const pts = a.items.map((i) => [i.x, i.y]).concat(a.trail, [[a.fly.x, a.fly.y], [0, 0]]);
+  const ext = Math.max(60, ...pts.map((p) => Math.max(Math.abs(p[0]), Math.abs(p[1])))) * 1.15;
+  const X = (x) => w / 2 + x / ext * w / 2, Y = (y) => h / 2 - y / ext * h / 2;
+  ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1;
+  for (let g = -200; g <= 200; g += 50) {
+    ctx.beginPath(); ctx.moveTo(X(g), 0); ctx.lineTo(X(g), h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, Y(g)); ctx.lineTo(w, Y(g)); ctx.stroke();
+  }
+  ctx.fillStyle = css('--muted'); ctx.font = '12px system-ui, sans-serif';
+  ctx.fillText('50 mm', X(0) + 4, Y(-50) - 4);
+  ctx.strokeStyle = css('--muted'); ctx.strokeRect(X(0) - 4, Y(0) - 4, 8, 8);
+  ctx.fillText('start', X(0) + 7, Y(0) + 14);
+  if (a.trail.length > 1) {
+    ctx.strokeStyle = css('--trail'); ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.beginPath();
+    a.trail.forEach((p, i) => (i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1])))); ctx.stroke();
+  }
+  for (const it of a.items) {
+    const r = Math.max(6, w / 45);
+    ctx.fillStyle = css(KIND[it.kind]); ctx.beginPath(); ctx.arc(X(it.x), Y(it.y), r, 0, 2 * Math.PI); ctx.fill();
+    if (it.reached || it.target) {
+      ctx.strokeStyle = css(it.reached ? '--good' : '--warn'); ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(X(it.x), Y(it.y), r + 4, 0, 2 * Math.PI); ctx.stroke();
+    }
+    ctx.fillStyle = css('--ink-2');
+    const tw = ctx.measureText(it.name).width, right = X(it.x) + r + 6 + tw < w - 2;
+    ctx.fillText(it.name, right ? X(it.x) + r + 6 : X(it.x) - r - 6 - tw, Y(it.y) + 4);
+  }
+  const f = a.fly, t = f.heading * Math.PI / 180, L = Math.max(14, w / 22);
+  ctx.strokeStyle = css('--ink'); ctx.fillStyle = css('--ink'); ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(X(f.x), Y(f.y)); ctx.lineTo(X(f.x) + L * Math.cos(t), Y(f.y) - L * Math.sin(t)); ctx.stroke();
+  ctx.beginPath(); ctx.arc(X(f.x), Y(f.y), 4, 0, 2 * Math.PI); ctx.fill();
+}
+function renderAuto(a) {
+  $('auto').hidden = false;
+  $('a-phase').textContent = 'muszka ' + a.phase_pl;
+  const left = a.targets_left;
+  $('a-reached').textContent = (a.reached.length ? 'Doleciała do: ' + a.reached.join(', ') + '. ' : 'Jeszcze nigdzie nie doleciała. ')
+    + (left ? `Zostało celów: ${left}.` : 'Wszystkie cele zaliczone.');
+  const scale = (v) => v / 0.5;
+  $('a-now').innerHTML = a.valence_now === null ? '' :
+    bar('ocena tego, na co patrzy teraz', scale(a.valence_now), val(a.valence_now), a.valence_now >= 0 ? css('--pos') : css('--neg'), true);
+  $('a-learned').innerHTML = Object.entries(a.learned).map(([k, v]) =>
+    bar(k + (v > 0 ? ' – cel' : ''), scale(v), val(v), v >= 0 ? css('--pos') : css('--neg'), true)).join('');
+  $('a-sightings').innerHTML = a.sightings.length ? a.sightings.map((g) =>
+    bar(`<span class="${g.chosen ? 'chosen' : ''}">${g.name} w kierunku ${g.heading.toFixed(0)}°${g.chosen ? ' ← tu leci' : ''}</span>`,
+      scale(g.valence), val(g.valence), g.valence >= 0 ? css('--pos') : css('--neg'), true)).join('')
+    : '<p>Jeszcze nic nie oceniła w tym rozejrzeniu.</p>';
+  $('a-lessons').textContent = a.lessons && a.lessons.length
+    ? a.lessons.map((l) => `${l.name}: ${l.dopamine > 0 ? 'nagroda' : 'kara'}`).join(', ')
+    : 'Jeszcze nigdzie nie wylądowała.';
+  drawMap(a);
+}
+
 function render(s) {
+  if (s.autopilot) renderAuto(s.autopilot);
   $('t').textContent = s.t.toFixed(0);
   $('speed').textContent = s.speed.toFixed(0);
   $('z').textContent = s.z.toFixed(1);
