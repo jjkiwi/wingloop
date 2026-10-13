@@ -35,6 +35,7 @@ tether.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -49,6 +50,18 @@ _HINT = (
     "Headless machines can still run the physics; set MUJOCO_GL=disable."
 )
 
+
+
+def _cross(a, b) -> np.ndarray:
+    """The cross product of two 3-vectors, written out.
+
+    ``np.cross`` handles arrays of any shape and pays for it: on single
+    3-vectors it was a quarter of the flight simulation's run time. Same
+    products, same order, same answer to the last bit.
+    """
+    return np.array(
+        [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    )
 
 @dataclass
 class WingTelemetry:
@@ -201,7 +214,7 @@ class FlightBody:
 
     @staticmethod
     def _rot(axis: int, angle: float) -> np.ndarray:
-        c, s_ = np.cos(angle), np.sin(angle)
+        c, s_ = math.cos(angle), math.sin(angle)
         if axis == 0:
             return np.array([[1, 0, 0], [0, c, -s_], [0, s_, c]])
         if axis == 1:
@@ -303,7 +316,7 @@ class FlightBody:
 
     # ------------------------------------------------------------------ forces
 
-    def wing_forces(self, wing: str) -> np.ndarray:
+    def wing_forces(self, wing: str, pose=None) -> np.ndarray:
         """The world-frame force on one wing, and the telemetry behind it.
 
         The sign convention matters and is easy to get backwards: drag opposes
@@ -333,7 +346,7 @@ class FlightBody:
         # The animal's own speed through the air, resolved along the direction
         # this wing sweeps. Zero on a tether; the whole difference between
         # hovering and flight once the body is free.
-        rot, hinge = self.wing_pose(wing, self.wing_angles)
+        rot, hinge = pose if pose is not None else self.wing_pose(wing, self.wing_angles)
         # The stroke plane belongs to the animal, not to the world. Its normal
         # is the body's own vertical, so lift tilts when the body tilts --
         # which is most of how attitude couples back into the forces, and
@@ -421,11 +434,14 @@ class FlightBody:
         )
         total = np.zeros(6)
         for wing in WINGS:
-            force = self.wing_forces(wing)
+            # One pose per wing per step, shared with the force calculation:
+            # it was being composed twice, and the duplicate was a sixth of
+            # the run time.
             rot, hinge = self.wing_pose(wing, self.wing_angles)
+            force = self.wing_forces(wing, (rot, hinge))
             point = hinge + rot @ (self.cop * self.span[wing])
             total[:3] += force
-            total[3:] += np.cross(point - com, force)
+            total[3:] += _cross(point - com, force)
         if self.root_body is not None:
             self.data.xfrc_applied[self.root_body] = total
 
@@ -461,7 +477,7 @@ class FlightBody:
             return np.zeros(6)
         applied = np.asarray(self.data.xfrc_applied[self.root_body], dtype=float)
         offset = self.data.xipos[self.root_body] - self.data.subtree_com[self.root_body]
-        return np.concatenate([applied[:3], applied[3:] + np.cross(offset, applied[:3])])
+        return np.concatenate([applied[:3], applied[3:] + _cross(offset, applied[:3])])
 
     def air_velocity_at(self, wing: str, rot, hinge) -> np.ndarray:
         """How fast this wing is moving through the air because the *body* is.
@@ -504,7 +520,7 @@ class FlightBody:
         # authority turned into +0.0032 of pitch torque per rad/s: an
         # anti-damping three times the damping this model then reported.
         arm = centre - np.asarray(self.data.xpos[self.root_body], dtype=float)
-        return v + np.cross(omega, arm)
+        return v + _cross(omega, arm)
 
     def centre_of_mass(self) -> np.ndarray:
         """World position of the whole animal's centre of mass."""

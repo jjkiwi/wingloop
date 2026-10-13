@@ -126,14 +126,25 @@ def _box_hits(o, d, centre, half):
     return np.where(ok, np.where(tmin > 0, tmin, tmax), np.inf)
 
 
-def render(world: World, position, attitude, camera: Camera | None = None) -> np.ndarray:
+def render(
+    world: World,
+    position,
+    attitude,
+    camera: Camera | None = None,
+    *,
+    rotation_matrix=None,
+    checker: float = CHECKER,
+) -> np.ndarray:
     """What the camera sees: a (size, size) image of brightness in [0, 1].
 
-    ``attitude`` is (roll, pitch, yaw), radians, body to world.
+    ``attitude`` is (roll, pitch, yaw), radians, body to world; or pass the
+    body-to-world ``rotation_matrix`` directly and ``attitude`` is ignored.
+    ``checker`` is the floor tile size in the world's own units.
     """
     camera = camera or Camera()
     o = np.asarray(position, dtype=float)
-    d = camera.rays() @ rotation(*attitude).T  # world-frame directions
+    R = rotation(*attitude) if rotation_matrix is None else np.asarray(rotation_matrix)
+    d = camera.rays() @ R.T  # world-frame directions
 
     # Background: sky above, a checkered ground below.
     image = np.full(d.shape[:2], SKY)
@@ -142,7 +153,7 @@ def render(world: World, position, attitude, camera: Camera | None = None) -> np
     ground = (tg > 0) & np.isfinite(tg)
     gx = o[0] + tg * d[..., 0]
     gy = o[1] + tg * d[..., 1]
-    tile = (np.floor(gx / CHECKER) + np.floor(gy / CHECKER)) % 2
+    tile = (np.floor(gx / checker) + np.floor(gy / checker)) % 2
     image = np.where(ground, np.where(tile > 0, GROUND[1], GROUND[0]), image)
     depth = np.where(ground, tg, np.inf)
 

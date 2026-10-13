@@ -209,7 +209,7 @@ def cmd_watch(args) -> dict:
     """Open the 3-D window and fly the fly from the keyboard."""
     from .watch import interactive
 
-    interactive()
+    interactive(brain=not args.no_brain, pretty=args.pretty)
     return {}
 
 
@@ -218,7 +218,7 @@ def cmd_video(args) -> dict:
     from .watch import video
 
     t0 = time.time()
-    path = video(args.output, seconds=args.seconds)
+    path = video(args.output, seconds=args.seconds, brain=not args.no_brain)
     print(f"video -> {path} ({time.time() - t0:.0f} s)")
     return {}
 
@@ -316,6 +316,12 @@ def main(argv=None) -> None:
         if name == "video":
             s.add_argument("--seconds", type=float, default=2.4)
             s.add_argument("--output", default="lot_muchy.mp4")
+            s.add_argument("--no-brain", action="store_true", help="no brain panel")
+        if name == "watch":
+            s.add_argument(
+                "--no-brain", action="store_true", help="no optic lobe: lighter, flies faster"
+            )
+            s.add_argument("--pretty", action="store_true", help="shadows on (slower)")
         if name == "demo":
             s.add_argument("--dir", default="flylab-run")
             s.add_argument("--sessions", type=int, default=16)

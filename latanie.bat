@@ -15,6 +15,10 @@ echo   spacja              - pauza
 echo   [ / ]               - wolniej / szybciej (zwolnione tempo)
 echo   H                   - zawis
 echo   C                   - kamera: za mucha / swobodna (mysz)
+echo   B                   - mozg (oko muchy) wl./wyl. - wylaczony = szybciej
+echo.
+echo Drugie okno pokazuje mozg muchy w locie: co widzi, neurony wzrokowe,
+echo haltery, neurony zstepujace, motoneurony i komendy skrzydel.
 echo.
 ".venv\Scripts\python.exe" -m wingloop.lab watch
 if errorlevel 1 (

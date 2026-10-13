@@ -360,3 +360,53 @@ def test_a_nose_down_setpoint_flies_the_fly_forward():
         f.step(int(0.3 / 2e-5))
     assert forward.state()["x"] > hover.state()["x"] + 15.0, (forward.state(), hover.state())
     assert abs(forward.state()["roll"]) < 10 and forward.upright()
+
+
+def test_the_brain_panel_scales_its_signals_and_draws(tmp_path):
+    """The bars stay inside the axes and the panel renders without a display."""
+    pytest.importorskip("matplotlib")
+    from wingloop.lab.brainpanel import BARS, BrainPanel, signals
+
+    state = {
+        "t": 0.1,
+        "speed": 250.0,
+        "z": 5.0,
+        "heading": 10.0,
+        "neurons": {
+            "DNa08/DNp31 drive": 0.7,
+            "power MNs (DLMn, DVMn)": 0.27,
+            "steering MNs": 0.013,
+            "DNbe001 L-R": 0.0,
+        },
+    }
+    knobs = {"bias": -0.1, "asymmetry": 0.5, "phase_asymmetry": -2.0}
+    values = signals(state, knobs, np.array([10.0, -10.0, 0.5]))
+    assert set(values) == {name for name, _ in BARS}
+    assert all(-1.0 <= v <= 1.0 for v in values.values()), values
+    assert values["wing: amplitude L-R"] == 1.0 and values["haltere: roll rate"] == 1.0
+
+    panel = BrainPanel(None, live=False)
+    for k in range(3):
+        panel.update(dict(state, t=0.1 + 0.01 * k), knobs, np.zeros(3))
+    image = panel.image()
+    assert image.ndim == 3 and image.shape[2] == 3 and image.shape[0] > 300
+
+
+@needs_flyvis
+@needs_model_lab
+def test_the_optic_lobe_runs_on_what_the_flying_fly_sees():
+    """The fly's view is rendered from the physics pose and stepped through flyvis."""
+    from wingloop.lab.watch import Flight, FlysEye
+
+    flight, eye = Flight(), FlysEye()
+    flight.command(10.0, 0.0, 5.0)
+    images = []
+    for _ in range(4):
+        flight.step(250)
+        eye.look(flight.body)
+        images.append(eye.image.copy())
+    assert eye.activity is not None and eye.activity.shape == (eye.eye.n_neurons,)
+    assert eye.image.shape == (64, 64)
+    # Ground below, sky above, and the view changes as the fly moves.
+    assert eye.image[:5].mean() > eye.image[-5:].mean()
+    assert np.abs(images[-1] - images[0]).mean() > 1e-3
