@@ -207,8 +207,19 @@ class FlyView:
         self._mj.mj_forward(self.model, self.data)
 
     def show(self, flight) -> None:
-        """Pose the drawn fly from a :class:`Flight`."""
-        self.pose(flight.body)
+        """Pose the drawn fly from a :class:`Flight`, or from the fast fly."""
+        if hasattr(flight, "body"):
+            self.pose(flight.body)
+            return
+        position, R = flight.pose()
+        quat = np.zeros(4)
+        self._mj.mju_mat2Quat(quat, R.ravel())
+        self.data.qpos[self.root_qpos : self.root_qpos + 3] = position
+        self.data.qpos[self.root_qpos + 3 : self.root_qpos + 7] = quat
+        for name, angle in flight.wing_angles().items():
+            if name in self.wing_qpos:
+                self.data.qpos[self.wing_qpos[name]] = float(angle)
+        self._mj.mj_forward(self.model, self.data)
 
     def chase(self, cam, heading_deg: float, distance: float = 14.0) -> None:
         """A camera behind and above the fly, turning with it."""
@@ -420,8 +431,14 @@ def _status(s: dict, slowdown: float) -> str:
     )
 
 
-def interactive(brain: bool = True, pretty: bool = False, browser: bool = True) -> None:
-    """Open the 3-D window and the brain page in the browser, and fly."""
+def interactive(
+    brain: bool = True, pretty: bool = False, browser: bool = True, fast: bool = False
+) -> None:
+    """Open the 3-D window and the brain page in the browser, and fly.
+
+    ``fast`` flies the reduced-order fly of :mod:`.fastfly` with the optic lobe
+    at its trained 20 ms, kept to real time: the fly as fast as a fly.
+    """
     from .livebrain import LiveBrain
 
     print(__doc__.split("Controls in the window")[1].split("The fly is")[0])
@@ -430,10 +447,16 @@ def interactive(brain: bool = True, pretty: bool = False, browser: bool = True) 
         # The optic lobe (PyTorch) is loaded before MuJoCo: with MuJoCo's
         # software renderer loaded first, importing torchvision segfaults.
         print("Loading the fly's optic lobe (flyvis)... this takes a few seconds.")
-        eye = FlysEye()
+        eye = FlysEye(every_ms=20.0 if fast else 5.0)
     import mujoco.viewer
 
-    flight, view, pilot = Flight(), FlyView(pretty=pretty), Pilot()
+    if fast:
+        from .fastfly import FastFly
+
+        flight = FastFly()
+    else:
+        flight = Flight()
+    view, pilot = FlyView(pretty=pretty), Pilot()
     live = LiveBrain(eye.eye if eye else None)
     print(f"The brain page: {live.url}  (it opens in your browser)")
     if browser:
@@ -443,7 +466,7 @@ def interactive(brain: bool = True, pretty: bool = False, browser: bool = True) 
         with mujoco.viewer.launch_passive(
             view.model, view.data, key_callback=pilot.key
         ) as viewer:
-            last_print = last_snap = 0.0
+            last_print = last_snap = last_frame = 0.0
             wall0, sim0, next_look = time.time(), flight.t, 0.0
             while viewer.is_running():
                 with pilot.lock:
@@ -452,22 +475,33 @@ def interactive(brain: bool = True, pretty: bool = False, browser: bool = True) 
                     looking = pilot.brain and eye is not None
                 if paused:
                     time.sleep(0.03)
+                    wall0 += 0.03  # a pause is not flight time
                     viewer.sync()
                     continue
-                flight.step(every)
+                # The fast fly steps in ms, the full one in 20 us: the same
+                # share of a second per frame either way at the default.
+                flight.step(max(1, every * 2 // 5) if fast else every)
                 if not flight.upright():
                     print("\nThe fly lost control. Close the window and start again.")
                     break
                 if looking and flight.t >= next_look:
-                    eye.look(flight.body)
+                    eye.look_from(*flight.pose())
                     next_look = flight.t + eye.every_ms / 1000.0
-                view.pose(flight.body)
-                if pilot.follow:
-                    with viewer.lock():
-                        view.chase(viewer.cam, flight.state()["heading"])
-                viewer.sync()
                 now = time.time()
+                if not fast or now - last_frame > 1.0 / 30.0:
+                    # In the fast mode drawing, not flying, is the cost:
+                    # at most 30 frames a second.
+                    view.show(flight)
+                    if pilot.follow:
+                        with viewer.lock():
+                            view.chase(viewer.cam, flight.state()["heading"])
+                    viewer.sync()
+                    last_frame = now
                 wall, sim = now - wall0, flight.t - sim0
+                if fast and sim > wall:  # no faster than a fly
+                    time.sleep(min(0.05, sim - wall))
+                    now = time.time()
+                    wall = now - wall0
                 slow = wall / sim if sim > 0 else 0.0
                 if now - last_snap > 0.25:
                     live.update(

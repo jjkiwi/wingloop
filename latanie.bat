@@ -20,7 +20,11 @@ echo.
 echo Mozg muchy w locie otworzy sie w przegladarce: co widzi, neurony wzrokowe,
 echo haltery, neurony zstepujace, motoneurony i komendy skrzydel.
 echo.
-".venv\Scripts\python.exe" -m wingloop.lab watch
+set TRYB=
+set /p TRYB=Tryb: szybki (zalecany) / dokladny (pelna fizyka skrzydel, ok. 40x wolniej) [szybki]: 
+set SZYBKO=--szybko
+if /i "%TRYB%"=="dokladny" set SZYBKO=
+".venv\Scripts\python.exe" -m wingloop.lab watch %SZYBKO%
 if errorlevel 1 (
   echo.
   echo Cos poszlo nie tak. Skopiuj tekst powyzej i wklej go w czacie.

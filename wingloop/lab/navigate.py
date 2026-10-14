@@ -199,6 +199,10 @@ class Navigator:
     #: after 0.12 s, the place it records falls short of the object, and it
     #: came back to objects it had already reached.
     settle_speed: float | None = None
+    #: Looks from home that find nothing before it calls the mission done. A
+    #: single look is noisy: one measured mission ended at once, both its
+    #: targets valued just below zero on the first turn.
+    patience: int = 2
     #: What the world gives the fly where it lands, ``reward(x, y)`` ->
     #: dopamine (+ reward, - punishment, 0 nothing), or None for no learning
     #: in flight. The sugar on the target in the real experiment.
@@ -220,6 +224,7 @@ class Navigator:
         self._moving = 0.0
         self._since = 0.0
         self._lost = 0.0
+        self._empty_looks = 0
         self._home = (0.0, 0.0)
         self.heading = 0.0
 
@@ -396,11 +401,16 @@ class Navigator:
         if liked:
             self._target = max(liked, key=lambda s: s.valence)
             self._since = 0.0
+            self._empty_looks = 0
             self.phase = "approach"
         elif np.hypot(here[0] - self._home[0], here[1] - self._home[1]) > 20.0:
             self.phase = "home"
         else:
-            self.phase = "done"
+            self._empty_looks += 1
+            if self._empty_looks < self.patience:
+                self._rescan()
+            else:
+                self.phase = "done"
 
     def _rescan(self) -> None:
         self.phase = "scan"

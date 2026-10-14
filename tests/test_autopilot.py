@@ -104,10 +104,11 @@ def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
     """Change an object's size and this fails: run ``flylab cel --od-nowa`` and ship that."""
     from wingloop.lab import autopilot
 
-    with np.load(autopilot.SHIPPED) as d:
-        assert str(d["signature"]) == autopilot._signature(90, 0)
-        assert d["F"].shape == (90, 325)
-        assert sorted(set(d["K"].tolist())) == sorted(arena.KINDS)
+    for every_ms in (5.0, 20.0):  # the full simulation's eye, and the fast mode's
+        with np.load(autopilot.shipped(every_ms)) as d:
+            assert str(d["signature"]) == autopilot._signature(90, 0, every_ms)
+            assert d["F"].shape == (90, 325)
+            assert sorted(set(d["K"].tolist())) == sorted(arena.KINDS)
 
 
 # --------------------------------------------------------------- navigating

@@ -48,6 +48,8 @@ NAVIGATOR = {"scan_rate": SCAN_RATE, "settle_speed": 6.0}
 class DroneFlight:
     """A Crazyflie with the interface of :class:`~.watch.Flight`, in arena units."""
 
+    who = "Dron"
+
     def __init__(
         self,
         height_mm: float = 5.0,

@@ -166,6 +166,39 @@ once, it found every target -- 2 of 2 three times -- with 1-2 landings on
 something else per mission, in 42-60 s of flight; the simulation runs about
 nine times slower than real time, the optic lobe taking most of it.
 
+**The fast mode.** `--szybko` (the default in `latanie.bat` and `cel.bat`,
+which ask) replaces the full simulation with a reduced-order fly fitted to
+it, and steps the optic lobe at the 20 ms it was trained at rather than 5.
+The full simulation was flown through pitch, heading and height steps and
+its answers turned out simple: forward speed 30 + 22.3 mm/s per degree of
+pitch with a 0.12 s lag; heading a critically damped loop at 28 rad/s
+hovering, 17 at 290 mm/s; height one at 20 rad/s, the throttle loop's own.
+`wingloop/lab/fastfly.py` is those numbers, and a test replays the recorded
+full-physics flights through it (speed within 15-35 mm/s RMS, heading within
+4-8 degrees, 20 on a 135-degree reversal where the full fly overshoots).
+The wings are drawn beating from the stroke generator; the flight does not
+come from them. The tethered lesson is shipped for both eye rates -- at 20
+ms it is better, 91-100% on new views, and takes 91 s to compute instead of
+489.
+
+| | full physics | fast mode |
+| --- | --- | --- |
+| a mission, computed | 6-21 min for 5-25 s of flight | 18-32 s for 12-20 s |
+| targets found, 9 missions | 16 of 18, 8 mistakes | 16 of 18, 9 mistakes |
+| the drone, targets found | 6 of 6 (3 missions) | 9 of 12, 7 mistakes (6 missions) |
+
+The drone does a little worse in the fast mode: its valences come out a
+shade lower than the fly's, enough that once both targets were judged just
+below zero and it never set off. It turns at 90 deg/s while the tethered
+lesson turns the panorama at the fly's 240, and at the coarser eye step that
+difference shows. (The fast fly also got `patience`: a mission ends after
+two empty looks from home, not one; the full-physics table above was
+measured before it.) Without a graphics card the 3-D window costs more than
+the flying -- here, in software, the fast mode runs 7-9 times slower than
+real time with the window and 1.5 times without; the window draws at most
+30 frames a second for that reason, and the fly is never let fly faster than
+a fly.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
@@ -1401,7 +1434,7 @@ as what it is -- lost margin, the worst attitude swing going from 10.9 to
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 147 tests, about forty minutes on one core
+pytest -q             # 158 tests, about forty minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
 pytest -q -n 4        # with pytest-xdist: about ten minutes on four cores
 ```

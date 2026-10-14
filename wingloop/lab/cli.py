@@ -6,9 +6,9 @@
     flylab drone   --memory memory.npz [--object bar@120:5]  autonomous mission
     flylab demo                                              all of it, one report
     flylab check                                             is everything installed?
-    flylab watch                                             3-D window, fly it yourself
+    flylab watch   [--szybko]                                3-D window, fly it yourself
     flylab video   [--seconds 2.4] [--cel kula]              a flight as MP4
-    flylab cel     kula [--seed 0] [--bez-okna] [--dron]     it flies to its targets alone
+    flylab cel     kula [--seed 0] [--dron] [--szybko]       it flies to its targets alone
 
 ``python -m wingloop.lab ...`` does the same where ``flylab`` is not on PATH.
 
@@ -210,7 +210,7 @@ def cmd_watch(args) -> dict:
     """Open the 3-D window and fly the fly from the keyboard."""
     from .watch import interactive
 
-    interactive(brain=not args.no_brain, pretty=args.pretty)
+    interactive(brain=not args.no_brain, pretty=args.pretty, fast=args.szybko)
     return {}
 
 
@@ -227,6 +227,7 @@ def cmd_video(args) -> dict:
             seed=args.seed,
             seconds=args.seconds or (60.0 if args.dron else 30.0),
             drone=args.dron,
+            fast=args.szybko,
         )
     else:
         from .watch import video
@@ -251,19 +252,22 @@ def cmd_cel(args) -> dict:
             pretty=args.pretty,
             retrain=args.od_nowa,
             drone=args.dron,
+            fast=args.szybko,
         )
         return {}
     from . import arena
-    from .autopilot import _print_valence, learned, run
+    from .autopilot import EYE_MS, _print_valence, learned, run
     from .watch import FlysEye
 
     items = arena.mission(args.seed, per_kind=args.ile)
-    eye = FlysEye(items=items)
+    eye = FlysEye(items=items, every_ms=EYE_MS[args.szybko])
     mb, valence = learned(eye, targets, retrain=args.od_nowa)
     _print_valence(valence, targets)
     t0 = time.time()
     seconds = args.seconds or (60.0 if args.dron else 30.0)
-    pilot = run(items, mb, eye, valence, targets, seconds=seconds, drone=args.dron)
+    pilot = run(
+        items, mb, eye, valence, targets, seconds=seconds, drone=args.dron, fast=args.szybko
+    )
     print(pilot.summary(), f"({time.time() - t0:.0f} s obliczeń)")
     return {"autopilot": pilot.status()}
 
@@ -370,6 +374,11 @@ def main(argv=None) -> None:
             )
             s.add_argument("--seed", type=int, default=0, help="which arena")
             s.add_argument("--dron", action="store_true", help="the mission flown by the drone")
+            s.add_argument(
+                "--szybko",
+                action="store_true",
+                help="fast mode: a model of the fly fitted to the physics, eye at 20 ms",
+            )
         if name == "cel":
             s.add_argument(
                 "target",
@@ -387,12 +396,22 @@ def main(argv=None) -> None:
             )
             s.add_argument("--bez-okna", action="store_true", help="no window: just fly")
             s.add_argument("--od-nowa", action="store_true", help="teach again from scratch")
+            s.add_argument(
+                "--szybko",
+                action="store_true",
+                help="fast mode: a model of the fly fitted to the physics, eye at 20 ms",
+            )
             s.add_argument("--pretty", action="store_true", help="shadows on (slower)")
         if name == "watch":
             s.add_argument(
                 "--no-brain", action="store_true", help="no optic lobe: lighter, flies faster"
             )
             s.add_argument("--pretty", action="store_true", help="shadows on (slower)")
+            s.add_argument(
+                "--szybko",
+                action="store_true",
+                help="fast mode: a model of the fly fitted to the physics, eye at 20 ms",
+            )
         if name == "demo":
             s.add_argument("--dir", default="flylab-run")
             s.add_argument("--sessions", type=int, default=16)

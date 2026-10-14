@@ -21,6 +21,10 @@ set KTO=
 set /p KTO=Kto leci: mucha / dron (dron z mozgiem muchy) [mucha]: 
 set DRON=
 if /i "%KTO%"=="dron" set DRON=--dron
+set TRYB=
+set /p TRYB=Tryb: szybki (zalecany) / dokladny (pelna fizyka skrzydel, ok. 40x wolniej) [szybki]: 
+set SZYBKO=--szybko
+if /i "%TRYB%"=="dokladny" set SZYBKO=
 set ARENA=
 set /p ARENA=Ktora arena (liczba, kazda inaczej rozstawiona) [0]: 
 if "%ARENA%"=="" set ARENA=0
@@ -28,7 +32,7 @@ echo.
 echo W oknie 3D: spacja - pauza, C - kamera za mucha / swobodna (mysz).
 echo W przegladarce: mapa areny, oceny obiektow i mozg muchy na zywo.
 echo.
-".venv\Scripts\python.exe" -m wingloop.lab cel %CEL% --seed %ARENA% %DRON%
+".venv\Scripts\python.exe" -m wingloop.lab cel %CEL% --seed %ARENA% %DRON% %SZYBKO%
 if errorlevel 1 (
   echo.
   echo Cos poszlo nie tak. Skopiuj tekst powyzej i wklej go w czacie.

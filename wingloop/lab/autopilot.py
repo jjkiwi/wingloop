@@ -61,17 +61,28 @@ VIEWS = "flylab_widoki_na_uwiezi.npz"
 SHIPPED = Path(__file__).with_name("data") / "tethered_views.npz"
 
 
-def _signature(samples: int, seed: int) -> str:
+def shipped(every_ms: float = 5.0) -> Path:
+    """The shipped views for an eye stepped every ``every_ms``: 5, or 20 in the fast mode."""
+    if every_ms == 5.0:
+        return SHIPPED
+    return SHIPPED.with_name(f"tethered_views_{every_ms:g}ms.npz")
+
+
+def _signature(samples: int, seed: int, every_ms: float = 5.0) -> str:
     """What the views depend on; a saved file with another signature is stale."""
     sizes = {k: v["size"] for k, v in arena.KINDS.items()}
-    return f"v3 {samples} {seed} lead 120-180 {sizes}"
+    eye = "" if every_ms == 5.0 else f" eye {every_ms:g} ms"
+    return f"v3 {samples} {seed} lead 120-180 {sizes}{eye}"
 
 
 def views(fly_eye, folder=".", samples: int = 90, seed: int = 0, fresh=False, progress=print):
     """The tethered fly's look at every kind: (features, kinds), from disk if seen before."""
+    every_ms = getattr(fly_eye, "every_ms", 5.0)
     path = Path(folder) / VIEWS
-    sig = _signature(samples, seed)
-    for saved in (path, SHIPPED):
+    if every_ms != 5.0:
+        path = path.with_name(path.stem + f"_{every_ms:g}ms.npz")
+    sig = _signature(samples, seed, every_ms)
+    for saved in (path, shipped(every_ms)):
         if saved.exists() and not fresh:
             with np.load(saved) as d:
                 if str(d["signature"]) == sig:
@@ -137,7 +148,7 @@ class Autopilot:
         # The fly, or anything with its interface -- the drone of
         # :mod:`.dronebrain` is one.
         self.flight = vehicle if vehicle is not None else Flight(height_mm=height)
-        self.who = "Muszka" if vehicle is None else "Dron"
+        self.who = getattr(self.flight, "who", "Muszka")
         self.valence = valence or {}
         liked = {k for k, v in self.valence.items() if v > 0}
         self.targets = set(targets) if targets else liked
@@ -274,9 +285,10 @@ def run(
     seconds: float = 20.0,
     report=print,
     drone: bool = False,
+    fast: bool = False,
 ):
     """The mission without a window: returns the :class:`Autopilot` when it ends."""
-    pilot = _pilot(items, mushroom_body, eye, valence, targets, drone)
+    pilot = _pilot(items, mushroom_body, eye, valence, targets, drone, fast)
     last = None
     while pilot.flight.t < seconds and not pilot.done:
         pilot.step()
@@ -302,19 +314,24 @@ def window(
     retrain: bool = False,
     folder=".",
     drone: bool = False,
+    fast: bool = False,
 ) -> None:
-    """Teach, then open the 3-D window and the brain page, and let it fly."""
+    """Teach, then open the 3-D window and the brain page, and let it fly.
+
+    ``fast``: the fast fly of :mod:`.fastfly` (or, for the drone, only the
+    faster eye), the optic lobe at its trained 20 ms, kept to real time.
+    """
     from .livebrain import LiveBrain
     from .watch import FlysEye, Pilot
 
     items = arena.mission(seed, per_kind=per_kind)
     print("Wczytuję oko muchy (flyvis)...")
-    eye = FlysEye(items=items)  # before MuJoCo; see watch.interactive
+    eye = FlysEye(items=items, every_ms=EYE_MS[fast])  # before MuJoCo; see watch.interactive
     mb, valence = learned(eye, targets, folder=folder, retrain=retrain)
     _print_valence(valence, targets)
     import mujoco.viewer
 
-    pilot = _pilot(items, mb, eye, valence, targets, drone)
+    pilot = _pilot(items, mb, eye, valence, targets, drone, fast)
     view, keys = _view(drone, pretty, items), Pilot()
     live = LiveBrain(eye.eye)
     print(f"Strona z mózgiem i autopilotem: {live.url}")
@@ -326,28 +343,36 @@ def window(
     )
     try:
         with mujoco.viewer.launch_passive(view.model, view.data, key_callback=keys.key) as v:
-            wall0, last_snap, ended = time.time(), 0.0, False
+            wall0, last_snap, last_frame, ended = time.time(), 0.0, 0.0, False
             while v.is_running():
                 with keys.lock:
                     paused, follow = keys.paused, keys.follow
                 if paused or ended:
                     time.sleep(0.03)
+                    wall0 += 0.03  # a pause is not flight time
                     v.sync()
                     continue
                 pilot.step()
+                ahead = pilot.flight.t - (time.time() - wall0)
+                if fast and ahead > 0:  # no faster than the animal
+                    time.sleep(min(0.05, ahead))
                 if not pilot.flight.upright():
                     print(
                         f"\n{pilot.who}: utrata panowania nad lotem."
                         " Zamknij okno i spróbuj ponownie."
                     )
                     ended = True
-                view.show(pilot.flight)
-                if follow:
-                    heading = pilot.flight.state()["heading"]
-                    with v.lock():
-                        view.chase(v.cam, heading, distance=CHASE[drone])
-                v.sync()
                 now = time.time()
+                if now - last_frame > FRAME_S or not fast:
+                    # Drawing is the expensive part once the fly itself is
+                    # cheap, so the fast mode draws at most 30 frames a second.
+                    view.show(pilot.flight)
+                    if follow:
+                        heading = pilot.flight.state()["heading"]
+                        with v.lock():
+                            view.chase(v.cam, heading, distance=CHASE[drone])
+                    v.sync()
+                    last_frame = now
                 if now - last_snap > 0.25:
                     sim = pilot.flight.t
                     live.update(
@@ -368,13 +393,22 @@ def window(
         live.close()
 
 
+#: How often the eye looks, ms: every 5 for the full simulation, every 20 --
+#: the step the optic lobe was trained at -- in the fast mode.
+EYE_MS = {False: 5.0, True: 20.0}
+#: Seconds between drawn frames in the fast mode.
+FRAME_S = 1.0 / 30.0
 #: How far behind the camera follows: the fly, and the drone.
 CHASE = {False: 22.0, True: 12.0}
 
 
-def _pilot(items, mb, eye, valence, targets, drone: bool) -> Autopilot:
-    """The autopilot on the fly, or on the drone with the fly's brain."""
+def _pilot(items, mb, eye, valence, targets, drone: bool, fast: bool = False) -> Autopilot:
+    """The autopilot on the fly (the full physics, or the fast fly), or on the drone."""
     if not drone:
+        if fast:
+            from .fastfly import FastFly
+
+            return Autopilot(items, mb, eye, valence, targets, vehicle=FastFly())
         return Autopilot(items, mb, eye, valence, targets)
     from .dronebrain import NAVIGATOR, DroneFlight
 
@@ -411,6 +445,7 @@ def video(
     folder=".",
     retrain: bool = False,
     drone: bool = False,
+    fast: bool = False,
 ) -> Path:
     """Record a whole mission: the chase view, with the map and the fly's eye beside it.
 
@@ -425,11 +460,11 @@ def video(
         frame_ms = 33.0 if drone else 10.0
 
     items = arena.mission(seed, per_kind=per_kind)
-    eye = FlysEye(items=items)
+    eye = FlysEye(items=items, every_ms=EYE_MS[fast])
     mb, valence = learned(eye, targets, folder=folder, retrain=retrain)
     import mujoco
 
-    pilot = _pilot(items, mb, eye, valence, targets, drone)
+    pilot = _pilot(items, mb, eye, valence, targets, drone, fast)
     view = _view(drone, True, items)
     renderer = mujoco.Renderer(view.model, height, width)
     cam = mujoco.MjvCamera()
