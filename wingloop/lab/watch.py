@@ -406,6 +406,14 @@ class FlysEye:
         self.image = np.zeros((64, 64), dtype=np.float32)
         self.activity = None
 
+    def set_items(self, items) -> None:
+        """A new arena for the same eye: the objects change, the optic lobe stays."""
+        from .arena import eye_things
+        from .scene import World
+
+        self.world = World(self.background + eye_things(items), ground_height=FLOOR)
+        self.eye.reset()
+
     def look(self, body) -> None:
         """Render the fly's view from where the physics has it, and step the optic lobe."""
         R = body.data.xmat[body.root_body].reshape(3, 3)

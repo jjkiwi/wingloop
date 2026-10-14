@@ -9,6 +9,7 @@
     flylab watch   [--szybko]                                3-D window, fly it yourself
     flylab video   [--seconds 2.4] [--cel kula]              a flight as MP4
     flylab cel     kula [--seed 0] [--dron] [--szybko]       it flies to its targets alone
+    flylab trening kula [--misje 15] [--dron]                practice: fewer mistakes
 
 ``python -m wingloop.lab ...`` does the same where ``flylab`` is not on PATH.
 
@@ -261,7 +262,7 @@ def cmd_cel(args) -> dict:
 
     items = arena.mission(args.seed, per_kind=args.ile)
     eye = FlysEye(items=items, every_ms=EYE_MS[args.szybko])
-    mb, valence = learned(eye, targets, retrain=args.od_nowa)
+    mb, valence = learned(eye, targets, retrain=args.od_nowa, drone=args.dron)
     _print_valence(valence, targets)
     t0 = time.time()
     seconds = args.seconds or (60.0 if args.dron else 30.0)
@@ -270,6 +271,31 @@ def cmd_cel(args) -> dict:
     )
     print(pilot.summary(), f"({time.time() - t0:.0f} s obliczeń)")
     return {"autopilot": pilot.status()}
+
+
+def cmd_trening(args) -> dict:
+    """Practice flights: it learns from every landing, and remembers."""
+    from .autopilot import POLISH, kind_of, practise
+
+    targets = {kind_of(n) for n in args.target}
+    who = "Dron" if args.dron else "Muszka"
+    print(
+        f"{who} trenuje: {args.misje} misji na nowych arenach, cel: "
+        + ", ".join(POLISH[t] for t in sorted(targets))
+        + ". Po każdym lądowaniu nagroda (cel) albo kara (nie cel)."
+    )
+    t0 = time.time()
+    curve = practise(targets, missions=args.misje, drone=args.dron, fast=not args.dokladnie)
+    new = curve[-args.misje :]
+    half = max(1, len(new) // 2)
+    first, last = new[:half], new[half:] or new[:half]
+    print(
+        f"Pomyłki na misję: {np.mean([r[1] for r in first]):.1f} na początku treningu,"
+        f" {np.mean([r[1] for r in last]):.1f} na końcu; cele: "
+        f"{np.mean([r[0] for r in first]):.1f} i {np.mean([r[0] for r in last]):.1f}"
+        f" z 2. ({time.time() - t0:.0f} s)"
+    )
+    return {"trening": [list(r) for r in curve]}
 
 
 def cmd_report(args) -> dict:
@@ -324,6 +350,7 @@ COMMANDS = {
     "watch": (cmd_watch, "3-D window: fly the fly from the keyboard"),
     "video": (cmd_video, "fly a scripted tour (or a mission: --cel) and save it as an MP4"),
     "cel": (cmd_cel, "teach it targets, then it flies to them on its own"),
+    "trening": (cmd_trening, "practice flights: it learns from every landing"),
     "demo": (cmd_demo, "everything, one report"),
 }
 
@@ -378,6 +405,13 @@ def main(argv=None) -> None:
                 "--szybko",
                 action="store_true",
                 help="fast mode: a model of the fly fitted to the physics, eye at 20 ms",
+            )
+        if name == "trening":
+            s.add_argument("target", nargs="*", default=["kula"], help="kula, płytka, słupek")
+            s.add_argument("--misje", type=int, default=15, help="practice missions")
+            s.add_argument("--dron", action="store_true", help="the drone practises")
+            s.add_argument(
+                "--dokladnie", action="store_true", help="full physics (about 40x slower)"
             )
         if name == "cel":
             s.add_argument(

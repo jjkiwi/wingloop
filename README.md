@@ -199,6 +199,51 @@ real time with the window and 1.5 times without; the window draws at most
 30 frames a second for that reason, and the fly is never let fly faster than
 a fly.
 
+**Practice: fewer mistakes.** `flylab trening kula --misje 15` (or
+`trening.bat`) sends the fly -- or, with `--dron`, the drone -- on practice
+missions in new arenas, in the fast mode. Its brain carries over from one
+mission to the next, so every landing teaches it: reward on a target,
+punishment on anything else, onto the Kenyon cells of the view it chose on.
+Those are the views it really has in flight, which the tethered lesson only
+approximates, and the punished ones are exactly its mistakes. What it learned
+is saved (`pamiec_kula_20ms.npz` and the like, per target, body and eye
+rate), `flylab cel` loads it by itself, and another practice session builds
+on it; `--od-nowa` goes back to the tether.
+
+Measured on six arenas it never practised in, before and after fifteen
+practice missions:
+
+| target | tethered lesson only | after practice |
+| --- | --- | --- |
+| ball | 12 of 12 targets, 14 mistakes | 10 of 12, 6 mistakes |
+| slab | 11 of 12, 6 mistakes | 12 of 12, 2 mistakes |
+| pole | 9 of 12, no mistakes | 11 of 12, 4 mistakes |
+| all | 32 of 36, 20 mistakes | 33 of 36, 12 mistakes |
+
+The drone, the same way (its own practice, its own memory):
+
+| target | tethered lesson only | after practice |
+| --- | --- | --- |
+| ball | 9 of 12 targets, 8 mistakes | 10 of 12, 4 mistakes |
+| slab | 12 of 12, 8 mistakes | 12 of 12, 2 mistakes |
+| pole | 8 of 12, 1 mistake | 12 of 12, 6 mistakes |
+| all | 29 of 36, 17 mistakes | 34 of 36, 12 mistakes |
+
+Practice helps both: fewer mistakes on the ball and the slab, and on the
+pole, where the tethered lesson left them too cautious to find their
+targets, more targets -- bought with some mistakes, since a reward makes
+what looks like a pole more attractive and a few other things look a little
+like one. Six test arenas are few, and single missions vary by a target or
+two either way; the totals are the numbers to read.
+
+Two things came with it. Practice makes the fly choosier, and a choosier
+fly sometimes liked nothing at all and ended its mission on the spot with
+both targets in view; so when it has landed nowhere and likes nothing it is
+now *curious* -- it tries the most promising object once and learns from
+what is there. And the dose: half the dopamine per landing kept more
+targets on the ball (11 of 12) but cut the mistakes far less (9-10 against
+3-5), so a landing gets the tether's full dose.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
@@ -1434,7 +1479,7 @@ as what it is -- lost margin, the worst attitude swing going from 10.9 to
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 158 tests, about forty minutes on one core
+pytest -q             # 159 tests, about forty minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
 pytest -q -n 4        # with pytest-xdist: about ten minutes on four cores
 ```

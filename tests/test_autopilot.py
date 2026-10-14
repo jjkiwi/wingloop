@@ -227,11 +227,22 @@ def test_where_it_lands_it_is_rewarded_or_punished_for_what_it_chose():
     assert taught == [(0.2, -1.0), (0.3, 1.0)]
 
 
-def test_a_fly_that_likes_nothing_stays_put():
+def test_a_fly_that_likes_nothing_tries_the_most_promising_thing_once():
+    """Curiosity: with nothing liked and nowhere landed, it checks the best, then stops."""
     world = [(65.0, 0.0, "bar"), (-40.0, 50.0, "slab")]
     nav, path = _fly(world, {"bar": -0.2, "slab": -0.1})
+    assert nav.phase == "done" and len(nav.visited) == 1
+    assert np.hypot(path[:, 0] + 40, path[:, 1] - 50).min() < 30  # the slab, valued higher
+    assert np.hypot(path[:, 0] - 65, path[:, 1]).min() > 40
+    # Without curiosity it stays put.
+    eye, nav = _Eye(world, {"bar": -0.2, "slab": -0.1}), Navigator(_Judge(), curious=False)
+    nav.start(0.0)
+    for k in range(4000):
+        eye.pose = (0.0, 0.0, nav.heading)
+        nav.decide(eye, dict(t=k * 0.005, x=0.0, y=0.0, heading=nav.heading), 0.005)
+        if nav.phase == "done":
+            break
     assert nav.phase == "done" and not nav.visited
-    assert np.abs(path).max() < 1.0
 
 
 # -------------------------------------------------------------- the display
@@ -338,3 +349,41 @@ def test_the_fly_flies_to_its_target_by_itself(tmp_path):
         pilot.step()
         assert pilot.flight.upright()
     assert [it.kind for it in pilot.reached()] == ["sphere"]
+
+
+def test_practice_memory_is_what_the_next_mission_flies_with(tmp_path, monkeypatch):
+    """A memory left by practice is loaded, for its targets, body and eye rate only."""
+    from wingloop.lab import autopilot
+    from wingloop.lab.learning import save
+
+    rng = np.random.default_rng(3)
+    centres = {k: rng.normal(0, 1, 40) for k in arena.KINDS}
+
+    def look(eye, kinds, samples, seed, progress):
+        K = np.array([kinds[i % len(kinds)] for i in range(samples)])
+        return np.array([centres[k] + rng.normal(0, 0.4, 40) for k in K]), K
+
+    monkeypatch.setattr(autopilot, "tethered_training", look)
+    monkeypatch.setattr(autopilot, "SHIPPED", tmp_path / "not-shipped.npz")
+
+    class Eye:
+        every_ms = 20.0
+
+    tether, _ = autopilot.learned(Eye(), {"sphere"}, folder=tmp_path, progress=None)
+    practised = autopilot.teach_targets(
+        *look(None, tuple(arena.KINDS), 90, 0, None), {"sphere"}
+    )[0]
+    practised.approach[:] = 0.5  # what flights taught it, recognisably
+    path = autopilot.memory_path({"sphere"}, False, 20.0, tmp_path)
+    save(practised, path)
+    mb, _ = autopilot.learned(Eye(), {"sphere"}, folder=tmp_path, progress=None)
+    assert np.allclose(mb.approach, 0.5) and not np.allclose(tether.approach, 0.5)
+    # Not for the drone, not for another target, not when told to start again.
+    for kw, targets in (
+        ({"drone": True}, {"sphere"}),
+        ({}, {"bar"}),
+        ({"retrain": True}, {"sphere"}),
+    ):
+        other, _ = autopilot.learned(Eye(), targets, folder=tmp_path, progress=None, **kw)
+        assert not np.allclose(other.approach, 0.5)
+    assert path.name == "pamiec_kula_20ms.npz"

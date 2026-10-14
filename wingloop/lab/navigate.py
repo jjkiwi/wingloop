@@ -203,6 +203,11 @@ class Navigator:
     #: single look is noisy: one measured mission ended at once, both its
     #: targets valued just below zero on the first turn.
     patience: int = 2
+    #: With nothing liked and nowhere landed yet, try the most promising
+    #: object anyway, and learn from what is there. Practice makes a fly
+    #: choosier, and measured, a practised fly sometimes liked nothing at all
+    #: and ended its mission on the spot with both targets in view.
+    curious: bool = True
     #: What the world gives the fly where it lands, ``reward(x, y)`` ->
     #: dopamine (+ reward, - punishment, 0 nothing), or None for no learning
     #: in flight. The sugar on the target in the real experiment.
@@ -407,8 +412,15 @@ class Navigator:
             self.phase = "home"
         else:
             self._empty_looks += 1
+            unvisited = [
+                s for s in self.sightings if not self._already_visited(here, s.heading)
+            ]
             if self._empty_looks < self.patience:
                 self._rescan()
+            elif self.curious and not self.visited and unvisited:
+                self._target = max(unvisited, key=lambda s: s.valence)
+                self._since = 0.0
+                self.phase = "approach"
             else:
                 self.phase = "done"
 

@@ -115,10 +115,110 @@ def teach_targets(F, K, targets, seed: int = 0):
     return mb, valence
 
 
-def learned(fly_eye, targets, folder=".", retrain: bool = False, progress=print):
-    """Look on the tether (or remember having looked), then learn the targets."""
+def learned(
+    fly_eye, targets, folder=".", retrain: bool = False, progress=print, drone: bool = False
+):
+    """What the brain knows about these targets.
+
+    The memory left by practice flights (:func:`practise`) if there is one for
+    these targets, this body and this eye; otherwise the tethered lesson.
+    ``retrain`` ignores both and starts again from the tether.
+    """
     F, K = views(fly_eye, folder, fresh=retrain, progress=progress)
+    path = memory_path(targets, drone, getattr(fly_eye, "every_ms", 5.0), folder)
+    if path.exists() and not retrain:
+        from .learning import load
+
+        mb = load(path)
+        with np.load(path) as d:
+            flown = int(d["missions"]) if "missions" in d else 0
+        if progress:
+            progress(f"Wczytuję pamięć z treningu: {path} ({flown} misji treningowych)")
+        kinds = tuple(arena.KINDS)
+        valence = {k: float(np.mean([mb.valence(f) for f in F[K == k]])) for k in kinds}
+        return mb, valence
     return teach_targets(F, K, targets)
+
+
+def memory_path(targets, drone: bool = False, every_ms: float = 5.0, folder=".") -> Path:
+    """Where practice flights leave what was learned, per targets, body and eye rate."""
+    names = "+".join(POLISH[t] for t in sorted(targets))
+    names = names.replace("ł", "l").replace("ó", "o")
+    body = "_dron" if drone else ""
+    return Path(folder) / f"pamiec_{names}{body}_{every_ms:g}ms.npz"
+
+
+#: Dopamine of a lesson in flight, as a fraction of the tether's full dose.
+LESSON = 1.0
+
+
+def practise(
+    targets,
+    missions: int = 15,
+    drone: bool = False,
+    fast: bool = True,
+    folder=".",
+    progress=print,
+) -> list:
+    """Practice flights: missions in new arenas, learning from every landing.
+
+    The brain is the same from one mission to the next, so what it learns
+    where it lands -- reward on a target, punishment on anything else --
+    accumulates, on the views it actually has in flight rather than on the
+    tether's. Picks up from earlier practice if there was some. Returns, per
+    mission, (targets found, mistakes, seconds flown).
+    """
+    from .learning import save
+    from .watch import FlysEye
+
+    eye = FlysEye(items=(), every_ms=EYE_MS[fast])
+    mb, valence = learned(eye, targets, folder=folder, progress=progress, drone=drone)
+    path = memory_path(targets, drone, eye.every_ms, folder)
+    done, curve = 0, []
+    if path.exists():
+        with np.load(path) as d:
+            done = int(d["missions"]) if "missions" in d else 0
+            curve = [tuple(r) for r in d["curve"].tolist()] if "curve" in d else []
+    who = "Dron" if drone else "Muszka"
+    for i in range(missions):
+        # Practice arenas are numbered from 1000 up, apart from the ones
+        # missions are flown in (0, 1, 2 ...), so the test is on new ground.
+        seed = 1000 + done + i
+        items = arena.mission(seed, per_kind=2)
+        eye.set_items(items)
+        pilot = run(
+            items,
+            mb,
+            eye,
+            valence,
+            targets,
+            seconds=60.0 if drone else 30.0,
+            report=None,
+            drone=drone,
+            fast=fast,
+        )
+        wanted = [it for it in items if it.kind in targets]
+        reached = pilot.reached()
+        row = (
+            sum(it in reached for it in wanted),
+            sum(it not in wanted for it in reached),
+            round(pilot.flight.t, 1),
+        )
+        curve.append(row)
+        if progress:
+            progress(
+                f"  misja treningowa {done + i + 1}: {row[0]} z {len(wanted)} celów,"
+                f" pomyłki: {row[1]}  ({row[2]} s lotu)"
+            )
+    save(mb, path)
+    with np.load(path) as d:
+        everything = dict(d)
+    np.savez_compressed(
+        path, **everything, missions=np.array(done + missions), curve=np.array(curve)
+    )
+    if progress:
+        progress(f"{who}: pamięć zapisana w {path}")
+    return curve
 
 
 class Autopilot:
@@ -186,11 +286,11 @@ class Autopilot:
             self.trail.append((round(s["x"], 1), round(s["y"], 1)))
 
     def reward(self, x: float, y: float) -> float:
-        """The world's answer where the fly lands: +1 on a target, -1 on anything else."""
+        """The world's answer where the fly lands: reward on a target, punishment elsewhere."""
         item, d = nearest(self.items, x, y)
         if d > 30.0:
             return 0.0
-        return 1.0 if item.kind in self.targets else -1.0
+        return LESSON if item.kind in self.targets else -LESSON
 
     def reached(self) -> list:
         """The items the fly has flown to, in order."""
@@ -327,7 +427,7 @@ def window(
     items = arena.mission(seed, per_kind=per_kind)
     print("Wczytuję oko muchy (flyvis)...")
     eye = FlysEye(items=items, every_ms=EYE_MS[fast])  # before MuJoCo; see watch.interactive
-    mb, valence = learned(eye, targets, folder=folder, retrain=retrain)
+    mb, valence = learned(eye, targets, folder=folder, retrain=retrain, drone=drone)
     _print_valence(valence, targets)
     import mujoco.viewer
 
@@ -461,7 +561,7 @@ def video(
 
     items = arena.mission(seed, per_kind=per_kind)
     eye = FlysEye(items=items, every_ms=EYE_MS[fast])
-    mb, valence = learned(eye, targets, folder=folder, retrain=retrain)
+    mb, valence = learned(eye, targets, folder=folder, retrain=retrain, drone=drone)
     import mujoco
 
     pilot = _pilot(items, mb, eye, valence, targets, drone, fast)
