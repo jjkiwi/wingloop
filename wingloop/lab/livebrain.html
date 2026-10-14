@@ -117,7 +117,7 @@ footer li { margin: 4px 0; }
   </div>
 
   <section id="auto" hidden>
-  <h2>Autopilot: muszka leci sama</h2>
+  <h2 id="a-title">Autopilot: muszka leci sama</h2>
   <p class="lead">Nikt nią nie steruje. Muszka obraca się w miejscu, zatrzymuje wzrok na każdym ciemnym
   obiekcie i pyta swoje ciało grzybkowate, ile jest wart. Leci do najlepszego, hamuje, gdy rośnie
   w oczach, a potem rozgląda się za następnym. Gdy nic nie widzi, wraca na start i patrzy stamtąd.</p>
@@ -330,9 +330,11 @@ function drawMap(a) {
 }
 function renderAuto(a) {
   $('auto').hidden = false;
-  $('a-phase').textContent = 'muszka ' + a.phase_pl;
+  const drone = a.who === 'Dron', la = drone ? '' : 'a';
+  $('a-phase').textContent = (drone ? 'dron ' : 'muszka ') + a.phase_pl;
+  if (drone) $('a-title').textContent = 'Autopilot: dron z mózgiem muchy leci sam';
   const left = a.targets_left;
-  $('a-reached').textContent = (a.reached.length ? 'Doleciała do: ' + a.reached.join(', ') + '. ' : 'Jeszcze nigdzie nie doleciała. ')
+  $('a-reached').textContent = (a.reached.length ? `Doleciał${la} do: ` + a.reached.join(', ') + '. ' : `Jeszcze nigdzie nie doleciał${la}. `)
     + (left ? `Zostało celów: ${left}.` : 'Wszystkie cele zaliczone.');
   const scale = (v) => v / 0.5;
   $('a-now').innerHTML = a.valence_now === null ? '' :
@@ -345,7 +347,7 @@ function renderAuto(a) {
     : '<p>Jeszcze nic nie oceniła w tym rozejrzeniu.</p>';
   $('a-lessons').textContent = a.lessons && a.lessons.length
     ? a.lessons.map((l) => `${l.name}: ${l.dopamine > 0 ? 'nagroda' : 'kara'}`).join(', ')
-    : 'Jeszcze nigdzie nie wylądowała.';
+    : `Jeszcze nigdzie nie wylądował${la}.`;
   drawMap(a);
 }
 

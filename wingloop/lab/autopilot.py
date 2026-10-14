@@ -210,6 +210,7 @@ class Autopilot:
             now = float(nav.mushroom_body.valence(self.eye.eye.fovea_shape(self.eye.activity)))
         target = nav.target
         return {
+            "who": self.who,
             "phase": nav.phase,
             "phase_pl": describe(nav.phase),
             "valence_now": None if now is None else round(now, 3),
@@ -486,9 +487,11 @@ def _frame(scene: np.ndarray, pilot: Autopilot, frame_ms: float, fps: int) -> np
     st = pilot.status()
     slow = 1000.0 / (frame_ms * fps)
     lines = [
-        f"t = {pilot.flight.t:4.1f} s   ({slow:.0f}x zwolnione)",
-        f"muszka {st['phase_pl']}",
-        "doleciała do: " + (", ".join(st["reached"]) or "-"),
+        f"t = {pilot.flight.t:4.1f} s   "
+        + (f"({slow:.0f}x zwolnione)" if slow > 1.5 else "(tempo rzeczywiste)"),
+        f"{pilot.who.lower()} {st['phase_pl']}",
+        f"doleciał{'a' if pilot.who == 'Muszka' else ''} do: "
+        + (", ".join(st["reached"]) or "-"),
     ]
     if st["sightings"]:
         lines.append(
