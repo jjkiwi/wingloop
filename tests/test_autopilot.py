@@ -83,7 +83,7 @@ def test_the_tethered_views_are_looked_at_once_and_any_target_taught_from_them(
     rng = np.random.default_rng(2)
     centres = {k: rng.normal(0, 1, 40) for k in arena.KINDS}
 
-    def look(eye, kinds, samples, seed, progress):
+    def look(eye, kinds, samples, seed, progress, **kw):
         calls.append(samples)
         K = np.array([kinds[i % len(kinds)] for i in range(samples)])
         return np.array([centres[k] + rng.normal(0, 0.4, 40) for k in K]), K
@@ -93,11 +93,11 @@ def test_the_tethered_views_are_looked_at_once_and_any_target_taught_from_them(
     for target in ("sphere", "bar"):
         mb, valence = autopilot.learned(None, {target}, folder=tmp_path, progress=None)
         assert max(valence, key=valence.get) == target
-    assert calls == [90]  # looked once, taught twice
+    assert calls == [90, 90]  # looked once (scanning and close up), taught twice
     # A change to the objects makes the saved views stale.
     monkeypatch.setitem(arena.KINDS["bar"], "size", 9.0)
     autopilot.learned(None, {"bar"}, folder=tmp_path, progress=None)
-    assert calls == [90, 90]
+    assert calls == [90, 90, 90, 90]
 
 
 def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
@@ -105,10 +105,14 @@ def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
     from wingloop.lab import autopilot
 
     for every_ms in (5.0, 20.0):  # the full simulation's eye, and the fast mode's
-        with np.load(autopilot.shipped(every_ms)) as d:
-            assert str(d["signature"]) == autopilot._signature(90, 0, every_ms)
-            assert d["F"].shape == (90, 325)
-            assert sorted(set(d["K"].tolist())) == sorted(arena.KINDS)
+        for close in (False, True):  # scanning, and close up
+            for drone in (False, True):  # the fly's way of flying, and the drone's
+                path = autopilot.shipped(every_ms, close, drone)
+                with np.load(path) as d:
+                    sig = autopilot._signature(90, 0, every_ms, close, drone)
+                    assert str(d["signature"]) == sig, path.name
+                    assert d["F"].shape == (90, 325)
+                    assert sorted(set(d["K"].tolist())) == sorted(arena.KINDS)
 
 
 # --------------------------------------------------------------- navigating
@@ -150,7 +154,10 @@ class _Eye:
         seen = self._visible()
         if not seen:
             return np.zeros(1)
-        _, _, kind = min(seen, key=lambda v: abs(v[1]))
+        size, _, kind = min(seen, key=lambda v: abs(v[1]))
+        close = getattr(self, "close_value", {})
+        if kind in close and size > 0.015:  # what it really is, seen from near
+            return np.array([close[kind]])
         return np.array([self.value[kind]])
 
 
@@ -201,6 +208,54 @@ def test_turning_to_its_target_it_does_not_latch_onto_what_it_turns_past():
     nav, path = _fly(world, {"sphere": 0.3, "bar": -0.3})
     assert np.hypot(path[:, 0] + 35, path[:, 1] - 50).min() < 30
     assert np.hypot(path[:, 0] - 40, path[:, 1] - 40).min() > 40
+
+
+def test_a_closer_look_saves_a_landing_on_what_only_looked_right_from_afar():
+    """Liked from 65 mm, disliked from 45: it stops, looks, and does not land."""
+    world = [(65.0, 0.0, "bar")]
+
+    def fly(inspect):
+        eye, nav, dt = _Eye(world, {"bar": 0.3}), Navigator(_Judge(), inspect=inspect), 0.005
+        eye.close_value = {"bar": -0.3}
+        nav.curious = False
+        x = y = h = 0.0
+        nav.start(h)
+        t = 0.0
+        while t < 20.0 and nav.phase != "done":
+            eye.pose = (x, y, h)
+            pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+            h += np.clip(heading - h, -3.0, 3.0)
+            v = max(pitch, 0.0) * 20.0
+            x, y = x + v * dt * np.cos(np.deg2rad(h)), y + v * dt * np.sin(np.deg2rad(h))
+            t += dt
+        return nav
+
+    careful, hasty = fly(True), fly(False)
+    assert not careful.visited and [(round(v, 6), ok) for v, ok in careful.inspections] == [
+        (-0.3, False)
+    ]
+    assert len(hasty.visited) == 1
+
+
+def test_a_landing_teaches_the_far_view_it_chose_on_and_the_close_look():
+    """And landing on the same place again teaches nothing new."""
+    world = [(65.0, 0.0, "bar")]
+    eye, dt = _Eye(world, {"bar": 0.3}), 0.005
+    eye.close_value = {"bar": 0.1}
+    nav = Navigator(_Judge(), inspect=True, land_to_learn=True, reward=lambda x, y: -1.0)
+    nav.curious = False
+    x = y = h = t = 0.0
+    nav.start(h)
+    while t < 12.0 and nav.phase != "done":
+        eye.pose = (x, y, h)
+        pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+        h += np.clip(heading - h, -3.0, 3.0)
+        v = max(pitch, 0.0) * 20.0
+        x, y = x + v * dt * np.cos(np.deg2rad(h)), y + v * dt * np.sin(np.deg2rad(h))
+        t += dt
+    taught = [(round(f, 6), d) for f, d in nav.mushroom_body.taught]
+    assert (0.1, -1.0) in taught and (0.3, -1.0) in taught  # close look, far view
+    assert len(nav.lessons) == 1
 
 
 def test_with_nothing_liked_in_sight_it_goes_home_and_looks_from_there():
@@ -359,7 +414,7 @@ def test_practice_memory_is_what_the_next_mission_flies_with(tmp_path, monkeypat
     rng = np.random.default_rng(3)
     centres = {k: rng.normal(0, 1, 40) for k in arena.KINDS}
 
-    def look(eye, kinds, samples, seed, progress):
+    def look(eye, kinds, samples, seed, progress, **kw):
         K = np.array([kinds[i % len(kinds)] for i in range(samples)])
         return np.array([centres[k] + rng.normal(0, 0.4, 40) for k in K]), K
 
@@ -387,3 +442,13 @@ def test_practice_memory_is_what_the_next_mission_flies_with(tmp_path, monkeypat
         other, _ = autopilot.learned(Eye(), targets, folder=tmp_path, progress=None, **kw)
         assert not np.allclose(other.approach, 0.5)
     assert path.name == "pamiec_kula_20ms.npz"
+
+
+@needs_flyvis
+def test_the_exam_grades_what_it_knows_now(tmp_path):
+    from wingloop.lab.autopilot import GRADES, exam
+
+    result = exam({"slab"}, arenas=1, folder=tmp_path, progress=None)
+    found, mistakes, wanted = result["rows"][0]
+    assert wanted == 2 and 0 <= found <= 2 and mistakes >= 0
+    assert result["grade"] in [g for g, _, _ in GRADES]

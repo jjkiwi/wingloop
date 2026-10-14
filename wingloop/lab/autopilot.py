@@ -61,28 +61,56 @@ VIEWS = "flylab_widoki_na_uwiezi.npz"
 SHIPPED = Path(__file__).with_name("data") / "tethered_views.npz"
 
 
-def shipped(every_ms: float = 5.0) -> Path:
-    """The shipped views for an eye stepped every ``every_ms``: 5, or 20 in the fast mode."""
-    if every_ms == 5.0:
-        return SHIPPED
-    return SHIPPED.with_name(f"tethered_views_{every_ms:g}ms.npz")
+def shipped(every_ms: float = 5.0, close: bool = False, drone: bool = False) -> Path:
+    """The shipped views for an eye stepped every ``every_ms`` (5, or 20 in the fast
+    mode): the scanning ones, or with ``close`` the close looks before landing;
+    with ``drone``, the lesson replayed the way the drone flies."""
+    name = "tethered_views" + ("" if every_ms == 5.0 else f"_{every_ms:g}ms")
+    return SHIPPED.with_name(
+        name + ("_close" if close else "") + ("_dron" if drone else "") + ".npz"
+    )
 
 
-def _signature(samples: int, seed: int, every_ms: float = 5.0) -> str:
+def _signature(
+    samples: int, seed: int, every_ms: float = 5.0, close: bool = False, drone: bool = False
+) -> str:
     """What the views depend on; a saved file with another signature is stale."""
     sizes = {k: v["size"] for k, v in arena.KINDS.items()}
     eye = "" if every_ms == 5.0 else f" eye {every_ms:g} ms"
-    return f"v3 {samples} {seed} lead 120-180 {sizes}{eye}"
+    body = " drone 90 deg/s" if drone else ""
+    if close:
+        return f"v6 close 30-75 flown {samples} {seed} {sizes}{eye}{body}"
+    return f"v3 {samples} {seed} lead 120-180 {sizes}{eye}{body}"
 
 
-def views(fly_eye, folder=".", samples: int = 90, seed: int = 0, fresh=False, progress=print):
-    """The tethered fly's look at every kind: (features, kinds), from disk if seen before."""
+def views(
+    fly_eye,
+    folder=".",
+    samples: int = 90,
+    seed: int = 0,
+    fresh=False,
+    progress=print,
+    close: bool = False,
+    drone: bool = False,
+):
+    """The tethered fly's look at every kind: (features, kinds), from disk if seen before.
+
+    ``close``: the close looks it takes before landing, rather than the views
+    it judges while scanning. ``drone``: the lesson replayed the way the
+    drone flies -- turning at its 90 deg/s, flying in at its speed. Taught
+    the fly's way, the drone's brain called 42% of the balls it saw in flight
+    balls; taught its own way, 68%.
+    """
     every_ms = getattr(fly_eye, "every_ms", 5.0)
     path = Path(folder) / VIEWS
     if every_ms != 5.0:
         path = path.with_name(path.stem + f"_{every_ms:g}ms.npz")
-    sig = _signature(samples, seed, every_ms)
-    for saved in (path, shipped(every_ms)):
+    if close:
+        path = path.with_name(path.stem + "_close.npz")
+    if drone:
+        path = path.with_name(path.stem + "_dron.npz")
+    sig = _signature(samples, seed, every_ms, close, drone)
+    for saved in (path, shipped(every_ms, close, drone)):
         if saved.exists() and not fresh:
             with np.load(saved) as d:
                 if str(d["signature"]) == sig:
@@ -95,8 +123,13 @@ def views(fly_eye, folder=".", samples: int = 90, seed: int = 0, fresh=False, pr
             " (kilka minut, tylko za pierwszym razem)..."
         )
     t0 = time.time()
+    extra = {"distance": (30.0, 75.0), "inspection": True} if close else {}
+    if drone:
+        from .dronebrain import SCAN_RATE
+
+        extra.update(scan_rate=SCAN_RATE, body="drone")
     F, K = tethered_training(
-        fly_eye, tuple(arena.KINDS), samples=samples, seed=seed, progress=progress
+        fly_eye, tuple(arena.KINDS), samples=samples, seed=seed, progress=progress, **extra
     )
     if progress:
         progress(f"  {len(K)} widoków w {time.time() - t0:.0f} s -> {path}")
@@ -124,7 +157,9 @@ def learned(
     these targets, this body and this eye; otherwise the tethered lesson.
     ``retrain`` ignores both and starts again from the tether.
     """
-    F, K = views(fly_eye, folder, fresh=retrain, progress=progress)
+    F, K = views(fly_eye, folder, fresh=retrain, progress=progress, drone=drone)
+    Fc, Kc = views(fly_eye, folder, fresh=retrain, progress=progress, close=True, drone=drone)
+    F, K = np.concatenate([F, Fc]), np.concatenate([K, Kc])
     path = memory_path(targets, drone, getattr(fly_eye, "every_ms", 5.0), folder)
     if path.exists() and not retrain:
         from .learning import load
@@ -132,6 +167,7 @@ def learned(
         mb = load(path)
         with np.load(path) as d:
             flown = int(d["missions"]) if "missions" in d else 0
+        mb.practised = flown
         if progress:
             progress(f"Wczytuję pamięć z treningu: {path} ({flown} misji treningowych)")
         kinds = tuple(arena.KINDS)
@@ -150,6 +186,8 @@ def memory_path(targets, drone: bool = False, every_ms: float = 5.0, folder=".")
 
 #: Dopamine of a lesson in flight, as a fraction of the tether's full dose.
 LESSON = 1.0
+#: Dopamine on the views seen on the way in, as a fraction of the lesson's.
+WAY_IN = 0.5
 
 
 def practise(
@@ -192,10 +230,11 @@ def practise(
             eye,
             valence,
             targets,
-            seconds=60.0 if drone else 30.0,
+            seconds=MISSION_S[drone],
             report=None,
             drone=drone,
             fast=fast,
+            practice=True,
         )
         wanted = [it for it in items if it.kind in targets]
         reached = pilot.reached()
@@ -205,6 +244,7 @@ def practise(
             round(pilot.flight.t, 1),
         )
         curve.append(row)
+        mb.practised = done + i + 1
         if progress:
             progress(
                 f"  misja treningowa {done + i + 1}: {row[0]} z {len(wanted)} celów,"
@@ -252,6 +292,7 @@ class Autopilot:
         self.valence = valence or {}
         liked = {k for k, v in self.valence.items() if v > 0}
         self.targets = set(targets) if targets else liked
+        navigator.setdefault("trace_lessons", WAY_IN)
         self.nav = Navigator(
             mushroom_body,
             height=height,
@@ -323,7 +364,7 @@ class Autopilot:
         return {
             "who": self.who,
             "phase": nav.phase,
-            "phase_pl": describe(nav.phase),
+            "phase_pl": "ogląda cel z bliska" if nav.inspecting else describe(nav.phase),
             "valence_now": None if now is None else round(now, 3),
             "learned": {POLISH[k]: round(v, 3) for k, v in self.valence.items()},
             "items": [
@@ -386,9 +427,15 @@ def run(
     report=print,
     drone: bool = False,
     fast: bool = False,
+    practice: bool = False,
 ):
-    """The mission without a window: returns the :class:`Autopilot` when it ends."""
+    """The mission without a window: returns the :class:`Autopilot` when it ends.
+
+    ``practice``: it lands after every close look, liked or not, to learn.
+    """
     pilot = _pilot(items, mushroom_body, eye, valence, targets, drone, fast)
+    if practice:
+        pilot.nav.inspect = pilot.nav.land_to_learn = True
     last = None
     while pilot.flight.t < seconds and not pilot.done:
         pilot.step()
@@ -403,6 +450,53 @@ def run(
             )
             last = pilot.nav.phase
     return pilot
+
+
+#: Longest mission, seconds of flight: the fly, and the drone -- slower to
+#: turn and to stop, a third of its exam missions ran out of a minute (25 of 72).
+MISSION_S = {False: 30.0, True: 90.0}
+#: Grades: (name, least share of targets found, most mistakes per mission).
+GRADES = (("ekspert", 0.9, 0.2), ("zaawansowany", 0.75, 0.5), ("uczeń", 0.0, 99.0))
+
+
+def exam(
+    targets, arenas: int = 6, drone: bool = False, fast: bool = True, folder=".", progress=print
+) -> dict:
+    """Missions in arenas it never practised in, with no learning: what it knows now.
+
+    Practice arenas are numbered from 1000 up and the exam's from 0, so the
+    exam is always on new ground; the brain is loaded fresh for each mission
+    and learns nothing during the exam.
+    """
+    from .watch import FlysEye
+
+    eye = FlysEye(items=(), every_ms=EYE_MS[fast])
+    rows = []
+    for seed in range(arenas):
+        mb, valence = learned(eye, targets, folder=folder, progress=None, drone=drone)
+        items = arena.mission(seed, per_kind=2)
+        eye.set_items(items)
+        pilot = _pilot(items, mb, eye, valence, targets, drone, fast)
+        pilot.nav.reward = None  # an exam: no dopamine
+        while pilot.flight.t < MISSION_S[drone] and not pilot.done:
+            pilot.step()
+        wanted = [it for it in items if it.kind in targets]
+        reached = pilot.reached()
+        rows.append(
+            (
+                sum(it in reached for it in wanted),
+                sum(it not in wanted for it in reached),
+                len(wanted),
+            )
+        )
+        if progress:
+            progress(
+                f"  arena {seed}: {rows[-1][0]} z {rows[-1][2]} celów, pomyłki: {rows[-1][1]}"
+            )
+    found = sum(r[0] for r in rows) / max(1, sum(r[2] for r in rows))
+    mistakes = sum(r[1] for r in rows) / max(1, len(rows))
+    grade = next(g for g, f, m in GRADES if found >= f and mistakes <= m)
+    return {"found": found, "mistakes_per_mission": mistakes, "grade": grade, "rows": rows}
 
 
 def window(
@@ -503,16 +597,25 @@ CHASE = {False: 22.0, True: 12.0}
 
 
 def _pilot(items, mb, eye, valence, targets, drone: bool, fast: bool = False) -> Autopilot:
-    """The autopilot on the fly (the full physics, or the fast fly), or on the drone."""
+    """The autopilot on the fly (the full physics, or the fast fly), or on the drone.
+
+    A brain that has practised takes a close look before it lands; a novice,
+    taught only on the tether, does not. Measured, a novice's close looks
+    turned down most targets -- 7 of 24 balls found -- while after twenty
+    practice missions the close look is what keeps it from mistakes.
+    """
+    expert = {"inspect": bool(getattr(mb, "practised", 0))}
     if not drone:
         if fast:
             from .fastfly import FastFly
 
-            return Autopilot(items, mb, eye, valence, targets, vehicle=FastFly())
-        return Autopilot(items, mb, eye, valence, targets)
+            return Autopilot(items, mb, eye, valence, targets, vehicle=FastFly(), **expert)
+        return Autopilot(items, mb, eye, valence, targets, **expert)
     from .dronebrain import NAVIGATOR, DroneFlight
 
-    return Autopilot(items, mb, eye, valence, targets, vehicle=DroneFlight(), **NAVIGATOR)
+    return Autopilot(
+        items, mb, eye, valence, targets, vehicle=DroneFlight(), **NAVIGATOR, **expert
+    )
 
 
 def _view(drone: bool, pretty: bool, items):

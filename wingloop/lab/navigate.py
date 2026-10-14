@@ -71,8 +71,22 @@ def tethered_training(
     scan_rate: float = 240.0,
     hold: float = 0.12,
     lead=(120.0, 180.0),
+    inspection: bool = False,
+    body: str = "fly",
 ):
     """Show the tethered fly each kind of object; return (features, kinds).
+
+    ``body`` is whose way of flying the lesson replays: ``"fly"``, or
+    ``"drone"`` -- the same brain on the drone, which turns at its own
+    :data:`~.dronebrain.SCAN_RATE` (pass it as ``scan_rate``) and flies in
+    at its own speed.
+
+    ``inspection`` shows it the other way the flying fly meets an object: flown
+    at, at cruising speed, then stopped at 30-75 mm and looked at -- the close
+    look it takes before landing (:attr:`Navigator.inspect`). Taught only on
+    the scanning views, the mushroom body turned down every close look at a
+    ball, 24 of 24: a stopped eye after forward flight is nothing like a
+    turning one.
 
     ``fly_eye`` is a :class:`~wingloop.lab.watch.FlysEye`; its world is swapped
     for a small arena for each view. Each object is shown **the way the flying
@@ -116,18 +130,24 @@ def tethered_training(
             shown.append(Item(str(other), x, y))
         world = World(background + eye_things(shown), ground_height=fly_eye.world.ground_height)
 
-        def look(yaw, eye_pos=eye_pos, world=world):
+        def look(yaw, eye_pos=eye_pos, world=world, at=None, pitch=0.0):
             image = render(
                 world,
-                eye_pos,
+                eye_pos if at is None else at,
                 None,
                 fly_eye.camera,
-                rotation_matrix=rotation(0.0, 0.0, yaw),
+                rotation_matrix=rotation(0.0, pitch, yaw),
                 checker=20.0,
             )
             return fly_eye.eye.step(image, frames=1)
 
         fly_eye.eye.reset()
+        if inspection:
+            feats.append(_close_look(look, eye_pos, h, rng, dt, hold, fly_eye, scan_rate, body))
+            labels.append(kind)
+            if progress and (i + 1) % 10 == 0:
+                progress(f"  obejrzała z bliska {i + 1} z {samples}")
+            continue
         # Turning on the spot, the object coming in from the left.
         yaw = h - np.deg2rad(rng.uniform(*lead))
         while h - yaw > np.deg2rad(8.0):
@@ -147,6 +167,85 @@ def tethered_training(
         if progress and (i + 1) % 10 == 0:
             progress(f"  obejrzała {i + 1} z {samples}")
     return np.asarray(feats), np.asarray(labels)
+
+
+def _close_look(look, eye_pos, h, rng, dt, hold, fly_eye, scan_rate=240.0, body="fly"):
+    """The way a flying fly comes to its close look, frame by frame.
+
+    Turning to face the object, flying at it nose-down at cruising speed,
+    braking, and hovering -- still drifting -- while it looks. Each step is the
+    fast fly's measured answer (:mod:`.fastfly`): speed 30 + 22.3 mm/s per
+    degree of pitch with a 0.12 s lag, body pitch 1 + 0.8 of the setpoint.
+    Shorter versions of this taught a mushroom body that judged the tether's
+    close looks perfectly and the flying fly's around zero: the eye comes to
+    a close look with a second of turning and nose-down flight behind it.
+    """
+    frames = []  # (distance flown so far, yaw, pitch in degrees)
+    yaw = h - np.deg2rad(rng.uniform(60, 150))
+    while h - yaw > np.deg2rad(8.0):  # turning to face it
+        frames.append((0.0, yaw, 1.0))
+        yaw += np.deg2rad(scan_rate) * dt
+    error = h - yaw
+    n_hold = max(2, int(round(hold / dt)))
+    if body == "drone":
+        s, v = _drone_run_in(frames, h, error, dt, n_hold, rng)
+    else:
+        s, v, pitch = 0.0, 30.0, 1.0
+        drift = rng.uniform(10.0, 30.0)
+        plan = [(0.5, 12.0), (0.1, -6.0)]  # (seconds, pitch setpoint): fly at it, brake
+        for seconds, setpoint in plan:
+            for _ in range(max(1, int(round(seconds / dt)))):
+                v += (30.0 + 22.3 * setpoint - v) * dt / 0.12
+                pitch += (1.0 + 0.8 * setpoint - pitch) * min(1.0, dt / 0.03)
+                s += v * dt
+                error *= np.exp(-dt / 0.05)
+                frames.append((s, h + error, pitch))
+        for _ in range(n_hold):  # hovering, and looking
+            v += (drift - v) * dt / 0.12
+            pitch += (1.0 - pitch) * min(1.0, dt / 0.03)
+            s += v * dt
+            frames.append((s, h, pitch))
+    ahead = np.array([np.cos(h), np.sin(h), 0.0])
+    phase, fovea = rng.uniform(0, 2 * np.pi), []
+    for k, (flown, yaw_k, pitch_k) in enumerate(frames):
+        wobble = np.deg2rad(2.0) * np.sin(2 * np.pi * 8.0 * k * dt + phase)
+        at = eye_pos - ahead * (s - flown)
+        activity = look(yaw_k + wobble, at=at, pitch=np.deg2rad(pitch_k))
+        if k >= len(frames) - n_hold // 2:
+            fovea.append(fly_eye.eye.fovea_shape(activity))
+    return np.mean(fovea, axis=0)
+
+
+def _drone_run_in(frames, h, error, dt, n_hold, rng, scale=50.0):
+    """The drone's way to a close look, in arena units: its own speed loop.
+
+    The fly's brain on the drone's body -- :class:`~.drone.FlyPilot` tilts
+    0.25 rad per m/s of speed error, up to 20 degrees, against drag -- flying
+    at it for 1.5 s at its 1.5 m/s cruise, braking until it has stopped,
+    then hovering almost still. Taught the fly's way instead, the drone got
+    74% of its targets after practice where the fly got 92%.
+    """
+    s, v = 0.0, 0.0  # arena mm, arena mm/s
+
+    def tilt(goal):
+        return float(np.clip(0.25 * (goal - v) * scale / 1000.0, -0.35, 0.35))
+
+    for target, seconds in ((30.0, 1.5), (0.0, 1.5)):
+        for k in range(max(1, int(round(seconds / dt)))):
+            pitch = tilt(target)
+            accel = 9.81 * np.tan(pitch) - 0.37 * v * scale / 1000.0  # m/s^2
+            v += accel * 1000.0 / scale * dt
+            s += v * dt
+            error *= np.exp(-dt / 0.3)
+            frames.append((s, h + error, np.degrees(pitch)))
+            if target == 0.0 and abs(v) < 6.0 and k * dt > 0.1:
+                break
+    drift = rng.uniform(0.0, 5.0)
+    for _ in range(n_hold):
+        v += (drift - v) * dt / 0.3
+        s += v * dt
+        frames.append((s, h, 0.0))
+    return s, v
 
 
 def teach(mushroom_body, features, kinds, reward: dict) -> None:
@@ -208,6 +307,20 @@ class Navigator:
     #: choosier, and measured, a practised fly sometimes liked nothing at all
     #: and ended its mission on the spot with both targets in view.
     curious: bool = True
+    #: Look again from close before landing -- what a practised brain does
+    #: (:func:`~.autopilot._pilot`). Judged from flight, the eye is
+    #: right about 90% of the time at 40-60 mm and about 50% beyond 80, so
+    #: the fly stops where the object fills ``inspect_size`` of its eye --
+    #: about 45 mm for a ball, 60-70 for a pole or a slab -- looks for
+    #: ``fixate_time``, and lands only if it still likes what it sees.
+    inspect: bool = False
+    inspect_size: float = 0.02
+    #: Practice: land after a close look even when it is not liked, to find
+    #: out. A rejected close look teaches nothing -- no landing, no dopamine
+    #: -- so without this, practice could never correct a close look that
+    #: wrongly turns a target down.
+    land_to_learn: bool = False
+    rejected: list = field(default_factory=list)
     #: What the world gives the fly where it lands, ``reward(x, y)`` ->
     #: dopamine (+ reward, - punishment, 0 nothing), or None for no learning
     #: in flight. The sugar on the target in the real experiment.
@@ -216,6 +329,13 @@ class Navigator:
     sightings: list = field(default_factory=list)
     visited: list = field(default_factory=list)
     lessons: list = field(default_factory=list)
+    inspections: list = field(default_factory=list)  # (valence close up, landed on it)
+    #: Every landing's views -- the one chosen on and those seen on the way
+    #: in -- with the dopamine it brought: the material for replay.
+    experiences: list = field(default_factory=list)
+    #: Dopamine on the views seen on the way in, as a fraction of the one on
+    #: the view chosen on; 0 learns from the chosen view only.
+    trace_lessons: float = 0.0
     log: list = field(default_factory=list)
 
     def __post_init__(self):
@@ -229,6 +349,13 @@ class Navigator:
         self._moving = 0.0
         self._since = 0.0
         self._lost = 0.0
+        self._trace = []
+        self._scan_view = None
+        self._radii = []
+        self._next_trace = 0.0
+        self._inspected = False
+        self._stopped = False
+        self._looking = 0.0
         self._empty_looks = 0
         self._home = (0.0, 0.0)
         self.heading = 0.0
@@ -237,6 +364,11 @@ class Navigator:
         """Begin where the fly is: its heading, and the place it calls home."""
         self.heading = heading
         self._home = tuple(home)
+
+    @property
+    def inspecting(self) -> bool:
+        """Stopped near the target for a close look."""
+        return self.phase == "approach" and (self._stopped or self._looking > 0)
 
     @property
     def target(self):
@@ -250,10 +382,11 @@ class Navigator:
         from close by a wide one -- standing next to a visited object, most
         of what is around is that object.
         """
-        for v in self.visited:
+        radii = [*self._radii, *([30.0] * len(self.rejected))]
+        for v, r in zip((*self.visited, *self.rejected), radii, strict=False):
             dx, dy = v[0] - here[0], v[1] - here[1]
             to = np.degrees(np.arctan2(dy, dx))
-            cone = max(25.0, np.degrees(np.arctan2(30.0, np.hypot(dx, dy))))
+            cone = max(25.0, np.degrees(np.arctan2(r, np.hypot(dx, dy))))
             if abs((to - heading_deg + 180) % 360 - 180) < cone:
                 return True
         return False
@@ -273,6 +406,17 @@ class Navigator:
             # Only what is near the middle can be fixated and judged.
             size, bearing = fly_eye.eye.dark(DARK, within=FIXATE / half)
         bearing_deg = bearing * half  # +left
+        if (
+            self.phase == "approach"
+            and not self._braking
+            and size > 0.002
+            and abs(bearing_deg) < 12.0
+            and state["t"] >= self._next_trace
+            and fly_eye.activity is not None
+        ):
+            # The way in: the target in the middle of the eye, nearer each time.
+            self._trace.append(fly_eye.eye.fovea_shape(fly_eye.activity))
+            self._next_trace = state["t"] + 0.05
         self.log.append(
             dict(
                 t=state["t"],
@@ -287,7 +431,7 @@ class Navigator:
         if self.phase == "scan":
             out = self._scan(fly_eye, size, bearing_deg, here, heading_now, dt)
         elif self.phase == "approach":
-            out = self._approach(size, bearing_deg, here, heading_now, dt)
+            out = self._approach(size, bearing_deg, here, heading_now, dt, fly_eye)
         elif self.phase == "home":
             out = self._go_home(here, heading_now)
         else:
@@ -332,7 +476,7 @@ class Navigator:
         self._fix, self._fovea = 0.0, []
         return self._turn(dt)
 
-    def _approach(self, size, bearing_deg, here, heading_now, dt):
+    def _approach(self, size, bearing_deg, here, heading_now, dt, fly_eye=None):
         if self._brake > 0 or self._braking:
             self._brake -= dt
             settled = self.settle_speed is None or self._moving < self.settle_speed
@@ -342,8 +486,21 @@ class Navigator:
                 # ahead of where the fly stopped.
                 h = np.deg2rad(self.heading)
                 place = (here[0] + 15 * np.cos(h), here[1] + 15 * np.sin(h))
-                self.visited.append(place)
-                self._learn_from(place)
+                again = [
+                    i
+                    for i, v in enumerate(self.visited)
+                    if np.hypot(v[0] - place[0], v[1] - place[1]) < 40.0
+                ]
+                if again:
+                    # Back where it has been: no new lesson, and a wider berth
+                    # from now on. Measured before this, the drone could land on
+                    # one object a dozen times in a mission.
+                    for i in again:
+                        self._radii[i] = 60.0
+                else:
+                    self.visited.append(place)
+                    self._radii.append(30.0)
+                    self._learn_from(place)
                 self._rescan()
             return -6.0, self.heading, self.height
         self._since += dt
@@ -363,11 +520,44 @@ class Navigator:
             # Lost it, or flown past it: stop, and look again.
             self._rescan()
             return -6.0, self.heading, self.height
+        if self.inspect and not self._inspected and size >= self.inspect_size:
+            return self._inspect_target(here, fly_eye, dt)
         if size >= self.arrive_size:
             self._brake, self._braking = 0.12, True
             return -6.0, self.heading, self.height
         push = self.cruise_pitch if size < self.slow_size else self.cruise_pitch * 0.35
         return push, self.heading, self.height
+
+    def _inspect_target(self, here, fly_eye, dt):
+        """Stop at a good distance, look at it again, and decide."""
+        self._looking += dt
+        if not self._stopped:
+            # Stop first: 0.1 s for the fly, and until it has really stopped
+            # for a body with more momentum. The tethered close look stops
+            # the same way.
+            settled = self.settle_speed is None or self._moving < self.settle_speed
+            if (self._looking >= 0.1 and settled) or self._looking > 1.5:
+                self._stopped, self._looking = True, 0.0
+            return -6.0, self.heading, self.height
+        if fly_eye is not None and fly_eye.activity is not None:
+            self._fovea.append(fly_eye.eye.fovea_shape(fly_eye.activity))
+        if self._looking < self.fixate_time or not self._fovea:
+            return 0.0, self.heading, self.height
+        f = np.mean(self._fovea[len(self._fovea) // 2 :], axis=0)
+        self._fovea, self._looking, self._inspected = [], 0.0, True
+        self._stopped = False
+        v = float(self.mushroom_body.valence(f))
+        # The closer look is the one the decision -- and any lesson -- rests on.
+        self._scan_view = self._target.features
+        self._target.features, self._target.valence = f, v
+        if v <= 0.0 and not self.land_to_learn:
+            h = np.deg2rad(self.heading)
+            self.rejected.append((here[0] + 50 * np.cos(h), here[1] + 50 * np.sin(h)))
+            self.inspections.append((v, False))
+            self._rescan()
+            return 0.0, self.heading, self.height
+        self.inspections.append((v, True))
+        return 0.0, self.heading, self.height
 
     def _learn_from(self, place) -> None:
         """Dopamine on arrival, onto the Kenyon cells the target's view drove.
@@ -382,7 +572,23 @@ class Navigator:
         dopamine = float(self.reward(*place))
         if dopamine:
             self.mushroom_body.learn(self._target.features, dopamine)
+            if self._scan_view is not None and self._scan_view is not self._target.features:
+                # And onto the far view it was chosen on, before the close
+                # look. Without it a mistake was punished close up only, the far
+                # view still looked good on the next turn, and the drone went
+                # back: up to sixteen landings on one object in a practice mission.
+                self.mushroom_body.learn(self._scan_view, dopamine)
+            if self.trace_lessons and self._trace:
+                # Dopamine reaches every Kenyon cell still carrying a trace of
+                # recent activity -- the way in, seconds back, not only the
+                # moment of choice.
+                share = self.trace_lessons * dopamine / len(self._trace)
+                for f in self._trace:
+                    self.mushroom_body.learn(f, share)
             self.lessons.append((self._target.heading, dopamine, place))
+            self.experiences.append(
+                dict(chosen=self._target.features, way_in=list(self._trace), dopamine=dopamine)
+            )
 
     def _go_home(self, here, heading_now):
         dx, dy = self._home[0] - here[0], self._home[1] - here[1]
@@ -421,6 +627,7 @@ class Navigator:
                 self._target = max(unvisited, key=lambda s: s.valence)
                 self._since = 0.0
                 self.phase = "approach"
+                self._inspected = True  # it goes to find out, whatever it looks like
             else:
                 self.phase = "done"
 
@@ -430,6 +637,9 @@ class Navigator:
         self._refr = 0.0
         self._fix, self._fovea = 0.0, []
         self._lost = 0.0
+        self._trace = []
+        self._scan_view = None
+        self._inspected, self._looking, self._stopped = False, 0.0, False
         self.sightings = []
 
 

@@ -9,7 +9,8 @@
     flylab watch   [--szybko]                                3-D window, fly it yourself
     flylab video   [--seconds 2.4] [--cel kula]              a flight as MP4
     flylab cel     kula [--seed 0] [--dron] [--szybko]       it flies to its targets alone
-    flylab trening kula [--misje 15] [--dron]                practice: fewer mistakes
+    flylab trening kula [--misje 20] [--dron]                practice: fewer mistakes
+    flylab egzamin kula [--areny 6] [--dron]                 an exam on new arenas
 
 ``python -m wingloop.lab ...`` does the same where ``flylab`` is not on PATH.
 
@@ -226,7 +227,7 @@ def cmd_video(args) -> dict:
             args.output,
             targets,
             seed=args.seed,
-            seconds=args.seconds or (60.0 if args.dron else 30.0),
+            seconds=args.seconds or (90.0 if args.dron else 30.0),
             drone=args.dron,
             fast=args.szybko,
         )
@@ -265,7 +266,7 @@ def cmd_cel(args) -> dict:
     mb, valence = learned(eye, targets, retrain=args.od_nowa, drone=args.dron)
     _print_valence(valence, targets)
     t0 = time.time()
-    seconds = args.seconds or (60.0 if args.dron else 30.0)
+    seconds = args.seconds or (90.0 if args.dron else 30.0)
     pilot = run(
         items, mb, eye, valence, targets, seconds=seconds, drone=args.dron, fast=args.szybko
     )
@@ -295,7 +296,31 @@ def cmd_trening(args) -> dict:
         f"{np.mean([r[0] for r in first]):.1f} i {np.mean([r[0] for r in last]):.1f}"
         f" z 2. ({time.time() - t0:.0f} s)"
     )
-    return {"trening": [list(r) for r in curve]}
+    result = {"trening": [list(r) for r in curve]}
+    if args.egzamin:
+        result["egzamin"] = _exam(targets, args.egzamin, args.dron, not args.dokladnie)
+    return result
+
+
+def _exam(targets, arenas, drone, fast) -> dict:
+    from .autopilot import exam
+
+    who = "Dron" if drone else "Muszka"
+    print(f"Egzamin: {arenas} aren, których {who.lower()} nigdy nie widział(a), bez nauki.")
+    r = exam(targets, arenas=arenas, drone=drone, fast=fast)
+    print(
+        f"{who}: {100 * r['found']:.0f}% celów,"
+        f" {r['mistakes_per_mission']:.2f} pomyłki na misję -> ocena: {r['grade'].upper()}"
+    )
+    return {k: v for k, v in r.items() if k != "rows"} | {"rows": [list(x) for x in r["rows"]]}
+
+
+def cmd_egzamin(args) -> dict:
+    """An exam in arenas it never practised in."""
+    from .autopilot import kind_of
+
+    targets = {kind_of(n) for n in args.target}
+    return {"egzamin": _exam(targets, args.areny, args.dron, not args.dokladnie)}
 
 
 def cmd_report(args) -> dict:
@@ -351,6 +376,7 @@ COMMANDS = {
     "video": (cmd_video, "fly a scripted tour (or a mission: --cel) and save it as an MP4"),
     "cel": (cmd_cel, "teach it targets, then it flies to them on its own"),
     "trening": (cmd_trening, "practice flights: it learns from every landing"),
+    "egzamin": (cmd_egzamin, "an exam in arenas it never practised in"),
     "demo": (cmd_demo, "everything, one report"),
 }
 
@@ -408,8 +434,18 @@ def main(argv=None) -> None:
             )
         if name == "trening":
             s.add_argument("target", nargs="*", default=["kula"], help="kula, płytka, słupek")
-            s.add_argument("--misje", type=int, default=15, help="practice missions")
+            s.add_argument("--misje", type=int, default=20, help="practice missions")
+            s.add_argument(
+                "--egzamin", type=int, default=6, help="exam arenas afterwards (0: none)"
+            )
             s.add_argument("--dron", action="store_true", help="the drone practises")
+            s.add_argument(
+                "--dokladnie", action="store_true", help="full physics (about 40x slower)"
+            )
+        if name == "egzamin":
+            s.add_argument("target", nargs="*", default=["kula"], help="kula, płytka, słupek")
+            s.add_argument("--areny", type=int, default=6, help="exam arenas")
+            s.add_argument("--dron", action="store_true", help="the drone sits it")
             s.add_argument(
                 "--dokladnie", action="store_true", help="full physics (about 40x slower)"
             )
