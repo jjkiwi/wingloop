@@ -158,6 +158,20 @@ footer li { margin: 4px 0; }
       <div class="scale"><span>wyciszone</span><span class="bar"></span><span>pobudzone</span></div></div>
   </div>
 
+  <section id="drone-sec" hidden>
+  <h2>2. Ciało: dron z mózgiem muchy</h2>
+  <p class="lead">Oko, ciało grzybkowate i nawigator są muchy, bez zmian. Ciało jest drona: żyroskop robi
+  to, co haltery, a cztery silniki zamiast skrzydeł wykonują te same prawa sterowania, co mucha.</p>
+  <div class="flow">
+    <div class="card stage"><h3><span class="swatch" style="background:var(--g-haltere)"></span>Żyroskop</h3>
+      <p>Prędkość obrotu drona – jego haltery.</p><div id="d-gyro"></div>
+      <div class="arrow">→ do sterownika muchy</div></div>
+    <div class="card stage"><h3><span class="swatch" style="background:var(--g-mn)"></span>Silniki</h3>
+      <p>Ciąg każdego z czterech silników, jako ułamek maksymalnego.</p><div id="d-motors"></div></div>
+  </div>
+  </section>
+
+  <section id="flight-sec">
   <h2>2. Od zmysłów do skrzydeł</h2>
   <p class="lead">Droga sygnału w locie: haltery wyczuwają obrót ciała, neurony zstępujące niosą polecenie
   z mózgu do brzusznego zwoju nerwowego, motoneurony pobudzają mięśnie, a skrzydła zmieniają ruch.</p>
@@ -178,6 +192,7 @@ footer li { margin: 4px 0; }
   <h2>3. Ostatnie 2 sekundy lotu</h2>
   <p class="lead">Najedź myszą na wykres, żeby odczytać wartość w danej chwili.</p>
   <div class="card" style="padding:0" id="sparks"></div>
+  </section>
 
   <footer>
     <b>Co tu jest prawdziwym modelem, a co odczytem</b>
@@ -334,6 +349,16 @@ function renderAuto(a) {
   drawMap(a);
 }
 
+function renderDrone(d) {
+  $('drone-sec').hidden = false; $('flight-sec').hidden = true;
+  $('d-gyro').innerHTML =
+    bar('pochylenie', d.rates[1] / 2, deg(d.rates[1]), css('--g-haltere'), true) +
+    bar('przechył', d.rates[0] / 2, deg(d.rates[0]), css('--g-haltere'), true) +
+    bar('odchylenie (skręt)', d.rates[2] / 2, deg(d.rates[2]), css('--g-haltere'), true);
+  $('d-motors').innerHTML = ['przód', 'lewy', 'tył', 'prawy'].map((n, i) =>
+    bar('silnik ' + n, d.motors[i], Math.round(d.motors[i] * 100) + '%', css('--g-mn'), false)).join('');
+}
+
 function render(s) {
   if (s.autopilot) renderAuto(s.autopilot);
   $('t').textContent = s.t.toFixed(0);
@@ -343,6 +368,9 @@ function render(s) {
   $('pitch').textContent = s.pitch.toFixed(1);
   $('roll').textContent = s.roll.toFixed(1);
   $('slow').textContent = s.slowdown ? s.slowdown.toFixed(0) : '–';
+  if (s.drone) {
+    renderDrone(s.drone);
+  } else {
   const b = s.bars, r = s.raw;
   $('s-haltere').innerHTML =
     bar('pochylenie', b['haltere: pitch rate'], deg(r.rates[1]), css('--g-haltere'), true) +
@@ -357,6 +385,7 @@ function render(s) {
     bar('różnica amplitud L–P → przechył', b['wing: amplitude L-R'], pct(b['wing: amplitude L-R']), css('--g-wing'), true) +
     bar('różnica fazy obrotu L–P → skręt', b['wing: rotation phase L-R'], pct(b['wing: rotation phase L-R']), css('--g-wing'), true);
   drawSparks(s.history);
+  }
   if (s.eye && layout && layout.eye) {
     $('nneur').textContent = s.eye.neurons.toLocaleString('pl-PL');
     drawImage($('c-view'), s.eye);

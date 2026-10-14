@@ -147,6 +147,25 @@ missions the mistakes were on different kinds each time, so the one
 punishment per kind came too late to change a choice -- what it changes
 is the second visit to a kind, and there was none.
 
+**The same brain flying a drone.** `flylab cel kula --dron` (or answer
+`dron` in `cel.bat`) hands the fly's eye, mushroom body and navigator,
+unchanged, to the Crazyflie quadrotor of `flylab drone`, flying on the fly's
+control laws in the fly's arena made 50 times bigger -- a room about eight
+metres across, objects 0.3-0.8 m, flying 0.85 m up. Scaled evenly, a scene
+looks exactly the same from a camera scaled with it, so the drone's camera
+sees, pixel for pixel, what the fly's eye would, and what the fly learned on
+the tether serves the drone without being learned again. Only the body
+differs: the navigator's pitch becomes a speed for the drone's speed loop,
+it looks around at 90 degrees a second rather than the fly's 240 (its yaw
+comes from motor drag and lags), it brakes until it has actually stopped
+before recording where the object is (it has more momentum than a fly, and
+recording the place early sent it back to objects it had reached), and the
+brain page shows its gyroscope and motors where the fly's shows its
+haltere-to-wing pathway. On the same three arenas as the fly, each target
+once, it found every target -- 2 of 2 three times -- with 1-2 landings on
+something else per mission, in 42-60 s of flight; the simulation runs about
+nine times slower than real time, the optic lobe taking most of it.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
@@ -1382,9 +1401,9 @@ as what it is -- lost margin, the worst attitude swing going from 10.9 to
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 142 tests, about half an hour on one core
+pytest -q             # 147 tests, about forty minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
-pytest -q -n 4        # with pytest-xdist: about eight minutes on four cores
+pytest -q -n 4        # with pytest-xdist: about ten minutes on four cores
 ```
 
 The aerodynamics and the connectome readout run anywhere -- the wing mesh is

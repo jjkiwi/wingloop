@@ -76,7 +76,13 @@ def _decorate(source: Path, destination: Path, pretty: bool = False, items=()) -
     unless ``pretty`` is asked for; nothing else about the picture changes.
     """
     tree = ET.parse(source)
-    root = tree.getroot()
+    add_scenery(tree.getroot(), pretty, items)
+    tree.write(destination)
+    return destination
+
+
+def add_scenery(root: ET.Element, pretty: bool = False, items=()) -> None:
+    """The sky, the chequered floor, the light, the columns and the mission objects."""
     asset = root.find("asset")
     if asset is None:
         asset = ET.SubElement(root, "asset")
@@ -159,8 +165,6 @@ def _decorate(source: Path, destination: Path, pretty: bool = False, items=()) -
     from .arena import add_to_mjcf
 
     add_to_mjcf(world, items)
-    tree.write(destination)
-    return destination
 
 
 @lru_cache(maxsize=8)
@@ -201,6 +205,10 @@ class FlyView:
             if name in self.wing_qpos:
                 self.data.qpos[self.wing_qpos[name]] = float(angle)
         self._mj.mj_forward(self.model, self.data)
+
+    def show(self, flight) -> None:
+        """Pose the drawn fly from a :class:`Flight`."""
+        self.pose(flight.body)
 
     def chase(self, cam, heading_deg: float, distance: float = 14.0) -> None:
         """A camera behind and above the fly, turning with it."""
@@ -298,6 +306,15 @@ class Flight:
     def t(self) -> float:
         return float(self.body.t)
 
+    @property
+    def timestep(self) -> float:
+        return float(self.body.model.opt.timestep)
+
+    def pose(self) -> tuple[np.ndarray, np.ndarray]:
+        """Where the head is and which way it faces: (position, rotation matrix)."""
+        b = self.body
+        return b.data.xpos[b.root_body].copy(), b.data.xmat[b.root_body].reshape(3, 3).copy()
+
     def command(self, pitch_deg: float, heading_deg: float, height_mm: float) -> None:
         c = self.controller
         c.target_pitch = np.deg2rad(pitch_deg)
@@ -380,10 +397,13 @@ class FlysEye:
 
     def look(self, body) -> None:
         """Render the fly's view from where the physics has it, and step the optic lobe."""
+        R = body.data.xmat[body.root_body].reshape(3, 3)
+        self.look_from(body.data.xpos[body.root_body], R)
+
+    def look_from(self, position, R) -> None:
+        """Render the view from a position and orientation, and step the optic lobe."""
         from .scene import render
 
-        R = body.data.xmat[body.root_body].reshape(3, 3)
-        position = body.data.xpos[body.root_body]
         self.image = render(
             self.world, position, None, self.camera, rotation_matrix=R, checker=20.0
         )

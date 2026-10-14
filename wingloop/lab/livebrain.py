@@ -96,9 +96,16 @@ class LiveBrain:
     ) -> None:
         """Take a new snapshot. Cheap: no drawing happens here.
 
+        A ``state`` without flight neurons is the drone's (see
+        :mod:`.dronebrain`): the page then shows its gyroscope and motors in
+        place of the fly's haltere-to-wing pathway.
+
         ``autopilot`` is :meth:`~.autopilot.Autopilot.status` when the fly is
         flying itself; the page then shows the mission above the brain.
         """
+        if "neurons" not in state:
+            self._update_drone(state, rates, slowdown, image, activity, autopilot)
+            return
         values = signals(state, knobs, rates)
         h = self.history
         t = state["t"]
@@ -130,9 +137,30 @@ class LiveBrain:
                 "steering": round(state["neurons"]["steering MNs"], 4),
             },
             "history": {k: list(v) for k, v in h.items()},
-            "eye": None,
             "autopilot": autopilot,
         }
+        snap["eye"] = self._eye(image, activity)
+        with self.lock:
+            self.snapshot = snap
+
+    def _update_drone(self, state, rates, slowdown, image, activity, autopilot) -> None:
+        snap = {
+            "ready": True,
+            "t": round(state["t"] * 1000, 1),
+            "speed": round(state["speed"], 1),
+            "z": round(state["altitude_m"] * 1000, 0),
+            "heading": round(state["heading"], 1),
+            "pitch": round(state["pitch"], 1),
+            "roll": round(state["roll"], 1),
+            "slowdown": round(slowdown, 1),
+            "drone": {"rates": _round(rates, 2), "motors": state["motors"]},
+            "eye": self._eye(image, activity),
+            "autopilot": autopilot,
+        }
+        with self.lock:
+            self.snapshot = snap
+
+    def _eye(self, image, activity):
         if image is not None and activity is not None and self.eye is not None:
             img = (np.clip(np.asarray(image), 0, 1) * 255).astype(np.uint8)
             e = self.eye
@@ -147,15 +175,14 @@ class LiveBrain:
                     a = e.type_activity(activity, types[0]) - e.type_activity(base, types[0])
                 scale = max(float(np.abs(a).max()), 1e-3)
                 maps[key] = _round(np.clip(a / scale, -1, 1), 2)
-            snap["eye"] = {
+            return {
                 "size": int(img.shape[0]),
                 "image": base64.b64encode(img.tobytes()).decode(),
                 "photoreceptors": _round(e.photoreceptors, 2),
                 "maps": maps,
                 "neurons": int(e.n_neurons),
             }
-        with self.lock:
-            self.snapshot = snap
+        return None
 
     def close(self) -> None:
         self.server.shutdown()

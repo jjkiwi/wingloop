@@ -127,21 +127,27 @@ class Autopilot:
         targets=None,
         height: float = 5.0,
         learn_in_flight: bool = True,
+        vehicle=None,
+        **navigator,
     ):
         from .watch import Flight
 
         self.items = tuple(items)
         self.eye = eye
-        self.flight = Flight(height_mm=height)
+        # The fly, or anything with its interface -- the drone of
+        # :mod:`.dronebrain` is one.
+        self.flight = vehicle if vehicle is not None else Flight(height_mm=height)
+        self.who = "Muszka" if vehicle is None else "Dron"
         self.valence = valence or {}
         liked = {k for k, v in self.valence.items() if v > 0}
         self.targets = set(targets) if targets else liked
         self.nav = Navigator(
-            mushroom_body, height=height, reward=self.reward if learn_in_flight else None
+            mushroom_body,
+            height=height,
+            reward=self.reward if learn_in_flight else None,
+            **navigator,
         )
-        self.every = max(
-            1, int(round(eye.every_ms / 1000.0 / float(self.flight.body.model.opt.timestep)))
-        )
+        self.every = max(1, int(round(eye.every_ms / 1000.0 / self.flight.timestep)))
         self.trail: list = []
         self.started = False
 
@@ -158,7 +164,7 @@ class Autopilot:
             f.step(self.every * 20)
             self.nav.start(f.state()["heading"])
             self.started = True
-        self.eye.look(f.body)
+        self.eye.look_from(*f.pose())
         s = f.state()
         f.command(*self.nav.decide(self.eye, s, self.eye.every_ms / 1000.0))
         f.step(self.every)
@@ -244,28 +250,37 @@ class Autopilot:
     def summary(self) -> str:
         reached = self.reached()
         wanted = [it for it in self.items if it.kind in self.targets]
-        got = [it for it in reached if it in wanted]
+        got = [it for it in wanted if it in reached]
         wrong = [it for it in reached if it not in wanted]
         line = (
-            f"Muszka doleciała do {len(got)} z {len(wanted)} celów w {self.flight.t:.1f} s lotu"
+            f"{self.who} doleciał{'a' if self.who == 'Muszka' else ''} do {len(got)}"
+            f" z {len(wanted)} celów w {self.flight.t:.1f} s lotu"
         )
         if wrong:
-            line += f"; pomyliła się {len(wrong)} raz(y): " + ", ".join(
+            ending = "a" if self.who == "Muszka" else ""
+            line += f"; pomylił{ending} się {len(wrong)} raz(y): " + ", ".join(
                 POLISH[it.kind] for it in wrong
             )
         return line + "."
 
 
 def run(
-    items, mushroom_body, eye, valence=None, targets=None, seconds: float = 20.0, report=print
+    items,
+    mushroom_body,
+    eye,
+    valence=None,
+    targets=None,
+    seconds: float = 20.0,
+    report=print,
+    drone: bool = False,
 ):
     """The mission without a window: returns the :class:`Autopilot` when it ends."""
-    pilot = Autopilot(items, mushroom_body, eye, valence, targets)
+    pilot = _pilot(items, mushroom_body, eye, valence, targets, drone)
     last = None
     while pilot.flight.t < seconds and not pilot.done:
         pilot.step()
         if not pilot.flight.upright():
-            report("Muszka straciła panowanie nad lotem.")
+            report(f"{pilot.who}: utrata panowania nad lotem.")
             break
         if report and pilot.nav.phase != last:
             s = pilot.flight.state()
@@ -285,10 +300,11 @@ def window(
     browser: bool = True,
     retrain: bool = False,
     folder=".",
+    drone: bool = False,
 ) -> None:
     """Teach, then open the 3-D window and the brain page, and let it fly."""
     from .livebrain import LiveBrain
-    from .watch import FlysEye, FlyView, Pilot
+    from .watch import FlysEye, Pilot
 
     items = arena.mission(seed, per_kind=per_kind)
     print("Wczytuję oko muchy (flyvis)...")
@@ -297,15 +313,15 @@ def window(
     _print_valence(valence, targets)
     import mujoco.viewer
 
-    pilot = Autopilot(items, mb, eye, valence, targets)
-    view, keys = FlyView(pretty=pretty, items=items), Pilot()
+    pilot = _pilot(items, mb, eye, valence, targets, drone)
+    view, keys = _view(drone, pretty, items), Pilot()
     live = LiveBrain(eye.eye)
     print(f"Strona z mózgiem i autopilotem: {live.url}")
     if browser:
         live.open()
     print(
-        "W oknie 3D: spacja = pauza, C = kamera za muchą / swobodna. "
-        "Strzałki nic nie robią: muszka leci sama."
+        "W oknie 3D: spacja = pauza, C = kamera za nim / swobodna. "
+        f"Strzałki nic nie robią: {pilot.who.lower()} leci sam{'a' if not drone else ''}."
     )
     try:
         with mujoco.viewer.launch_passive(view.model, view.data, key_callback=keys.key) as v:
@@ -320,14 +336,15 @@ def window(
                 pilot.step()
                 if not pilot.flight.upright():
                     print(
-                        "\nMuszka straciła panowanie nad lotem."
+                        f"\n{pilot.who}: utrata panowania nad lotem."
                         " Zamknij okno i spróbuj ponownie."
                     )
                     ended = True
-                view.pose(pilot.flight.body)
+                view.show(pilot.flight)
                 if follow:
+                    heading = pilot.flight.state()["heading"]
                     with v.lock():
-                        view.chase(v.cam, pilot.flight.state()["heading"], distance=22.0)
+                        view.chase(v.cam, heading, distance=CHASE[drone])
                 v.sync()
                 now = time.time()
                 if now - last_snap > 0.25:
@@ -350,6 +367,29 @@ def window(
         live.close()
 
 
+#: How far behind the camera follows: the fly, and the drone.
+CHASE = {False: 22.0, True: 12.0}
+
+
+def _pilot(items, mb, eye, valence, targets, drone: bool) -> Autopilot:
+    """The autopilot on the fly, or on the drone with the fly's brain."""
+    if not drone:
+        return Autopilot(items, mb, eye, valence, targets)
+    from .dronebrain import NAVIGATOR, DroneFlight
+
+    return Autopilot(items, mb, eye, valence, targets, vehicle=DroneFlight(), **NAVIGATOR)
+
+
+def _view(drone: bool, pretty: bool, items):
+    if drone:
+        from .dronebrain import DroneView
+
+        return DroneView(pretty=pretty, items=items)
+    from .watch import FlyView
+
+    return FlyView(pretty=pretty, items=items)
+
+
 def _print_valence(valence: dict, targets) -> None:
     print("Czego się nauczyła (ocena: + przyciąga, - odpycha):")
     for k, v in valence.items():
@@ -363,25 +403,33 @@ def video(
     seed: int = 0,
     per_kind: int = 2,
     seconds: float = 20.0,
-    frame_ms: float = 10.0,
+    frame_ms: float | None = None,
     width: int = 960,
     height: int = 540,
     fps: int = 30,
     folder=".",
     retrain: bool = False,
+    drone: bool = False,
 ) -> Path:
-    """Record a whole mission: the chase view, with the map and the fly's eye beside it."""
+    """Record a whole mission: the chase view, with the map and the fly's eye beside it.
+
+    ``frame_ms`` of flight per frame: 10 for the fly (slow motion, it is
+    quick), 33 for the drone (about real time).
+    """
     import imageio.v2 as imageio
 
-    from .watch import FlysEye, FlyView
+    from .watch import FlysEye
+
+    if frame_ms is None:
+        frame_ms = 33.0 if drone else 10.0
 
     items = arena.mission(seed, per_kind=per_kind)
     eye = FlysEye(items=items)
     mb, valence = learned(eye, targets, folder=folder, retrain=retrain)
     import mujoco
 
-    pilot = Autopilot(items, mb, eye, valence, targets)
-    view = FlyView(pretty=True, items=items)
+    pilot = _pilot(items, mb, eye, valence, targets, drone)
+    view = _view(drone, True, items)
     renderer = mujoco.Renderer(view.model, height, width)
     cam = mujoco.MjvCamera()
     looks = max(1, int(round(frame_ms / eye.every_ms)))
@@ -393,8 +441,8 @@ def video(
                 pilot.step()
             if not pilot.flight.upright():
                 break
-            view.pose(pilot.flight.body)
-            view.chase(cam, pilot.flight.state()["heading"], distance=22.0)
+            view.show(pilot.flight)
+            view.chase(cam, pilot.flight.state()["heading"], distance=CHASE[drone])
             renderer.update_scene(view.data, camera=cam)
             writer.append_data(_frame(renderer.render(), pilot, frame_ms, fps))
             if pilot.done:

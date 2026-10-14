@@ -8,7 +8,7 @@
     flylab check                                             is everything installed?
     flylab watch                                             3-D window, fly it yourself
     flylab video   [--seconds 2.4] [--cel kula]              a flight as MP4
-    flylab cel     kula [--seed 0] [--bez-okna]              it flies to its targets alone
+    flylab cel     kula [--seed 0] [--bez-okna] [--dron]     it flies to its targets alone
 
 ``python -m wingloop.lab ...`` does the same where ``flylab`` is not on PATH.
 
@@ -225,7 +225,8 @@ def cmd_video(args) -> dict:
             args.output,
             targets,
             seed=args.seed,
-            seconds=args.seconds or 30.0,
+            seconds=args.seconds or (60.0 if args.dron else 30.0),
+            drone=args.dron,
         )
     else:
         from .watch import video
@@ -249,6 +250,7 @@ def cmd_cel(args) -> dict:
             per_kind=args.ile,
             pretty=args.pretty,
             retrain=args.od_nowa,
+            drone=args.dron,
         )
         return {}
     from . import arena
@@ -260,7 +262,8 @@ def cmd_cel(args) -> dict:
     mb, valence = learned(eye, targets, retrain=args.od_nowa)
     _print_valence(valence, targets)
     t0 = time.time()
-    pilot = run(items, mb, eye, valence, targets, seconds=args.seconds)
+    seconds = args.seconds or (60.0 if args.dron else 30.0)
+    pilot = run(items, mb, eye, valence, targets, seconds=seconds, drone=args.dron)
     print(pilot.summary(), f"({time.time() - t0:.0f} s obliczeń)")
     return {"autopilot": pilot.status()}
 
@@ -366,6 +369,7 @@ def main(argv=None) -> None:
                 "--cel", nargs="+", default=None, help="record an autonomous mission to these"
             )
             s.add_argument("--seed", type=int, default=0, help="which arena")
+            s.add_argument("--dron", action="store_true", help="the mission flown by the drone")
         if name == "cel":
             s.add_argument(
                 "target",
@@ -375,7 +379,12 @@ def main(argv=None) -> None:
             )
             s.add_argument("--seed", type=int, default=0, help="which arena")
             s.add_argument("--ile", type=int, default=2, help="objects of each kind")
-            s.add_argument("--seconds", type=float, default=30.0, help="longest mission, s")
+            s.add_argument(
+                "--seconds", type=float, default=None, help="longest mission, s (30; drone 60)"
+            )
+            s.add_argument(
+                "--dron", action="store_true", help="a drone flies it, with the fly's brain"
+            )
             s.add_argument("--bez-okna", action="store_true", help="no window: just fly")
             s.add_argument("--od-nowa", action="store_true", help="teach again from scratch")
             s.add_argument("--pretty", action="store_true", help="shadows on (slower)")

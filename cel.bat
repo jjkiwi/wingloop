@@ -17,6 +17,10 @@ echo.
 set CEL=
 set /p CEL=Do czego ma leciec? kula / plytka / slupek [kula]: 
 if "%CEL%"=="" set CEL=kula
+set KTO=
+set /p KTO=Kto leci: mucha / dron (dron z mozgiem muchy) [mucha]: 
+set DRON=
+if /i "%KTO%"=="dron" set DRON=--dron
 set ARENA=
 set /p ARENA=Ktora arena (liczba, kazda inaczej rozstawiona) [0]: 
 if "%ARENA%"=="" set ARENA=0
@@ -24,7 +28,7 @@ echo.
 echo W oknie 3D: spacja - pauza, C - kamera za mucha / swobodna (mysz).
 echo W przegladarce: mapa areny, oceny obiektow i mozg muchy na zywo.
 echo.
-".venv\Scripts\python.exe" -m wingloop.lab cel %CEL% --seed %ARENA%
+".venv\Scripts\python.exe" -m wingloop.lab cel %CEL% --seed %ARENA% %DRON%
 if errorlevel 1 (
   echo.
   echo Cos poszlo nie tak. Skopiuj tekst powyzej i wklej go w czacie.

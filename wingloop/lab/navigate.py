@@ -194,6 +194,11 @@ class Navigator:
     station_gain: float = 0.05  # degrees of pitch per mm/s of drift, while hovering
     give_up: float = 4.0  # seconds of approach without arriving
     lost_after: float = 0.5  # seconds with nothing ahead before it gives the target up
+    #: Arena mm/s below which a brake is over; None brakes for a fixed 0.12 s,
+    #: which is what stops the fly. A drone has more momentum: it coasts on
+    #: after 0.12 s, the place it records falls short of the object, and it
+    #: came back to objects it had already reached.
+    settle_speed: float | None = None
     #: What the world gives the fly where it lands, ``reward(x, y)`` ->
     #: dopamine (+ reward, - punishment, 0 nothing), or None for no learning
     #: in flight. The sugar on the target in the real experiment.
@@ -211,6 +216,8 @@ class Navigator:
         self._refr = 0.0
         self._target = None
         self._brake = 0.0
+        self._braking = False
+        self._moving = 0.0
         self._since = 0.0
         self._lost = 0.0
         self._home = (0.0, 0.0)
@@ -246,6 +253,7 @@ class Navigator:
         half = fly_eye.camera.fov / 2
         here = (state["x"], state["y"])
         heading_now = state["heading"]
+        self._moving = float(np.hypot(state.get("vx", 0.0), state.get("vy", 0.0)))
         if self.phase == "approach":
             # Only what is where the target should be counts as the target.
             off = (self._target.heading - heading_now + 180) % 360 - 180
@@ -315,9 +323,11 @@ class Navigator:
         return self._turn(dt)
 
     def _approach(self, size, bearing_deg, here, heading_now, dt):
-        if self._brake > 0:
+        if self._brake > 0 or self._braking:
             self._brake -= dt
-            if self._brake <= 0:
+            settled = self.settle_speed is None or self._moving < self.settle_speed
+            self._braking = not (self._brake <= 0 and (settled or self._brake < -1.5))
+            if not self._braking:
                 # Path integration: remember where the target is -- a little
                 # ahead of where the fly stopped.
                 h = np.deg2rad(self.heading)
@@ -344,7 +354,7 @@ class Navigator:
             self._rescan()
             return -6.0, self.heading, self.height
         if size >= self.arrive_size:
-            self._brake = 0.12
+            self._brake, self._braking = 0.12, True
             return -6.0, self.heading, self.height
         push = self.cruise_pitch if size < self.slow_size else self.cruise_pitch * 0.35
         return push, self.heading, self.height
