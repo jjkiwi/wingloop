@@ -184,6 +184,18 @@ def memory_path(targets, drone: bool = False, every_ms: float = 5.0, folder=".")
     return Path(folder) / f"pamiec_{names}{body}_{every_ms:g}ms.npz"
 
 
+def _remember(mb, path: Path, missions: int, curve) -> None:
+    """Save a practised brain, its practice count and its record, all at once."""
+    from .learning import save
+
+    part = path.with_name(path.stem + ".part.npz")
+    save(mb, part)
+    with np.load(part) as d:
+        everything = dict(d)
+    np.savez_compressed(part, **everything, missions=np.array(missions), curve=np.array(curve))
+    part.replace(path)  # never half a memory on disk
+
+
 #: Dopamine of a lesson in flight, as a fraction of the tether's full dose.
 LESSON = 1.0
 #: Dopamine on the views seen on the way in, as a fraction of the lesson's.
@@ -197,6 +209,7 @@ def practise(
     fast: bool = True,
     folder=".",
     progress=print,
+    first_arena: int = 1000,
 ) -> list:
     """Practice flights: missions in new arenas, learning from every landing.
 
@@ -206,7 +219,6 @@ def practise(
     tether's. Picks up from earlier practice if there was some. Returns, per
     mission, (targets found, mistakes, seconds flown).
     """
-    from .learning import save
     from .watch import FlysEye
 
     eye = FlysEye(items=(), every_ms=EYE_MS[fast])
@@ -221,7 +233,7 @@ def practise(
     for i in range(missions):
         # Practice arenas are numbered from 1000 up, apart from the ones
         # missions are flown in (0, 1, 2 ...), so the test is on new ground.
-        seed = 1000 + done + i
+        seed = first_arena + done + i
         items = arena.mission(seed, per_kind=2)
         eye.set_items(items)
         pilot = run(
@@ -245,17 +257,14 @@ def practise(
         )
         curve.append(row)
         mb.practised = done + i + 1
+        # Saved after every mission: a practice interrupted loses one
+        # mission, not all of them, and the next one picks up from there.
+        _remember(mb, path, done + i + 1, curve)
         if progress:
             progress(
                 f"  misja treningowa {done + i + 1}: {row[0]} z {len(wanted)} celów,"
                 f" pomyłki: {row[1]}  ({row[2]} s lotu)"
             )
-    save(mb, path)
-    with np.load(path) as d:
-        everything = dict(d)
-    np.savez_compressed(
-        path, **everything, missions=np.array(done + missions), curve=np.array(curve)
-    )
     if progress:
         progress(f"{who}: pamięć zapisana w {path}")
     return curve
