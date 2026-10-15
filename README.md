@@ -244,6 +244,104 @@ what is there. And the dose: half the dopamine per landing kept more
 targets on the ball (11 of 12) but cut the mistakes far less (9-10 against
 3-5), so a landing gets the tether's full dose.
 
+**Becoming an expert.** Practice alone halved the mistakes. To find out
+where the rest came from, the drone and the fly were sent on explorer
+missions -- liking everything, landing everywhere -- and every view they
+had was kept with what the object really was: 38 arenas, about 1,600 views.
+That record said the eye is right about 90% of the time on an object 40-60
+mm away and about 50% beyond 80 -- so most mistakes were judgements made
+from too far. Five teaching methods came out of it, each measured before it
+went in:
+
+1. *A close look before landing* (`Navigator.inspect`): the fly stops where
+   the object fills a fiftieth of its eye -- 30-60 mm -- looks again, and
+   lands only if it still likes it.
+2. *A close-look lesson on the tether*: taught only on scanning views, the
+   mushroom body turned down nearly every close look at a ball (13% right):
+   a stopped eye after nose-down flight is nothing like a turning one. The
+   tether now also replays the whole approach -- the turn, a half second of
+   nose-down flight at the fast fly's measured speed, the brake, the hover
+   with its 10-30 mm/s of drift -- and shows the object close up; judged on
+   new close looks, 93-100% right with 0-3% false alarms.
+3. *Landing to learn*: in practice the fly lands after every close look,
+   liked or not. A close look it rejects brings no dopamine, so without
+   this, practice could never correct a close look that wrongly turns a
+   target down -- which on the tether lesson alone is most of them for the
+   ball.
+4. *Lessons on the way in, and on the far view* (`trace_lessons`): dopamine
+   at the landing also reaches the Kenyon cells of the views seen on the
+   approach, at half strength -- as it does in the fly, where KC-to-output
+   synapses stay eligible for seconds -- and the view from afar that the
+   choice was made on. On recorded flight views the way-in lesson beat a
+   lesson on the chosen view alone (the ball 71% right with 2% false alarms
+   against 48% and 3%). Without the far view the drone, which liked an
+   object from afar and turned it down close up, went back to the same
+   object up to sixteen times: nothing ever punished what drew it there.
+   Replaying all experience in a balanced "sleep" lesson was tried and did
+   worse: it pulled the brain back toward the tether's bias.
+5. *Each body taught the way it flies*: the drone learned the fly's lesson
+   -- the panorama turning at 240 deg/s, the fly's approach -- and in its
+   first practice it reached 74% of its targets where the fly reached 92%.
+   It turns at 90 deg/s, flies in at its own 1.5 m/s on its own speed loop,
+   tilting up to 20 degrees, and has to stop before it looks. Its tether
+   lesson now replays exactly that; on the views the drone really had in
+   flight it called 68% of the balls within 80 mm balls, against 42% on the
+   fly's lesson. A drone mission may also run 90 s rather than 60: slower
+   to turn and to stop, it had run out of time in a third of its missions.
+
+A novice -- the tether lesson only -- does not take the close look: on its
+own it turned down most targets (7 of 24 balls). A brain that has practised
+does. `flylab egzamin` (and the end of `flylab trening`) sits it in arenas it
+never practised in, with no learning, and grades it: *ekspert* at 90% of
+targets or more and at most 0.2 mistakes a mission, *zaawansowany* at 75%
+and 0.5.
+
+The fly, twelve exam arenas per target:
+
+| target | novice | novice with close looks | after 20 practice missions |
+| --- | --- | --- | --- |
+| ball | 21 of 24, 28 mistakes | 7 of 24, 8 | 20 of 24, 0 |
+| slab | 23 of 24, 9 | 21 of 24, 0 | 23 of 24, 5 |
+| pole | 19 of 24, 1 | 14 of 24, 1 | 23 of 24, 0 |
+| all | 63 of 72, 38 mistakes | 42 of 72, 9 | **66 of 72 (92%), 5 (0.14 a mission)** |
+
+The mistakes went from 38 to 5 for about the same number of targets. Then
+the practice was made longer -- 50 missions in new arenas, examined after
+25 and after 50:
+
+| target | after 25 | after 50 |
+| --- | --- | --- |
+| ball | 17 of 24, 0 mistakes | 20 of 24, 0 |
+| slab | 22 of 24, 2 (*ekspert*) | 22 of 24, 3 |
+| pole | 22 of 24, 1 (*ekspert*) | 21 of 24, 0 |
+| all | 61 of 72 (85%), 3 | 63 of 72 (88%), 3 |
+
+A second fly, practising in other arenas, did the same: 60 of 72 with 3
+mistakes after 25, 62 with 3 after 50 (the slab 22 of 24 with one mistake
+and the pole 22 with none -- *ekspert* both); a third fly on the ball, 18 of
+24 with one mistake after 25 and after 50. Past 25 missions the fly learns
+little more: its mistakes were already down to one landing in every ten
+exam missions, and what keeps it from *ekspert* on the ball is a ball it
+does not find -- in four or five missions of twelve one of the two balls is
+never landed on -- not a wrong landing. Practice cannot teach what never
+lands, so that is where the next lesson has to come from.
+
+The drone, twelve exam arenas per target:
+
+| target | novice with close looks | 20 missions, the fly's lesson | 25 missions, its own lesson | 50 missions |
+| --- | --- | --- | --- | --- |
+| ball | 4 of 24, 10 mistakes | 14 of 24, 8 | 18 of 24, 1 | 15 of 24, 2 |
+| slab | 17 of 24, 0 | 20 of 24, 4 | 18 of 24, 1 | 18 of 24, 1 |
+| pole | 12 of 24, 3 | 19 of 24, 2 | 18 of 24, 1 | 18 of 24, 0 |
+| all | 33 of 72, 13 mistakes | 53 of 72, 14 | **54 of 72 (75%), 3 (0.08 a mission)** | 51 of 72, 3 |
+
+Taught the way it flies and with the far view punished, the drone makes a
+fifth of the mistakes it made on the fly's lesson and almost never lands
+on the wrong thing -- but it finds three targets in four, and 25 more
+missions did not change that. Like the fly's ball, what is left is caution:
+in half its exam missions it reaches one target and never the
+other.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
@@ -1479,7 +1577,7 @@ as what it is -- lost margin, the worst attitude swing going from 10.9 to
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 159 tests, about forty minutes on one core
+pytest -q             # 162 tests, about forty minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
 pytest -q -n 4        # with pytest-xdist: about ten minutes on four cores
 ```
