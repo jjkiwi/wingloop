@@ -342,6 +342,53 @@ missions did not change that. Like the fly's ball, what is left is caution:
 in half its exam missions it reaches one target and never the
 other.
 
+**Why the last targets were missed.** The exams were flown again with every
+decision written down -- what each look around saw and valued, where it
+went, what the close look said, why each approach ended -- and two of the
+reasons turned out not to be judgement at all:
+
+- *The drone gave up a few centimetres short.* An approach is given up
+  after 4 s, and the clock ran from the choice, through the stop and the
+  close look. In the first five arenas of the drone's ball exam, eight of
+  its nine give-ups came right after a close look it *liked*; it came back,
+  judged the ball again from too close -- valence 0 -- turned it down, and
+  never went back. All four balls it missed there went that way. A liked close look
+  now starts the clock again. The same thing had cost it lessons in
+  practice: a close look it liked ended without a landing, so without
+  dopamine.
+- *Missions ended with time left.* Both bodies called a mission done with
+  half its time to go and a target valued just below zero from afar --
+  -0.012 to 0 -- that it never looked at from where its eye is reliable.
+  A practised brain now goes and takes a close look at the most promising
+  object it has not been to before it calls a mission done
+  (`look_before_leaving`). Since the object was not liked from afar, the
+  close look has to like it clearly to overrule that (`sure`, 0.02): on the
+  drone, close looks at what it had turned down from afar came out 0.000-0.018
+  on what it should not land on, and without the margin it landed on nine
+  things in twelve slab missions.
+
+Twelve exam arenas per target, targets found of 24 and mistakes (for the
+fly, each of its practised brains):
+
+| | after 50 missions | with both | and 15 more missions with both |
+| --- | --- | --- | --- |
+| fly, ball | 20, 0 / 18, 2 / 18, 1 | 21, 0 / 20, 2 / 21, 1 | 19, 1 |
+| fly, slab | 22, 3 / 22, 1 | 22, 3 / 22, 1 (*ekspert*) | 21, 0 |
+| fly, pole | 21, 0 / 22, 0 | **23, 0 / 24, 0** (*ekspert*) | |
+| drone, ball | 15, 2 | 21, 5 | **21, 1** |
+| drone, slab | 18, 1 | 16, 2 | 18, 2 |
+| drone, pole | 18, 0 | 19, 0 | 17, 1 |
+
+The fly finds 66 of 72 where it found 62-63, with the same 3 mistakes, and
+is an expert on the pole. The drone finds the ball it used to miss -- and
+practising with the fix, now that what it likes close up ends in a landing
+and a lesson, it stopped landing on the slabs its ball brain liked a little
+(5 mistakes to 1). On the slab and the pole it did not gain. There, what is
+left is the drone's close look itself: on the tether its brains tell a
+target's close view from the rest by a wide margin (0.12-0.18 against
+below -0.05), in flight the slab or pole it should land on and the things
+it should not both come out within a few hundredths of zero.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
@@ -1577,7 +1624,7 @@ as what it is -- lost margin, the worst attitude swing going from 10.9 to
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 162 tests, about forty minutes on one core
+pytest -q             # 164 tests, about forty minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
 pytest -q -n 4        # with pytest-xdist: about ten minutes on four cores
 ```

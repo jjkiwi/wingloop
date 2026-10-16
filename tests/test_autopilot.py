@@ -303,6 +303,45 @@ def test_a_fly_that_likes_nothing_tries_the_most_promising_thing_once():
 # -------------------------------------------------------------- the display
 
 
+def _slow(world, value, close, seconds=30.0, speed=4.0, **kw):
+    """A body with more momentum than a fly's: a fifth of its speed per degree."""
+    eye, dt = _Eye(world, value), 0.005
+    eye.close_value = close
+    nav = Navigator(_Judge(), inspect=True, curious=False, **kw)
+    x = y = h = t = 0.0
+    nav.start(h)
+    while t < seconds and nav.phase != "done":
+        eye.pose = (x, y, h)
+        pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+        h += np.clip(heading - h, -3.0, 3.0)
+        v = max(pitch, 0.0) * speed
+        x, y = x + v * dt * np.cos(np.deg2rad(h)), y + v * dt * np.sin(np.deg2rad(h))
+        t += dt
+    return nav
+
+
+def test_a_close_look_it_likes_gives_the_rest_of_the_way_in_its_own_time():
+    """Slow to stop and to look, a drone gave up a few centimetres short of what it liked."""
+    nav = _slow([(65.0, 0.0, "sphere")], {"sphere": 0.3}, {"sphere": 0.2}, give_up=1.2)
+    assert [ok for _, ok in nav.inspections] == [True]
+    assert len(nav.visited) == 1 and np.hypot(*np.subtract(nav.visited[0], (65.0, 0.0))) < 30
+
+
+def test_before_leaving_it_looks_closely_at_what_it_has_not_been_to():
+    """Valued just below zero from afar, a target is still worth a close look."""
+    world = [(65.0, 0.0, "sphere"), (-40.0, 50.0, "sphere"), (-20.0, -60.0, "bar")]
+    value = {"sphere": -0.01, "bar": -0.3}
+    close = {"sphere": 0.2, "bar": -0.3}
+    assert not _slow(world, value, close, speed=20.0).visited
+    nav = _slow(world, value, close, speed=20.0, look_before_leaving=True)
+    assert nav.phase == "done" and len(nav.visited) == 2
+    # Both balls landed on, the pole turned down.
+    assert sorted(ok for _, ok in nav.inspections) == [False, True, True]
+    # Not liked from afar, a close look must like it clearly to overrule that.
+    faint = _slow(world, value, {**close, "sphere": 0.01}, speed=20.0, look_before_leaving=True)
+    assert not faint.visited and len(faint.inspections) == 3
+
+
 def _status():
     return {
         "phase": "approach",

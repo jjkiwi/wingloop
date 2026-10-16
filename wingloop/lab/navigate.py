@@ -307,6 +307,18 @@ class Navigator:
     #: choosier, and measured, a practised fly sometimes liked nothing at all
     #: and ended its mission on the spot with both targets in view.
     curious: bool = True
+    #: And before calling a mission done with objects it has not been to, go
+    #: and take a close look at the most promising of them -- the close look
+    #: decides. Only for a brain that takes close looks. Measured, missions
+    #: ended with half their time left and a target valued just below zero
+    #: from afar, never looked at from where the eye is reliable.
+    look_before_leaving: bool = False
+    #: How much a close look must like what it was taken back to look at: it
+    #: was not liked from afar, and the close look has to overrule that. On
+    #: the drone, close looks at what it had turned down from afar came out
+    #: 0.000-0.018 on what it should not land on and 0.14 on a ball it should;
+    #: the fly's and the drone's targets found this way, 0.023-0.21.
+    sure: float = 0.02
     #: Look again from close before landing -- what a practised brain does
     #: (:func:`~.autopilot._pilot`). Judged from flight, the eye is
     #: right about 90% of the time at 40-60 mm and about 50% beyond 80, so
@@ -357,6 +369,7 @@ class Navigator:
         self._stopped = False
         self._looking = 0.0
         self._empty_looks = 0
+        self._needed = 0.0  # what a close look must like to land
         self._home = (0.0, 0.0)
         self.heading = 0.0
 
@@ -550,13 +563,17 @@ class Navigator:
         # The closer look is the one the decision -- and any lesson -- rests on.
         self._scan_view = self._target.features
         self._target.features, self._target.valence = f, v
-        if v <= 0.0 and not self.land_to_learn:
+        if v <= self._needed and not self.land_to_learn:
             h = np.deg2rad(self.heading)
             self.rejected.append((here[0] + 50 * np.cos(h), here[1] + 50 * np.sin(h)))
             self.inspections.append((v, False))
             self._rescan()
             return 0.0, self.heading, self.height
         self.inspections.append((v, True))
+        # The rest of the way in has its own time: the stop and the look took
+        # some, and a drone giving up here, a few centimetres short, came back
+        # and judged the object again from too close -- and turned it down.
+        self._since = 0.0
         return 0.0, self.heading, self.height
 
     def _learn_from(self, place) -> None:
@@ -628,6 +645,11 @@ class Navigator:
                 self._since = 0.0
                 self.phase = "approach"
                 self._inspected = True  # it goes to find out, whatever it looks like
+            elif self.look_before_leaving and self.inspect and unvisited:
+                self._target = max(unvisited, key=lambda s: s.valence)
+                self._since = 0.0
+                self.phase = "approach"
+                self._needed = self.sure
             else:
                 self.phase = "done"
 
@@ -640,6 +662,7 @@ class Navigator:
         self._trace = []
         self._scan_view = None
         self._inspected, self._looking, self._stopped = False, 0.0, False
+        self._needed = 0.0
         self.sightings = []
 
 

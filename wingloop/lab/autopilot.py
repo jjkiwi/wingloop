@@ -445,6 +445,7 @@ def run(
     pilot = _pilot(items, mushroom_body, eye, valence, targets, drone, fast)
     if practice:
         pilot.nav.inspect = pilot.nav.land_to_learn = True
+        pilot.nav.look_before_leaving = True
     last = None
     while pilot.flight.t < seconds and not pilot.done:
         pilot.step()
@@ -613,7 +614,8 @@ def _pilot(items, mb, eye, valence, targets, drone: bool, fast: bool = False) ->
     turned down most targets -- 7 of 24 balls found -- while after twenty
     practice missions the close look is what keeps it from mistakes.
     """
-    expert = {"inspect": bool(getattr(mb, "practised", 0))}
+    practised = bool(getattr(mb, "practised", 0))
+    expert = {"inspect": practised, "look_before_leaving": practised}
     if not drone:
         if fast:
             from .fastfly import FastFly
