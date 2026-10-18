@@ -83,21 +83,36 @@ def test_the_tethered_views_are_looked_at_once_and_any_target_taught_from_them(
     rng = np.random.default_rng(2)
     centres = {k: rng.normal(0, 1, 40) for k in arena.KINDS}
 
-    def look(eye, kinds, samples, seed, progress, **kw):
+    def look(eye, kinds, samples, seed=0, progress=None, **kw):
         calls.append(samples)
         K = np.array([kinds[i % len(kinds)] for i in range(samples)])
         return np.array([centres[k] + rng.normal(0, 0.4, 40) for k in K]), K
 
     monkeypatch.setattr(autopilot, "tethered_training", look)
+    monkeypatch.setattr(autopilot, "flown_close_looks", look)
     monkeypatch.setattr(autopilot, "SHIPPED", tmp_path / "not-shipped.npz")
     for target in ("sphere", "bar"):
         mb, valence = autopilot.learned(None, {target}, folder=tmp_path, progress=None)
         assert max(valence, key=valence.get) == target
-    assert calls == [90, 90]  # looked once (scanning and close up), taught twice
+    # Looked once -- scanning on the tether, and close up in flight -- taught twice.
+    assert calls == [90, autopilot.CLOSE_LOOKS]
     # A change to the objects makes the saved views stale.
     monkeypatch.setitem(arena.KINDS["bar"], "size", 9.0)
     autopilot.learned(None, {"bar"}, folder=tmp_path, progress=None)
-    assert calls == [90, 90, 90, 90]
+    assert calls == [90, autopilot.CLOSE_LOOKS] * 2
+
+
+@needs_flyvis
+def test_the_close_look_lesson_is_flown_by_the_body_itself():
+    """Turned away, it flies to the object, stops, looks: that view is the lesson."""
+    from wingloop.lab.autopilot import EYE_MS, flown_close_looks
+    from wingloop.lab.watch import FlysEye
+
+    eye = FlysEye(items=(arena.Item("bar", 60.0, 0.0),), every_ms=EYE_MS[True])
+    world = eye.world
+    F, K = flown_close_looks(eye, tuple(arena.KINDS), 3)
+    assert F.shape == (3, 325) and K.tolist() == list(arena.KINDS)
+    assert np.all(np.isfinite(F)) and eye.world is world  # its own arena given back
 
 
 def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
@@ -108,10 +123,11 @@ def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
         for close in (False, True):  # scanning, and close up
             for drone in (False, True):  # the fly's way of flying, and the drone's
                 path = autopilot.shipped(every_ms, close, drone)
+                n = autopilot.CLOSE_LOOKS if close else 90
                 with np.load(path) as d:
-                    sig = autopilot._signature(90, 0, every_ms, close, drone)
+                    sig = autopilot._signature(n, 0, every_ms, close, drone)
                     assert str(d["signature"]) == sig, path.name
-                    assert d["F"].shape == (90, 325)
+                    assert d["F"].shape == (n, 325)
                     assert sorted(set(d["K"].tolist())) == sorted(arena.KINDS)
 
 
@@ -155,6 +171,9 @@ class _Eye:
         if not seen:
             return np.zeros(1)
         size, _, kind = min(seen, key=lambda v: abs(v[1]))
+        closer = getattr(self, "closer_value", {})
+        if kind in closer and size > 0.035:  # and from nearer still
+            return np.array([closer[kind]])
         close = getattr(self, "close_value", {})
         if kind in close and size > 0.015:  # what it really is, seen from near
             return np.array([close[kind]])
@@ -258,6 +277,14 @@ def test_a_landing_teaches_the_far_view_it_chose_on_and_the_close_look():
     assert len(nav.lessons) == 1
 
 
+def test_two_liked_objects_close_together_are_both_landed_on():
+    """Its places fall short of the objects; the one it came from is behind it, not here."""
+    world = [(60.0, 0.0, "slab"), (60.0, 40.0, "slab")]
+    nav, path = _fly(world, {"slab": 0.3})
+    assert len(nav.visited) == 2 and nav.phase == "done"
+    assert np.hypot(path[:, 0] - 60, path[:, 1] - 40).min() < 30
+
+
 def test_with_nothing_liked_in_sight_it_goes_home_and_looks_from_there():
     """From the first target the second is out of sight; from home it is not."""
     world = [(70.0, 0.0, "sphere"), (-60.0, 5.0, "sphere")]
@@ -325,6 +352,90 @@ def test_a_close_look_it_likes_gives_the_rest_of_the_way_in_its_own_time():
     nav = _slow([(65.0, 0.0, "sphere")], {"sphere": 0.3}, {"sphere": 0.2}, give_up=1.2)
     assert [ok for _, ok in nav.inspections] == [True]
     assert len(nav.visited) == 1 and np.hypot(*np.subtract(nav.visited[0], (65.0, 0.0))) < 30
+
+
+def test_the_drone_goes_back_to_where_it_saw_something_it_never_looked_at():
+    """Out of sight from home, a ball it saw from elsewhere: it goes there, and looks."""
+    from wingloop.lab.navigate import Sighting
+
+    world = [(60.0, 75.0, "sphere")]  # 96 mm from home, 75 from where it was seen
+    there = Sighting(90.0, -0.01, 0.007, (60.0, 0.0), np.array([-0.01]))
+    value, close = {"sphere": -0.01}, {"sphere": 0.2}
+    kw = dict(speed=20.0, look_before_leaving=True, seen=[there])
+    assert not _slow(world, value, close, **kw).visited  # the fly does not
+    nav = _slow(world, value, close, go_back=True, **kw)
+    assert len(nav.visited) == 1 and nav.phase == "done"
+
+
+def test_with_nothing_left_it_explores_the_widest_stretch_it_has_seen_nothing_in():
+    """A ball 90 mm out, too small for the eye from home, in a half-circle of nothing."""
+    world = [(60.0, 0.0, "bar"), (30.0, 52.0, "bar"), (-30.0, 52.0, "bar"), (-60.0, 0.0, "bar")]
+    world.append((0.0, -90.0, "sphere"))
+    value, close = {"sphere": -0.01, "bar": -0.3}, {"sphere": 0.2, "bar": -0.3}
+    kw = dict(speed=20.0, look_before_leaving=True, seconds=60.0)
+    assert not _slow(world, value, close, **kw).visited
+    nav = _slow(world, value, close, explore=40.0, **kw)
+    assert len(nav.visited) == 1 and np.hypot(*np.subtract(nav.visited[0], (0.0, -90.0))) < 30
+
+
+def test_turned_down_by_a_hair_from_afar_it_goes_closer_and_looks_again():
+    """The drone's far close looks were its only wrong ones: a near-zero no means look again."""
+    world = [(70.0, 0.0, "slab")]
+
+    def fly(unsure):
+        eye, dt = _Eye(world, {"slab": 0.3}), 0.005
+        eye.close_value, eye.closer_value = {"slab": -0.01}, {"slab": 0.2}
+        nav = Navigator(_Judge(), inspect=True, curious=False, unsure=unsure)
+        x = y = h = t = 0.0
+        nav.start(h)
+        while t < 20.0 and nav.phase != "done":
+            eye.pose = (x, y, h)
+            pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+            h += np.clip(heading - h, -3.0, 3.0)
+            v = max(pitch, 0.0) * 20.0
+            x, y = x + v * dt * np.cos(np.deg2rad(h)), y + v * dt * np.sin(np.deg2rad(h))
+            t += dt
+        return nav
+
+    assert not fly(0.0).visited  # the first close look's no is final
+    nav = fly(0.06)
+    assert [round(v, 6) for v, _ in nav.inspections] == [0.2] and len(nav.visited) == 1
+
+
+def test_it_looks_closely_only_once_it_faces_the_object_and_has_stopped_turning():
+    """Starting its approach near enough to look, the drone first turns to face it."""
+    from wingloop.lab.dronebrain import NAVIGATOR
+
+    facing = {k: NAVIGATOR[k] for k in ("centred", "still", "face_time")}
+    world = [(30.0, 30.0, "bar")]  # 42 mm away, 45 degrees to the left: near enough already
+    eye, dt = _Eye(world, {"bar": 0.3}), 0.005
+    nav = Navigator(_Judge(), inspect=True, curious=False, **facing)
+    x = y = h = t = 0.0
+    nav.start(h)
+    offs = []
+    while t < 10.0 and not nav.inspections:
+        eye.pose = (x, y, h)
+        pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+        h += np.clip(heading - h, -0.4, 0.4)  # 80 deg/s at most: a drone's turn
+        v = max(pitch, 0.0) * 4.0
+        x, y = x + v * dt * np.cos(np.deg2rad(h)), y + v * dt * np.sin(np.deg2rad(h))
+        t += dt
+        offs.append(abs((np.degrees(np.arctan2(30.0 - y, 30.0 - x)) - h + 180) % 360 - 180))
+    assert nav.inspections and offs[-1] < 5.0
+    # Without the wait it looked while still turning, the object well off the middle.
+    eye, nav = _Eye(world, {"bar": 0.3}), Navigator(_Judge(), inspect=True, curious=False)
+    nav.centred, nav.still = 360.0, 1e9  # no waiting
+    x = y = h = t = 0.0
+    nav.start(h)
+    while t < 10.0 and not nav.inspections:
+        eye.pose = (x, y, h)
+        pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+        h += np.clip(heading - h, -0.4, 0.4)
+        v = max(pitch, 0.0) * 4.0
+        x, y = x + v * dt * np.cos(np.deg2rad(h)), y + v * dt * np.sin(np.deg2rad(h))
+        t += dt
+    off = (np.degrees(np.arctan2(30.0 - y, 30.0 - x)) - h + 180) % 360 - 180
+    assert nav.inspections and abs(off) > 5.0
 
 
 def test_before_leaving_it_looks_closely_at_what_it_has_not_been_to():
@@ -458,6 +569,7 @@ def test_practice_memory_is_what_the_next_mission_flies_with(tmp_path, monkeypat
         return np.array([centres[k] + rng.normal(0, 0.4, 40) for k in K]), K
 
     monkeypatch.setattr(autopilot, "tethered_training", look)
+    monkeypatch.setattr(autopilot, "flown_close_looks", look)
     monkeypatch.setattr(autopilot, "SHIPPED", tmp_path / "not-shipped.npz")
 
     class Eye:

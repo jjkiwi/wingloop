@@ -71,22 +71,12 @@ def tethered_training(
     scan_rate: float = 240.0,
     hold: float = 0.12,
     lead=(120.0, 180.0),
-    inspection: bool = False,
-    body: str = "fly",
 ):
     """Show the tethered fly each kind of object; return (features, kinds).
 
-    ``body`` is whose way of flying the lesson replays: ``"fly"``, or
-    ``"drone"`` -- the same brain on the drone, which turns at its own
-    :data:`~.dronebrain.SCAN_RATE` (pass it as ``scan_rate``) and flies in
-    at its own speed.
-
-    ``inspection`` shows it the other way the flying fly meets an object: flown
-    at, at cruising speed, then stopped at 30-75 mm and looked at -- the close
-    look it takes before landing (:attr:`Navigator.inspect`). Taught only on
-    the scanning views, the mushroom body turned down every close look at a
-    ball, 24 of 24: a stopped eye after forward flight is nothing like a
-    turning one.
+    For the drone, pass its :data:`~.dronebrain.SCAN_RATE` as ``scan_rate``:
+    it turns more slowly than a fly. The close looks taken before landing
+    are taught in flight instead (:func:`~.autopilot.flown_close_looks`).
 
     ``fly_eye`` is a :class:`~wingloop.lab.watch.FlysEye`; its world is swapped
     for a small arena for each view. Each object is shown **the way the flying
@@ -142,12 +132,6 @@ def tethered_training(
             return fly_eye.eye.step(image, frames=1)
 
         fly_eye.eye.reset()
-        if inspection:
-            feats.append(_close_look(look, eye_pos, h, rng, dt, hold, fly_eye, scan_rate, body))
-            labels.append(kind)
-            if progress and (i + 1) % 10 == 0:
-                progress(f"  obejrzała z bliska {i + 1} z {samples}")
-            continue
         # Turning on the spot, the object coming in from the left.
         yaw = h - np.deg2rad(rng.uniform(*lead))
         while h - yaw > np.deg2rad(8.0):
@@ -169,87 +153,13 @@ def tethered_training(
     return np.asarray(feats), np.asarray(labels)
 
 
-def _close_look(look, eye_pos, h, rng, dt, hold, fly_eye, scan_rate=240.0, body="fly"):
-    """The way a flying fly comes to its close look, frame by frame.
-
-    Turning to face the object, flying at it nose-down at cruising speed,
-    braking, and hovering -- still drifting -- while it looks. Each step is the
-    fast fly's measured answer (:mod:`.fastfly`): speed 30 + 22.3 mm/s per
-    degree of pitch with a 0.12 s lag, body pitch 1 + 0.8 of the setpoint.
-    Shorter versions of this taught a mushroom body that judged the tether's
-    close looks perfectly and the flying fly's around zero: the eye comes to
-    a close look with a second of turning and nose-down flight behind it.
-    """
-    frames = []  # (distance flown so far, yaw, pitch in degrees)
-    yaw = h - np.deg2rad(rng.uniform(60, 150))
-    while h - yaw > np.deg2rad(8.0):  # turning to face it
-        frames.append((0.0, yaw, 1.0))
-        yaw += np.deg2rad(scan_rate) * dt
-    error = h - yaw
-    n_hold = max(2, int(round(hold / dt)))
-    if body == "drone":
-        s, v = _drone_run_in(frames, h, error, dt, n_hold, rng)
-    else:
-        s, v, pitch = 0.0, 30.0, 1.0
-        drift = rng.uniform(10.0, 30.0)
-        plan = [(0.5, 12.0), (0.1, -6.0)]  # (seconds, pitch setpoint): fly at it, brake
-        for seconds, setpoint in plan:
-            for _ in range(max(1, int(round(seconds / dt)))):
-                v += (30.0 + 22.3 * setpoint - v) * dt / 0.12
-                pitch += (1.0 + 0.8 * setpoint - pitch) * min(1.0, dt / 0.03)
-                s += v * dt
-                error *= np.exp(-dt / 0.05)
-                frames.append((s, h + error, pitch))
-        for _ in range(n_hold):  # hovering, and looking
-            v += (drift - v) * dt / 0.12
-            pitch += (1.0 - pitch) * min(1.0, dt / 0.03)
-            s += v * dt
-            frames.append((s, h, pitch))
-    ahead = np.array([np.cos(h), np.sin(h), 0.0])
-    phase, fovea = rng.uniform(0, 2 * np.pi), []
-    for k, (flown, yaw_k, pitch_k) in enumerate(frames):
-        wobble = np.deg2rad(2.0) * np.sin(2 * np.pi * 8.0 * k * dt + phase)
-        at = eye_pos - ahead * (s - flown)
-        activity = look(yaw_k + wobble, at=at, pitch=np.deg2rad(pitch_k))
-        if k >= len(frames) - n_hold // 2:
-            fovea.append(fly_eye.eye.fovea_shape(activity))
-    return np.mean(fovea, axis=0)
-
-
-def _drone_run_in(frames, h, error, dt, n_hold, rng, scale=50.0):
-    """The drone's way to a close look, in arena units: its own speed loop.
-
-    The fly's brain on the drone's body -- :class:`~.drone.FlyPilot` tilts
-    0.25 rad per m/s of speed error, up to 20 degrees, against drag -- flying
-    at it for 1.5 s at its 1.5 m/s cruise, braking until it has stopped,
-    then hovering almost still. Taught the fly's way instead, the drone got
-    74% of its targets after practice where the fly got 92%.
-    """
-    s, v = 0.0, 0.0  # arena mm, arena mm/s
-
-    def tilt(goal):
-        return float(np.clip(0.25 * (goal - v) * scale / 1000.0, -0.35, 0.35))
-
-    for target, seconds in ((30.0, 1.5), (0.0, 1.5)):
-        for k in range(max(1, int(round(seconds / dt)))):
-            pitch = tilt(target)
-            accel = 9.81 * np.tan(pitch) - 0.37 * v * scale / 1000.0  # m/s^2
-            v += accel * 1000.0 / scale * dt
-            s += v * dt
-            error *= np.exp(-dt / 0.3)
-            frames.append((s, h + error, np.degrees(pitch)))
-            if target == 0.0 and abs(v) < 6.0 and k * dt > 0.1:
-                break
-    drift = rng.uniform(0.0, 5.0)
-    for _ in range(n_hold):
-        v += (drift - v) * dt / 0.3
-        s += v * dt
-        frames.append((s, h, 0.0))
-    return s, v
-
-
-def teach(mushroom_body, features, kinds, reward: dict) -> None:
+def teach(
+    mushroom_body, features, kinds, reward: dict, dose: float = 1.0, calibrate: bool = True
+) -> None:
     """Dopamine for each view: ``reward[kind]``, positive for a target.
+
+    ``dose`` scales the dopamine of this lesson; ``calibrate=False`` keeps the
+    input normalisation an earlier lesson set, for a second lesson on top.
 
     Each side is balanced by how often it was seen: with one target kind and
     two punished ones, unbalanced punishment depresses the approach output
@@ -260,13 +170,14 @@ def teach(mushroom_body, features, kinds, reward: dict) -> None:
     kinds = np.asarray([str(k) for k in kinds])
     n_good = max(1, sum(reward.get(k, 0.0) > 0 for k in kinds))
     n_bad = max(1, sum(reward.get(k, 0.0) < 0 for k in kinds))
-    mushroom_body.calibrate(features)
+    if calibrate:
+        mushroom_body.calibrate(features)
     for f, k in zip(features, kinds, strict=True):
         r = reward.get(k, 0.0)
         scale = (len(kinds) / (2 * n_good)) if r > 0 else (len(kinds) / (2 * n_bad))
         # Capped only where depression would overshoot zero: lr * dopamine < 1.
         cap = 0.95 / mushroom_body.learning_rate
-        mushroom_body.learn(f, float(np.clip(r * scale, -cap, cap)))
+        mushroom_body.learn(f, float(np.clip(dose * r * scale, -cap, cap)))
 
 
 # ---------------------------------------------------------------- flying
@@ -305,7 +216,9 @@ class Navigator:
     #: With nothing liked and nowhere landed yet, try the most promising
     #: object anyway, and learn from what is there. Practice makes a fly
     #: choosier, and measured, a practised fly sometimes liked nothing at all
-    #: and ended its mission on the spot with both targets in view.
+    #: and ended its mission on the spot with both targets in view. A brain
+    #: that takes close looks takes one here too, and lands only if it is
+    #: clearly liked (``sure``); without, it lands to find out.
     curious: bool = True
     #: And before calling a mission done with objects it has not been to, go
     #: and take a close look at the most promising of them -- the close look
@@ -327,6 +240,26 @@ class Navigator:
     #: ``fixate_time``, and lands only if it still likes what it sees.
     inspect: bool = False
     inspect_size: float = 0.02
+    #: The close look waits until the object is near the middle of the eye --
+    #: within ``centred`` degrees -- and the body has stopped turning, below
+    #: ``still`` deg/s, for at most ``face_time`` seconds. Measured on the
+    #: drone, every close look taken within 3 degrees and below 8 deg/s was
+    #: judged right, and every wrong one had been taken still turning,
+    #: 22-116 deg/s with the object 5-42 degrees off the middle -- it had
+    #: started its approach close by, already near enough to look (the
+    #: drone's values are in :data:`~.dronebrain.NAVIGATOR`). A hovering fly
+    #: keeps turning 25-35 deg/s after its drifting target, judges well doing
+    #: so, and drifts into the object if it waits.
+    centred: float = 15.0
+    still: float = 60.0
+    face_time: float = 1.5
+    #: A close look that turns the object down by less than ``unsure``, taken
+    #: before it fills ``closer_size`` of the eye, is taken again from there:
+    #: the drone's practised close looks were never wrong from 40-55 mm, and
+    #: the targets it still missed had been turned down by a hair -- -0.005,
+    #: -0.04 -- from 62-74 mm. 0: never.
+    unsure: float = 0.0
+    closer_size: float = 0.04
     #: Practice: land after a close look even when it is not liked, to find
     #: out. A rejected close look teaches nothing -- no landing, no dopamine
     #: -- so without this, practice could never correct a close look that
@@ -339,6 +272,21 @@ class Navigator:
     reward: object = None
     phase: str = "scan"
     sightings: list = field(default_factory=list)
+    #: Before calling a mission done, go back to where it saw something it has
+    #: not looked at, and look from there: an object at the edge of what the
+    #: eye makes out is seen on one look around and not the next. Worth it
+    #: only to a brain whose close looks are sure -- the practised drone made
+    #: no wrong landing in 212 close looks, while for the fly the extra looks
+    #: cost more wrong landings than they found targets.
+    go_back: bool = False
+    #: Every sighting of the mission, for ``go_back``.
+    seen: list = field(default_factory=list)
+    #: And with nothing left to look at, fly ``explore`` mm out into the
+    #: widest stretch of the panorama with nothing seen in it -- more than 90
+    #: degrees -- and look around there. A ball 78 mm away is too small for
+    #: the eye from home; measured, the drone ended a mission with 37 s to go
+    #: and a ball in a 106-degree gap it had never seen. 0: never.
+    explore: float = 0.0
     visited: list = field(default_factory=list)
     lessons: list = field(default_factory=list)
     inspections: list = field(default_factory=list)  # (valence close up, landed on it)
@@ -359,6 +307,10 @@ class Navigator:
         self._brake = 0.0
         self._braking = False
         self._moving = 0.0
+        self._turning = 0.0  # deg/s, from the heading look to look
+        self._faced = False  # has this approach turned to face its target yet
+        self._closer = False  # going closer for a second look
+        self._last_heading = None
         self._since = 0.0
         self._lost = 0.0
         self._trace = []
@@ -371,6 +323,8 @@ class Navigator:
         self._empty_looks = 0
         self._needed = 0.0  # what a close look must like to land
         self._home = (0.0, 0.0)
+        self._spot = None  # where it looks around from, if not home
+        self._spots = []  # the places it has gone back to, to look again
         self.heading = 0.0
 
     def start(self, heading: float, home=(0.0, 0.0)) -> None:
@@ -410,6 +364,9 @@ class Navigator:
         here = (state["x"], state["y"])
         heading_now = state["heading"]
         self._moving = float(np.hypot(state.get("vx", 0.0), state.get("vy", 0.0)))
+        if self._last_heading is not None and dt > 0:
+            self._turning = (heading_now - self._last_heading) / dt
+        self._last_heading = heading_now
         if self.phase == "approach":
             # Only what is where the target should be counts as the target.
             off = (self._target.heading - heading_now + 180) % 360 - 180
@@ -483,6 +440,7 @@ class Navigator:
                 f = np.mean(self._fovea[len(self._fovea) // 2 :], axis=0)
                 v = float(self.mushroom_body.valence(f))
                 self.sightings.append(Sighting(heading_now + bearing_deg, v, size, here, f))
+                self.seen.append(self.sightings[-1])
                 self._fix, self._fovea = 0.0, []
                 self._refr = self.refractory
             return 0.0, self.heading, self.height
@@ -499,11 +457,8 @@ class Navigator:
                 # ahead of where the fly stopped.
                 h = np.deg2rad(self.heading)
                 place = (here[0] + 15 * np.cos(h), here[1] + 15 * np.sin(h))
-                again = [
-                    i
-                    for i, v in enumerate(self.visited)
-                    if np.hypot(v[0] - place[0], v[1] - place[1]) < 40.0
-                ]
+                visited = enumerate(self.visited)
+                again = [i for i, v in visited if self._same_place(v, place, here)]
                 if again:
                     # Back where it has been: no new lesson, and a wider berth
                     # from now on. Measured before this, the drone could land on
@@ -518,10 +473,15 @@ class Navigator:
             return -6.0, self.heading, self.height
         self._since += dt
         off = (self._target.heading - heading_now + 180) % 360 - 180
-        if abs(off) > 25 and size < self.slow_size:
-            # Not facing it yet: turn on the spot toward where it was.
+        if abs(off) > 25 and (size < self.slow_size or not self._faced):
+            # Not facing it yet: turn on the spot toward where it was. Until it
+            # has faced it once, whatever is big at the edge of the eye is not
+            # it -- measured, a drone standing by one object locked onto it
+            # instead of the one it had chosen, and went back to it a dozen
+            # times in a mission.
             self.heading = heading_now + np.clip(off, -30, 30)
             return 0.0, self.heading, self.height
+        self._faced = True
         if size > 0.002:
             # Fixate it: the heading follows the object across the eye.
             self.heading = heading_now + 0.8 * bearing_deg
@@ -530,28 +490,52 @@ class Navigator:
         else:
             self._lost += dt
         if self._lost > self.lost_after or self._since > self.give_up:
-            # Lost it, or flown past it: stop, and look again.
+            # Lost it, or flown past it: stop, and look again. A look before
+            # leaving that finds nothing there is not tried again.
+            if self._needed > 0:
+                h = np.deg2rad(self._target.heading)
+                self.rejected.append((here[0] + 50 * np.cos(h), here[1] + 50 * np.sin(h)))
             self._rescan()
             return -6.0, self.heading, self.height
-        if self.inspect and not self._inspected and size >= self.inspect_size:
-            return self._inspect_target(here, fly_eye, dt)
+        look_at = self.closer_size if self._closer else self.inspect_size
+        if self.inspect and not self._inspected and size >= look_at:
+            return self._inspect_target(here, fly_eye, dt, bearing_deg, heading_now)
         if size >= self.arrive_size:
             self._brake, self._braking = 0.12, True
             return -6.0, self.heading, self.height
         push = self.cruise_pitch if size < self.slow_size else self.cruise_pitch * 0.35
         return push, self.heading, self.height
 
-    def _inspect_target(self, here, fly_eye, dt):
-        """Stop at a good distance, look at it again, and decide."""
+    def _same_place(self, visited, place, here) -> bool:
+        """Is the place it has just reached one it had reached before?
+
+        Within 40 mm, and ahead of it rather than behind: a place is
+        remembered short of the object -- by 20-35 mm for a slab, where the
+        drone stops further off -- so two slabs 50 mm apart were remembered
+        as one, the second never counted, and the drone went back to it a
+        dozen times in a mission. What it came from is behind it.
+        """
+        if np.hypot(visited[0] - place[0], visited[1] - place[1]) >= 40.0:
+            return False
+        dx, dy = visited[0] - here[0], visited[1] - here[1]
+        if np.hypot(dx, dy) < 10.0:
+            return True
+        to = np.degrees(np.arctan2(dy, dx))
+        return abs((to - self.heading + 180) % 360 - 180) < 60.0
+
+    def _inspect_target(self, here, fly_eye, dt, bearing_deg=0.0, heading_now=None):
+        """Stop at a good distance, face it, look at it again, and decide."""
         self._looking += dt
         if not self._stopped:
-            # Stop first: 0.1 s for the fly, and until it has really stopped
-            # for a body with more momentum. The tethered close look stops
-            # the same way.
+            # Stop first -- 0.1 s for the fly, and until it has really stopped
+            # for a body with more momentum -- turned to face it squarely.
+            if heading_now is not None:
+                self.heading = heading_now + bearing_deg
             settled = self.settle_speed is None or self._moving < self.settle_speed
-            if (self._looking >= 0.1 and settled) or self._looking > 1.5:
+            facing = abs(bearing_deg) < self.centred and abs(self._turning) < self.still
+            if (self._looking >= 0.1 and settled and facing) or self._looking > self.face_time:
                 self._stopped, self._looking = True, 0.0
-            return -6.0, self.heading, self.height
+            return (-6.0 if self._looking < 0.1 else 0.0), self.heading, self.height
         if fly_eye is not None and fly_eye.activity is not None:
             self._fovea.append(fly_eye.eye.fovea_shape(fly_eye.activity))
         if self._looking < self.fixate_time or not self._fovea:
@@ -561,8 +545,14 @@ class Navigator:
         self._stopped = False
         v = float(self.mushroom_body.valence(f))
         # The closer look is the one the decision -- and any lesson -- rests on.
-        self._scan_view = self._target.features
+        if not self._closer:
+            self._scan_view = self._target.features
         self._target.features, self._target.valence = f, v
+        unsure = self._needed - self.unsure < v <= self._needed
+        if unsure and not self._closer and not self.land_to_learn:
+            # Not sure, and still far: go closer and look again.
+            self._closer, self._inspected, self._since = True, False, 0.0
+            return 0.0, self.heading, self.height
         if v <= self._needed and not self.land_to_learn:
             h = np.deg2rad(self.heading)
             self.rejected.append((here[0] + 50 * np.cos(h), here[1] + 50 * np.sin(h)))
@@ -607,8 +597,13 @@ class Navigator:
                 dict(chosen=self._target.features, way_in=list(self._trace), dopamine=dopamine)
             )
 
+    def _base(self) -> tuple:
+        """Where it looks around from: home, or a place it went back to."""
+        return self._spot if self._spot is not None else self._home
+
     def _go_home(self, here, heading_now):
-        dx, dy = self._home[0] - here[0], self._home[1] - here[1]
+        base = self._base()
+        dx, dy = base[0] - here[0], base[1] - here[1]
         if np.hypot(dx, dy) < 12.0:
             self._rescan()
             return -6.0, self.heading, self.height
@@ -631,7 +626,7 @@ class Navigator:
             self._since = 0.0
             self._empty_looks = 0
             self.phase = "approach"
-        elif np.hypot(here[0] - self._home[0], here[1] - self._home[1]) > 20.0:
+        elif np.hypot(here[0] - self._base()[0], here[1] - self._base()[1]) > 20.0:
             self.phase = "home"
         else:
             self._empty_looks += 1
@@ -644,14 +639,60 @@ class Navigator:
                 self._target = max(unvisited, key=lambda s: s.valence)
                 self._since = 0.0
                 self.phase = "approach"
-                self._inspected = True  # it goes to find out, whatever it looks like
+                if self.inspect:
+                    self._needed = self.sure
+                else:
+                    self._inspected = True  # it goes to find out, whatever it looks like
             elif self.look_before_leaving and self.inspect and unvisited:
                 self._target = max(unvisited, key=lambda s: s.valence)
                 self._since = 0.0
                 self.phase = "approach"
                 self._needed = self.sure
+            elif self.go_back and self.inspect and (spot := self._spot_to_try(here)):
+                # Something seen from elsewhere and never looked at: go back
+                # to where it was seen from, and look from there.
+                self._spot = spot
+                self._spots.append(spot)
+                self.phase = "home"
+            elif self.explore and (spot := self._gap_to_explore()):
+                self._spot = spot
+                self._spots.append(spot)
+                self.phase = "home"
             else:
                 self.phase = "done"
+
+    def _gap_to_explore(self):
+        """A place out in the widest stretch of the panorama with nothing in it."""
+        hx, hy = self._home
+        headings = [
+            s.heading for s in self.seen if np.hypot(s.where[0] - hx, s.where[1] - hy) < 20
+        ]
+        for x, y in (*self.visited, *self.rejected, *self._spots):
+            headings.append(np.degrees(np.arctan2(y - hy, x - hx)))
+        if not headings:
+            return None
+        h = np.sort(np.mod(headings, 360.0))
+        gaps = np.diff(np.append(h, h[0] + 360.0))
+        i = int(np.argmax(gaps))
+        if gaps[i] <= 90.0:
+            return None
+        mid = np.deg2rad(h[i] + gaps[i] / 2)
+        return (hx + self.explore * np.cos(mid), hy + self.explore * np.sin(mid))
+
+    def _spot_to_try(self, here):
+        """Where it saw something it has not looked at, if it has not been back there."""
+        best = None
+        for s in self.seen:
+            w = s.where
+            if np.hypot(w[0] - here[0], w[1] - here[1]) < 20.0:
+                continue
+            if any(np.hypot(w[0] - p[0], w[1] - p[1]) < 20.0 for p in self._spots):
+                continue
+            if self._already_visited(w, s.heading):
+                continue
+            if best is None or s.valence > best.valence:
+                best = s
+        return None if best is None else tuple(best.where)
 
     def _rescan(self) -> None:
         self.phase = "scan"
@@ -663,6 +704,8 @@ class Navigator:
         self._scan_view = None
         self._inspected, self._looking, self._stopped = False, 0.0, False
         self._needed = 0.0
+        self._faced = False
+        self._closer = False
         self.sightings = []
 
 

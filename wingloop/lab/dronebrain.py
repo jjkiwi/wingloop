@@ -41,8 +41,19 @@ SCALE = 50.0
 #: rad/s, so at the fly's 240 the heading lags the setpoint by about a radian
 #: and the last part of every turn is never seen.
 SCAN_RATE = 90.0
-#: The navigator settings that differ for the drone.
-NAVIGATOR = {"scan_rate": SCAN_RATE, "settle_speed": 6.0}
+#: The navigator settings that differ for the drone: it has to stop, and to
+#: stop turning, before its close look is worth anything; and once its close
+#: look is sure, it can afford to go back and look again.
+NAVIGATOR = {
+    "scan_rate": SCAN_RATE,
+    "settle_speed": 6.0,
+    "centred": 5.0,
+    "still": 20.0,
+    "face_time": 3.0,
+    "go_back": True,
+    "explore": 40.0,
+    "unsure": 0.06,
+}
 
 
 class DroneFlight:

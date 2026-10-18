@@ -389,6 +389,86 @@ target's close view from the rest by a wide margin (0.12-0.18 against
 below -0.05), in flight the slab or pole it should land on and the things
 it should not both come out within a few hundredths of zero.
 
+**The close look, taught in flight.** The tether's close-look lesson
+replays an approach -- the turn, the run-in, the brake, the hover -- and a
+brain taught on it judges the replay perfectly. Judged on 98 close looks the
+drone really took, it liked 27% of the slabs and 48% of the poles it
+should have; the fly's liked 15% of its balls. Whatever the replay left out
+of the body, it mattered. So the close look is now taught the way it is
+taken: the body itself -- the fast fly, or the drone -- with its own
+navigator, in a small arena with one object 55-95 mm away and two others
+off to the sides, turns to it, flies at it, stops and looks, and that view,
+with what the object really is, is the lesson (`flown_close_looks`, 300
+close looks per body and eye rate, shipped). On close looks it was not
+taught on, 94-100% of the targets were liked and 0-5% of the rest. It is
+taught at a tenth of the tether's dose: at the full dose it pulled the far
+view of the ball down -- the fly liked 23% of the balls it saw while
+looking around, against 84%.
+
+Writing down how each close look was taken then showed where the drone's
+remaining wrong verdicts came from: every one had been taken while it was
+still turning, 22-116 deg/s, with the object 5-42 degrees off the middle
+of its eye -- it had started its approach close by, already near enough to
+look -- and every one taken facing the object and still was right. Three
+things in the navigator followed, each measured on the arenas it failed:
+
+- *The close look waits* until the object is near the middle of the eye
+  and the body has stopped turning (`centred`, `still`): for the drone 5
+  degrees and 20 deg/s; a hovering fly keeps turning 25-35 deg/s after its
+  drifting target, judges well doing so, and drifts into the object if it
+  waits, so for the fly 15 degrees and 60 deg/s.
+- *It turns to its target before it tracks anything.* Standing by one
+  object, the drone locked onto that one at the edge of its eye instead of
+  the one it had chosen, and went back to it a dozen times in a mission.
+- *Two objects close together are two places.* A place is remembered short
+  of the object, by 20-35 mm for a slab, so two slabs 50 mm apart were
+  remembered as one and the second never counted; a place it reaches now
+  counts as an old one only if the old one is ahead of it.
+
+And curiosity takes a close look too, instead of landing to find out.
+
+Practice then took the drone's last wrong landings away -- the slab brain
+had liked a few balls close up -- and in 212 close looks after 25 practice
+missions it landed on nothing it should not have. A brain that sure can
+afford to look more, so the drone, and only the drone, also goes back to
+where it saw something it never looked at (`go_back`) -- an object at the
+edge of what the eye makes out is seen on one look around and not the
+next -- and with nothing left, flies 40 mm out into the widest stretch of
+the panorama it has seen nothing in, more than 90 degrees of it, and looks
+around there (`explore`): a ball 78 mm away is too small for its eye from
+home. For the fly, whose close looks are less sure, the extra looks cost
+more wrong landings than they found targets.
+
+Last, one more for the drone. Its practised close looks were never wrong
+from 40-55 mm, and the targets it still missed had been turned down by a
+hair -- -0.005, -0.04 -- from 62-74 mm: a close look that turns an object
+down by less than 0.06 before it fills 4% of the eye is taken again from
+there (`unsure`).
+
+With all of it a novice -- the tether's scanning views and the flown close
+looks, no practice -- takes close looks; the old novice found 63 of 72 with
+38 mistakes (the fly) and 33 with 13 (the drone, with close looks). In the
+twelve exam arenas, targets found of 24 and mistakes:
+
+| | old, after 50 missions | new novice | new, practised |
+| --- | --- | --- | --- |
+| fly, ball | 20, 0 | 21, 0 | 22, 0 (25 missions) |
+| fly, slab | 22, 3 | **24, 0** | |
+| fly, pole | 21, 0 | **24, 0** | |
+| drone, ball | 15, 2 | 23, 0 | **24, 0** (50 missions) |
+| drone, slab | 18, 1 | 24, 4 | **24, 0** |
+| drone, pole | 18, 0 | 24, 0 | **24, 0** |
+
+The drone's novice column was flown before `go_back`, `explore` and
+`unsure`; with them and 25 practice missions it found 70 of 72, after 50
+all 72, with no mistake. Those twelve arenas are the ones every failure
+above was found on, so the last brain also sat twelve arenas no one had
+looked at (100-111): **72 of 72 again, no mistake** -- the drone is an
+expert on all three targets, 144 targets in 72 missions. The fly, a novice
+there, found 68 of 72 with 2 mistakes; on the exam arenas what it missed
+was a ball its close look judged just below zero from 18-27 mm, where it
+ends up after braking.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
@@ -1624,7 +1704,7 @@ as what it is -- lost margin, the worst attitude swing going from 10.9 to
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 164 tests, about forty minutes on one core
+pytest -q             # 170 tests, about forty minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
 pytest -q -n 4        # with pytest-xdist: about ten minutes on four cores
 ```

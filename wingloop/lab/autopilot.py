@@ -63,8 +63,8 @@ SHIPPED = Path(__file__).with_name("data") / "tethered_views.npz"
 
 def shipped(every_ms: float = 5.0, close: bool = False, drone: bool = False) -> Path:
     """The shipped views for an eye stepped every ``every_ms`` (5, or 20 in the fast
-    mode): the scanning ones, or with ``close`` the close looks before landing;
-    with ``drone``, the lesson replayed the way the drone flies."""
+    mode): the scanning ones, or with ``close`` the close looks before landing,
+    flown (:func:`flown_close_looks`); with ``drone``, the drone's."""
     name = "tethered_views" + ("" if every_ms == 5.0 else f"_{every_ms:g}ms")
     return SHIPPED.with_name(
         name + ("_close" if close else "") + ("_dron" if drone else "") + ".npz"
@@ -79,7 +79,7 @@ def _signature(
     eye = "" if every_ms == 5.0 else f" eye {every_ms:g} ms"
     body = " drone 90 deg/s" if drone else ""
     if close:
-        return f"v6 close 30-75 flown {samples} {seed} {sizes}{eye}{body}"
+        return f"v7 flown close looks {samples} {seed} {sizes}{eye}{body}"
     return f"v3 {samples} {seed} lead 120-180 {sizes}{eye}{body}"
 
 
@@ -95,11 +95,11 @@ def views(
 ):
     """The tethered fly's look at every kind: (features, kinds), from disk if seen before.
 
-    ``close``: the close looks it takes before landing, rather than the views
-    it judges while scanning. ``drone``: the lesson replayed the way the
-    drone flies -- turning at its 90 deg/s, flying in at its speed. Taught
-    the fly's way, the drone's brain called 42% of the balls it saw in flight
-    balls; taught its own way, 68%.
+    ``close``: the close looks it takes before landing, flown
+    (:func:`flown_close_looks`, ``samples`` of them), rather than the views
+    it judges while scanning. ``drone``: the drone's lesson -- turning at its
+    90 deg/s, and its own close looks. Taught the fly's way, the drone's brain
+    called 42% of the balls it saw in flight balls; taught its own way, 68%.
     """
     every_ms = getattr(fly_eye, "every_ms", 5.0)
     path = Path(folder) / VIEWS
@@ -119,31 +119,132 @@ def views(
                     return d["F"], d["K"]
     if progress:
         progress(
-            "Muszka na uwięzi ogląda każdy rodzaj obiektu z różnych stron i odległości"
-            " (kilka minut, tylko za pierwszym razem)..."
+            (
+                "Muszka podlatuje do każdego rodzaju obiektu i ogląda go z bliska"
+                if close
+                else "Muszka na uwięzi ogląda każdy rodzaj obiektu z różnych stron i odległości"
+            )
+            + " (kilka minut, tylko za pierwszym razem)..."
         )
     t0 = time.time()
-    extra = {"distance": (30.0, 75.0), "inspection": True} if close else {}
-    if drone:
-        from .dronebrain import SCAN_RATE
+    if close:
+        F, K = flown_close_looks(
+            fly_eye, tuple(arena.KINDS), samples, seed=seed, drone=drone, progress=progress
+        )
+    else:
+        extra = {}
+        if drone:
+            from .dronebrain import SCAN_RATE
 
-        extra.update(scan_rate=SCAN_RATE, body="drone")
-    F, K = tethered_training(
-        fly_eye, tuple(arena.KINDS), samples=samples, seed=seed, progress=progress, **extra
-    )
+            extra["scan_rate"] = SCAN_RATE
+        F, K = tethered_training(
+            fly_eye, tuple(arena.KINDS), samples=samples, seed=seed, progress=progress, **extra
+        )
     if progress:
         progress(f"  {len(K)} widoków w {time.time() - t0:.0f} s -> {path}")
     np.savez_compressed(path, F=F, K=K, signature=np.array(sig))
     return F, K
 
 
-def teach_targets(F, K, targets, seed: int = 0):
-    """Dopamine for the targets, punishment for the rest: (mushroom body, valence per kind)."""
+#: The close-look lesson: how many close looks are flown for it, a third of
+#: each kind, and the share of the tether's dopamine each one gets. Taught at
+#: the full dose they pulled the ball's far view down -- the fly liked 23% of
+#: the balls it saw while looking around, against 84% -- and at a tenth they
+#: judge new close looks as well (97% of the targets liked, 0-2% of the rest).
+CLOSE_LOOKS = 300
+CLOSE_DOSE = 0.1
+
+
+class _Looker:
+    """A mushroom body that likes everything, and keeps the view of the close look."""
+
+    def __init__(self):
+        self.nav, self.view = None, None
+
+    def valence(self, f) -> float:
+        if self.nav.phase == "approach" and self.view is None:
+            self.view = np.asarray(f, dtype=np.float32)
+        return 0.5
+
+    def learn(self, f, dopamine) -> None:
+        pass
+
+
+def flown_close_looks(fly_eye, kinds, samples, seed=0, drone=False, progress=None, tries=20.0):
+    """The close-look lesson flown, not replayed: (features, kinds).
+
+    The body itself -- the fast fly, or the drone -- with its own navigator,
+    in a small arena: one object 55-95 mm away, 60-150 degrees off its
+    heading, two others off to the sides. It turns to the object, flies at
+    it, stops and takes its close look exactly as it will in a mission, and
+    that view, with what the object really is, is the lesson.
+
+    The tether's replay of the same approach -- turn, nose-down run-in, brake,
+    hover -- taught a brain that judged the replay perfectly and real close
+    looks badly: on 98 the drone flew, it liked 27% of the slabs and 48% of
+    the poles it should have, and the fly 15% of the balls. What the replay
+    could not reproduce was the body: the drone looks while it is still
+    settling, leaning against its drift, sometimes still turning. Taught on
+    flown close looks, new flown ones are judged right 94-100% of the time.
+    """
+    from .navigate import Sighting
+
+    rng = np.random.default_rng(seed)
+    world = fly_eye.world
+    F, K = [], []
+    i = 0
+    while len(F) < samples:
+        kind = kinds[i % len(kinds)]
+        i += 1
+        d = rng.uniform(55.0, 95.0)
+        h = np.deg2rad(rng.uniform(60.0, 150.0) * rng.choice([-1, 1]))
+        items = [arena.Item(kind, round(d * np.cos(h), 1), round(d * np.sin(h), 1))]
+        for other in rng.choice(kinds, 2):
+            b = h + np.deg2rad(rng.uniform(90, 150)) * rng.choice([-1, 1])
+            r = rng.uniform(40, 90)
+            items.append(
+                arena.Item(str(other), round(r * np.cos(b), 1), round(r * np.sin(b), 1))
+            )
+        fly_eye.set_items(tuple(items))
+        looker = _Looker()
+        pilot = _pilot(items, looker, fly_eye, {}, {kind}, drone, fast=True)
+        looker.nav = nav = pilot.nav
+        nav.reward, nav.inspect, nav.curious = None, True, False
+        pilot.step()  # spun up, and facing away from it
+        s = pilot.flight.state()
+        bearing = np.degrees(np.arctan2(items[0].y - s["y"], items[0].x - s["x"]))
+        nav._target = Sighting(float(bearing), 0.5, 0.01, (s["x"], s["y"]))
+        nav._since, nav.phase = 0.0, "approach"
+        while looker.view is None and nav.phase == "approach" and pilot.flight.t < tries:
+            pilot.step()
+        if looker.view is None:
+            continue  # lost it on the way in: no lesson
+        F.append(looker.view)
+        K.append(kind)
+        if progress and len(F) % 30 == 0:
+            progress(f"  obejrzała z bliska {len(F)} z {samples}")
+    fly_eye.world = world
+    fly_eye.eye.reset()
+    return np.asarray(F), np.asarray(K)
+
+
+def teach_targets(F, K, targets, seed: int = 0, close=None):
+    """Dopamine for the targets, punishment for the rest: (mushroom body, valence per kind).
+
+    ``close``: the flown close looks, (features, kinds), taught on top at
+    :data:`CLOSE_DOSE` of the dopamine.
+    """
     from .learning import MushroomBody
 
     kinds = tuple(arena.KINDS)
+    reward = {k: (1.0 if k in targets else -1.0) for k in kinds}
     mb = MushroomBody(F.shape[1], seed=seed, on_off=True)
-    teach(mb, F, K, {k: (1.0 if k in targets else -1.0) for k in kinds})
+    if close is None:
+        teach(mb, F, K, reward)
+    else:
+        mb.calibrate(np.concatenate([F, close[0]]))
+        teach(mb, F, K, reward, calibrate=False)
+        teach(mb, *close, reward, dose=CLOSE_DOSE, calibrate=False)
     valence = {k: float(np.mean([mb.valence(f) for f in F[K == k]])) for k in kinds}
     return mb, valence
 
@@ -158,8 +259,9 @@ def learned(
     ``retrain`` ignores both and starts again from the tether.
     """
     F, K = views(fly_eye, folder, fresh=retrain, progress=progress, drone=drone)
-    Fc, Kc = views(fly_eye, folder, fresh=retrain, progress=progress, close=True, drone=drone)
-    F, K = np.concatenate([F, Fc]), np.concatenate([K, Kc])
+    close = views(
+        fly_eye, folder, CLOSE_LOOKS, fresh=retrain, progress=progress, close=True, drone=drone
+    )
     path = memory_path(targets, drone, getattr(fly_eye, "every_ms", 5.0), folder)
     if path.exists() and not retrain:
         from .learning import load
@@ -173,7 +275,7 @@ def learned(
         kinds = tuple(arena.KINDS)
         valence = {k: float(np.mean([mb.valence(f) for f in F[K == k]])) for k in kinds}
         return mb, valence
-    return teach_targets(F, K, targets)
+    return teach_targets(F, K, targets, close=close)
 
 
 def memory_path(targets, drone: bool = False, every_ms: float = 5.0, folder=".") -> Path:
@@ -609,13 +711,13 @@ CHASE = {False: 22.0, True: 12.0}
 def _pilot(items, mb, eye, valence, targets, drone: bool, fast: bool = False) -> Autopilot:
     """The autopilot on the fly (the full physics, or the fast fly), or on the drone.
 
-    A brain that has practised takes a close look before it lands; a novice,
-    taught only on the tether, does not. Measured, a novice's close looks
-    turned down most targets -- 7 of 24 balls found -- while after twenty
-    practice missions the close look is what keeps it from mistakes.
+    It takes a close look before it lands, and before it calls a mission done.
+    Taught the close look on the tether, a novice's close looks turned down
+    most targets -- 7 of 24 balls found -- and only practice made them
+    useful; taught it in flight (:func:`flown_close_looks`), a novice's close
+    look is as good as a practised one's.
     """
-    practised = bool(getattr(mb, "practised", 0))
-    expert = {"inspect": practised, "look_before_leaving": practised}
+    expert = {"inspect": True, "look_before_leaving": True}
     if not drone:
         if fast:
             from .fastfly import FastFly
@@ -799,6 +901,7 @@ def map_image(status: dict, size: int = 200, extent: float = 110.0) -> np.ndarra
 
 __all__ = [
     "Autopilot",
+    "flown_close_looks",
     "kind_of",
     "learn",
     "learned",
