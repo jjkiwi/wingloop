@@ -709,12 +709,13 @@ class Navigator:
         self.sightings = []
 
 
-def describe(phase: str) -> str:
+def describe(phase: str, who: str = "Muszka") -> str:
+    """The phase in Polish, for the fly (she) or the drone (he)."""
     return {
         "scan": "rozgląda się",
         "approach": "leci do celu",
         "home": "wraca na start, by rozejrzeć się stamtąd",
-        "done": "zwiedziła wszystkie cele",
+        "done": "zwiedziła wszystkie cele" if who == "Muszka" else "zwiedził wszystkie cele",
     }.get(phase, phase)
 
 

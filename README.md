@@ -464,7 +464,10 @@ The drone's novice column was flown before `go_back`, `explore` and
 all 72, with no mistake. Those twelve arenas are the ones every failure
 above was found on, so the last brain also sat twelve arenas no one had
 looked at (100-111): **72 of 72 again, no mistake** -- the drone is an
-expert on all three targets, 144 targets in 72 missions. The fly, a novice
+expert on all three targets, 144 targets in 72 missions. Those three
+brains are shipped (`wingloop/lab/data/pamiec_*_dron_20ms.npz`): `flylab cel
+kula --dron --szybko` flies with them unless there is practice of your own,
+and `--od-nowa` starts again from the lessons. The fly, a novice
 there, found 68 of 72 with 2 mistakes; on the exam arenas what it missed
 was a ball its close look judged just below zero from 18-27 mm, where it
 ends up after braking.
@@ -1704,7 +1707,7 @@ as what it is -- lost margin, the worst attitude swing going from 10.9 to
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 170 tests, about forty minutes on one core
+pytest -q             # 171 tests, about forty minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
 pytest -q -n 4        # with pytest-xdist: about ten minutes on four cores
 ```

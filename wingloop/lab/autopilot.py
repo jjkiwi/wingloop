@@ -255,14 +255,18 @@ def learned(
     """What the brain knows about these targets.
 
     The memory left by practice flights (:func:`practise`) if there is one for
-    these targets, this body and this eye; otherwise the tethered lesson.
-    ``retrain`` ignores both and starts again from the tether.
+    these targets, this body and this eye; otherwise a brain trained here and
+    shipped (:func:`shipped_memory`), if there is one; otherwise the tethered
+    lesson. ``retrain`` ignores them all and starts again from the tether.
     """
     F, K = views(fly_eye, folder, fresh=retrain, progress=progress, drone=drone)
     close = views(
         fly_eye, folder, CLOSE_LOOKS, fresh=retrain, progress=progress, close=True, drone=drone
     )
-    path = memory_path(targets, drone, getattr(fly_eye, "every_ms", 5.0), folder)
+    every_ms = getattr(fly_eye, "every_ms", 5.0)
+    path = memory_path(targets, drone, every_ms, folder)
+    if not path.exists():
+        path = shipped_memory(targets, drone, every_ms)
     if path.exists() and not retrain:
         from .learning import load
 
@@ -276,6 +280,16 @@ def learned(
         valence = {k: float(np.mean([mb.valence(f) for f in F[K == k]])) for k in kinds}
         return mb, valence
     return teach_targets(F, K, targets, close=close)
+
+
+def shipped_memory(targets, drone: bool = False, every_ms: float = 5.0) -> Path:
+    """The brain practised here and shipped, for these targets, body and eye rate.
+
+    The drone's three, one target each, in the fast mode: 50 practice
+    missions, and in 24 exam arenas -- twelve of them never used while the
+    navigator was being put right -- 144 targets of 144, no wrong landing.
+    """
+    return SHIPPED.with_name(memory_path(targets, drone, every_ms).name)
 
 
 def memory_path(targets, drone: bool = False, every_ms: float = 5.0, folder=".") -> Path:
@@ -475,7 +489,9 @@ class Autopilot:
         return {
             "who": self.who,
             "phase": nav.phase,
-            "phase_pl": "ogląda cel z bliska" if nav.inspecting else describe(nav.phase),
+            "phase_pl": "ogląda cel z bliska"
+            if nav.inspecting
+            else describe(nav.phase, self.who),
             "valence_now": None if now is None else round(now, 3),
             "learned": {POLISH[k]: round(v, 3) for k, v in self.valence.items()},
             "items": [
@@ -557,7 +573,7 @@ def run(
         if report and pilot.nav.phase != last:
             s = pilot.flight.state()
             report(
-                f"  {s['t']:5.2f} s  {describe(pilot.nav.phase)}"
+                f"  {s['t']:5.2f} s  {describe(pilot.nav.phase, pilot.who)}"
                 f"  ({s['x']:.0f}, {s['y']:.0f}) mm"
             )
             last = pilot.nav.phase
@@ -691,7 +707,8 @@ def window(
                         autopilot=pilot.status(),
                     )
                     last_snap = now
-                    print(f"\r{pilot.flight.t:5.2f} s  {describe(pilot.nav.phase):40s}", end="")
+                    phase = describe(pilot.nav.phase, pilot.who)
+                    print(f"\r{pilot.flight.t:5.2f} s  {phase:40s}", end="")
                 if pilot.done and not ended:
                     print("\n" + pilot.summary())
                     ended = True
@@ -902,6 +919,7 @@ def map_image(status: dict, size: int = 200, extent: float = 110.0) -> np.ndarra
 __all__ = [
     "Autopilot",
     "flown_close_looks",
+    "shipped_memory",
     "kind_of",
     "learn",
     "learned",

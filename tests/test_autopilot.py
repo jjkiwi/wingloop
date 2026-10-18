@@ -595,6 +595,52 @@ def test_practice_memory_is_what_the_next_mission_flies_with(tmp_path, monkeypat
     assert path.name == "pamiec_kula_20ms.npz"
 
 
+def test_the_drones_expert_brains_are_shipped_and_flown_with_by_default(tmp_path, monkeypatch):
+    """With no practice of its own, the drone flies with the brain practised here."""
+    from wingloop.lab import autopilot
+    from wingloop.lab.learning import load, save
+
+    for kind in arena.KINDS:
+        path = autopilot.shipped_memory({kind}, drone=True, every_ms=20.0)
+        with np.load(path) as d:
+            assert int(d["missions"]) == 50
+        load(path)
+    assert not autopilot.shipped_memory({"sphere"}, drone=False, every_ms=20.0).exists()
+
+    rng = np.random.default_rng(4)
+    centres = {k: rng.normal(0, 1, 40) for k in arena.KINDS}
+
+    def look(eye, kinds, samples, seed=0, progress=None, **kw):
+        K = np.array([kinds[i % len(kinds)] for i in range(samples)])
+        return np.array([centres[k] + rng.normal(0, 0.4, 40) for k in K]), K
+
+    monkeypatch.setattr(autopilot, "tethered_training", look)
+    monkeypatch.setattr(autopilot, "flown_close_looks", look)
+    monkeypatch.setattr(autopilot, "SHIPPED", tmp_path / "data" / "not-shipped.npz")
+    (tmp_path / "data").mkdir()
+
+    class Eye:
+        every_ms = 20.0
+
+    expert = autopilot.teach_targets(*look(None, tuple(arena.KINDS), 90), {"bar"})[0]
+    expert.approach[:] = 0.25
+    save(expert, autopilot.shipped_memory({"bar"}, drone=True, every_ms=20.0))
+    here = tmp_path / "here"
+    here.mkdir()
+    mb, _ = autopilot.learned(Eye(), {"bar"}, folder=here, progress=None, drone=True)
+    assert np.allclose(mb.approach, 0.25)
+    # Its own practice comes first, and --od-nowa goes back to the tether.
+    own = autopilot.teach_targets(*look(None, tuple(arena.KINDS), 90), {"bar"})[0]
+    own.approach[:] = 0.5
+    save(own, autopilot.memory_path({"bar"}, True, 20.0, here))
+    mb, _ = autopilot.learned(Eye(), {"bar"}, folder=here, progress=None, drone=True)
+    assert np.allclose(mb.approach, 0.5)
+    mb, _ = autopilot.learned(
+        Eye(), {"bar"}, folder=here, progress=None, drone=True, retrain=True
+    )
+    assert not np.allclose(mb.approach, 0.5) and not np.allclose(mb.approach, 0.25)
+
+
 @needs_flyvis
 def test_the_exam_grades_what_it_knows_now(tmp_path):
     from wingloop.lab.autopilot import GRADES, exam
