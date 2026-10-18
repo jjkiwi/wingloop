@@ -60,6 +60,31 @@ def test_every_kind_of_object_is_drawn():
         assert (image < 0.1).mean() > 0.005, kind
 
 
+def test_a_camouflaged_object_wears_the_floors_checker():
+    """At 1 it is painted like the ground, tile for tile; nothing on it is dark any more."""
+    from wingloop.lab.scene import GROUND
+
+    def look(camo):
+        world = World([Thing("box", [4.0, 0.0, 1.5], 0.6, camo=camo)])
+        return render(world, [0.0, 0.0, 1.5], (0.0, 0.0, 0.0), Camera(size=64))
+
+    plain, hidden = look(0.0), look(1.0)
+    on_it = plain < 0.1
+    assert on_it.mean() > 0.01 and (hidden < 0.1).sum() == 0
+    assert np.abs(hidden[on_it][:, None] - np.array(GROUND)).min(axis=1).max() < 1e-3
+    half = look(0.5)[on_it]
+    assert np.all((half > 0.1) & (half < GROUND[1]))
+
+
+def test_a_camouflaged_arena_is_the_same_arena():
+    from wingloop.lab import arena
+
+    plain, hidden = arena.mission(3, per_kind=2), arena.mission(3, per_kind=2, camo=0.7)
+    assert [(i.kind, i.x, i.y) for i in plain] == [(i.kind, i.x, i.y) for i in hidden]
+    assert all(i.camo == 0.7 for i in hidden)
+    assert all(t.camo == 0.7 for t in arena.eye_things(hidden))
+
+
 # ------------------------------------------------------------------- the drone
 
 

@@ -405,6 +405,12 @@ class FlysEye:
         self.every_ms = every_ms
         self.image = np.zeros((64, 64), dtype=np.float32)
         self.activity = None
+        # Each photoreceptor's line of sight in the body frame, and its
+        # elevation above the horizon as of the last look.
+        half = np.deg2rad(self.camera.fov) / 2
+        az, el = self.eye.column_x * half, self.eye.column_y * half
+        self._sight = np.stack([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
+        self.elevation = np.degrees(el)
 
     def set_items(self, items) -> None:
         """A new arena for the same eye: the objects change, the optic lobe stays."""
@@ -427,6 +433,36 @@ class FlysEye:
             self.world, position, None, self.camera, rotation_matrix=R, checker=20.0
         )
         self.activity = self.eye.step(self.image, frames=1)
+        up = (np.asarray(R) @ self._sight)[2]
+        self.elevation = np.degrees(np.arcsin(np.clip(up, -1.0, 1.0)))
+
+    def standing(
+        self,
+        threshold: float = 0.25,
+        within: float = 1.0,
+        centre: float = 0.0,
+        sky: float = 0.78,
+        margin: float = 3.0,
+    ) -> tuple[float, float]:
+        """What stands up out of the world: (fraction of the eye, bearing).
+
+        :meth:`~.vision.FlyEye.dark` sees what is dark; this also sees what
+        breaks the skyline -- anything darker than the sky that is more than
+        ``margin`` degrees above the horizon, which no floor ever is. The
+        horizon comes from the body's own sense of its attitude, as a fly's
+        does from its halteres and ocelli, not from the image. Painted in the
+        floor's checker, an object is no longer dark, but what of it stands
+        above the horizon still blots out the sky -- as does every landmark
+        column.
+        """
+        eye = self.eye
+        pr = eye.photoreceptors
+        hot = (pr < threshold) | ((pr < sky) & (self.elevation > margin))
+        if within < 1.0:
+            hot &= np.abs(eye.column_x - centre) < within
+        if not hot.any():
+            return 0.0, 0.0
+        return float(hot.mean()), float(eye.column_x[hot].mean())
 
 
 def _status(s: dict, slowdown: float) -> str:

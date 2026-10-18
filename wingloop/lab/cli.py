@@ -230,6 +230,7 @@ def cmd_video(args) -> dict:
             seconds=args.seconds or (90.0 if args.dron else 30.0),
             drone=args.dron,
             fast=args.szybko,
+            camo=args.kamuflaz,
         )
     else:
         from .watch import video
@@ -255,20 +256,30 @@ def cmd_cel(args) -> dict:
             retrain=args.od_nowa,
             drone=args.dron,
             fast=args.szybko,
+            camo=args.kamuflaz,
         )
         return {}
     from . import arena
     from .autopilot import EYE_MS, _print_valence, learned, run
     from .watch import FlysEye
 
-    items = arena.mission(args.seed, per_kind=args.ile)
+    hidden = args.kamuflaz is not None
+    items = arena.mission(args.seed, per_kind=args.ile, camo=args.kamuflaz or 0.0)
     eye = FlysEye(items=items, every_ms=EYE_MS[args.szybko])
-    mb, valence = learned(eye, targets, retrain=args.od_nowa, drone=args.dron)
+    mb, valence = learned(eye, targets, retrain=args.od_nowa, drone=args.dron, camo=hidden)
     _print_valence(valence, targets)
     t0 = time.time()
     seconds = args.seconds or (90.0 if args.dron else 30.0)
     pilot = run(
-        items, mb, eye, valence, targets, seconds=seconds, drone=args.dron, fast=args.szybko
+        items,
+        mb,
+        eye,
+        valence,
+        targets,
+        seconds=seconds,
+        drone=args.dron,
+        fast=args.szybko,
+        camo=hidden,
     )
     print(pilot.summary(), f"({time.time() - t0:.0f} s obliczeń)")
     return {"autopilot": pilot.status()}
@@ -286,7 +297,13 @@ def cmd_trening(args) -> dict:
         + ". Po każdym lądowaniu nagroda (cel) albo kara (nie cel)."
     )
     t0 = time.time()
-    curve = practise(targets, missions=args.misje, drone=args.dron, fast=not args.dokladnie)
+    curve = practise(
+        targets,
+        missions=args.misje,
+        drone=args.dron,
+        fast=not args.dokladnie,
+        camo=args.kamuflaz,
+    )
     new = curve[-args.misje :]
     half = max(1, len(new) // 2)
     first, last = new[:half], new[half:] or new[:half]
@@ -298,16 +315,17 @@ def cmd_trening(args) -> dict:
     )
     result = {"trening": [list(r) for r in curve]}
     if args.egzamin:
-        result["egzamin"] = _exam(targets, args.egzamin, args.dron, not args.dokladnie)
+        camo = 1.0 if args.kamuflaz else None
+        result["egzamin"] = _exam(targets, args.egzamin, args.dron, not args.dokladnie, camo)
     return result
 
 
-def _exam(targets, arenas, drone, fast) -> dict:
+def _exam(targets, arenas, drone, fast, camo=None) -> dict:
     from .autopilot import exam
 
     who = "Dron" if drone else "Muszka"
     print(f"Egzamin: {arenas} aren, których {who.lower()} nigdy nie widział(a), bez nauki.")
-    r = exam(targets, arenas=arenas, drone=drone, fast=fast)
+    r = exam(targets, arenas=arenas, drone=drone, fast=fast, camo=camo)
     print(
         f"{who}: {100 * r['found']:.0f}% celów,"
         f" {r['mistakes_per_mission']:.2f} pomyłki na misję -> ocena: {r['grade'].upper()}"
@@ -320,7 +338,7 @@ def cmd_egzamin(args) -> dict:
     from .autopilot import kind_of
 
     targets = {kind_of(n) for n in args.target}
-    return {"egzamin": _exam(targets, args.areny, args.dron, not args.dokladnie)}
+    return {"egzamin": _exam(targets, args.areny, args.dron, not args.dokladnie, args.kamuflaz)}
 
 
 def cmd_report(args) -> dict:
@@ -428,6 +446,14 @@ def main(argv=None) -> None:
             s.add_argument("--seed", type=int, default=0, help="which arena")
             s.add_argument("--dron", action="store_true", help="the mission flown by the drone")
             s.add_argument(
+                "--kamuflaz",
+                type=float,
+                nargs="?",
+                const=1.0,
+                default=None,
+                help="objects painted in the floor's checker, 0-1 (1 if no number given)",
+            )
+            s.add_argument(
                 "--szybko",
                 action="store_true",
                 help="fast mode: a model of the fly fitted to the physics, eye at 20 ms",
@@ -440,12 +466,25 @@ def main(argv=None) -> None:
             )
             s.add_argument("--dron", action="store_true", help="the drone practises")
             s.add_argument(
+                "--kamuflaz",
+                action="store_true",
+                help="the brain for camouflaged targets, in arenas painted 0-1",
+            )
+            s.add_argument(
                 "--dokladnie", action="store_true", help="full physics (about 40x slower)"
             )
         if name == "egzamin":
             s.add_argument("target", nargs="*", default=["kula"], help="kula, płytka, słupek")
             s.add_argument("--areny", type=int, default=6, help="exam arenas")
             s.add_argument("--dron", action="store_true", help="the drone sits it")
+            s.add_argument(
+                "--kamuflaz",
+                type=float,
+                nargs="?",
+                const=1.0,
+                default=None,
+                help="objects painted in the floor's checker, 0-1 (1 if no number given)",
+            )
             s.add_argument(
                 "--dokladnie", action="store_true", help="full physics (about 40x slower)"
             )
@@ -465,6 +504,14 @@ def main(argv=None) -> None:
                 "--dron", action="store_true", help="a drone flies it, with the fly's brain"
             )
             s.add_argument("--bez-okna", action="store_true", help="no window: just fly")
+            s.add_argument(
+                "--kamuflaz",
+                type=float,
+                nargs="?",
+                const=1.0,
+                default=None,
+                help="objects painted in the floor's checker, 0-1 (1 if no number given)",
+            )
             s.add_argument("--od-nowa", action="store_true", help="teach again from scratch")
             s.add_argument(
                 "--szybko",

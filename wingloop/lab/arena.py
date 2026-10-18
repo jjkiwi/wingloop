@@ -44,6 +44,9 @@ class Item:
     y: float
     z: float = 5.0
     label: str = ""
+    #: Camouflage, 0-1: painted in the floor's checker instead of its colour
+    #: (:attr:`~.scene.Thing.camo`). Only the eye sees it.
+    camo: float = 0.0
 
     @property
     def size(self):
@@ -77,8 +80,12 @@ def mission(
     per_kind: int = 1,
     distance=(50.0, 80.0),
     height: float = 5.0,
+    camo: float = 0.0,
 ) -> tuple[Item, ...]:
     """A random arena: ``per_kind`` of each kind around the start, well apart.
+
+    ``camo``: every object painted that much in the floor's checker. The
+    arena is otherwise the same as without it.
 
     Headings are spread evenly, each jittered by up to 10 degrees, so that
     seen from the start no two objects are closer than 360/n - 20 degrees
@@ -95,7 +102,13 @@ def mission(
         h = np.deg2rad(heading + rng.uniform(-10, 10))
         d = rng.uniform(*distance)
         items.append(
-            Item(kind, round(float(d * np.cos(h)), 1), round(float(d * np.sin(h)), 1), height)
+            Item(
+                kind,
+                round(float(d * np.cos(h)), 1),
+                round(float(d * np.sin(h)), 1),
+                height,
+                camo=camo,
+            )
         )
     return tuple(items)
 
@@ -105,6 +118,12 @@ def add_to_mjcf(world: ET.Element, items) -> None:
     for i, it in enumerate(items):
         rgba = " ".join(f"{c:.3f}" for c in it.rgb) + " 1"
         common = dict(name=f"flylab_item{i}", rgba=rgba, contype="0", conaffinity="0")
+        if it.camo:
+            # The floor's checker, tinted by what is left of its own colour.
+            tint = [it.camo + (1 - it.camo) * c for c in it.rgb]
+            common.update(
+                rgba=" ".join(f"{c:.3f}" for c in tint) + " 1", material="flylab_floor"
+            )
         if it.kind == "sphere":
             ET.SubElement(
                 world,
@@ -151,6 +170,7 @@ def eye_things(items) -> list:
                     height=BAR_HEIGHT,
                     brightness=bright,
                     label=it.name,
+                    camo=it.camo,
                 )
             )
         elif it.kind == "slab":
@@ -161,10 +181,18 @@ def eye_things(items) -> list:
                     np.asarray(it.size),
                     brightness=bright,
                     label=it.name,
+                    camo=it.camo,
                 )
             )
         else:
             out.append(
-                Thing(it.kind, [it.x, it.y, it.z], it.size, brightness=bright, label=it.name)
+                Thing(
+                    it.kind,
+                    [it.x, it.y, it.z],
+                    it.size,
+                    brightness=bright,
+                    label=it.name,
+                    camo=it.camo,
+                )
             )
     return out

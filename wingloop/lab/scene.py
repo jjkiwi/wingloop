@@ -31,6 +31,10 @@ class Thing:
     brightness: float = 0.05
     velocity: np.ndarray = field(default_factory=lambda: np.zeros(3))
     label: str = ""
+    #: Camouflage, 0-1: how much of its surface wears the ground's checker
+    #: instead of its own brightness -- at 1 it is painted like the floor
+    #: beneath it, tile for tile.
+    camo: float = 0.0
 
     def __post_init__(self):
         self.position = np.asarray(self.position, dtype=float)
@@ -153,8 +157,7 @@ def render(
     ground = (tg > 0) & np.isfinite(tg)
     gx = o[0] + tg * d[..., 0]
     gy = o[1] + tg * d[..., 1]
-    tile = (np.floor(gx / checker) + np.floor(gy / checker)) % 2
-    image = np.where(ground, np.where(tile > 0, GROUND[1], GROUND[0]), image)
+    image = np.where(ground, _floor(gx, gy, checker), image)
     depth = np.where(ground, tg, np.inf)
 
     for thing in world.things:
@@ -165,6 +168,17 @@ def render(
         else:
             t = _box_hits(o, d, thing.position, thing.size)
         closer = t < depth
-        image = np.where(closer, thing.brightness, image)
+        shade = thing.brightness
+        if thing.camo > 0:
+            reach = np.where(np.isfinite(t), t, 0.0)
+            px, py = o[0] + reach * d[..., 0], o[1] + reach * d[..., 1]
+            shade = (1 - thing.camo) * thing.brightness + thing.camo * _floor(px, py, checker)
+        image = np.where(closer, shade, image)
         depth = np.where(closer, t, depth)
     return image.astype(np.float32)
+
+
+def _floor(x, y, checker: float):
+    """The ground's checker tone at these world coordinates."""
+    tile = (np.floor(x / checker) + np.floor(y / checker)) % 2
+    return np.where(tile > 0, GROUND[1], GROUND[0])

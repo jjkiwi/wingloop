@@ -61,6 +61,20 @@ class Sighting:
 # --------------------------------------------------------------- teaching
 
 
+#: The landscape's columns, as a kind of object in the camouflage lessons:
+#: seen by what breaks the skyline, a camouflaged target and a column look
+#: alike until the mushroom body has learned which is which.
+LANDMARK = "column"
+
+
+def painted(rng, camo) -> float:
+    """How much an object in a camouflage lesson wears the floor's checker, 0-1:
+    a random amount for ``camo=True``, that amount for a number, none for False."""
+    if camo is True:
+        return float(rng.uniform(0.0, 1.0))
+    return float(camo or 0.0)
+
+
 def tethered_training(
     fly_eye,
     kinds,
@@ -71,8 +85,13 @@ def tethered_training(
     scan_rate: float = 240.0,
     hold: float = 0.12,
     lead=(120.0, 180.0),
+    camo: bool = False,
 ):
     """Show the tethered fly each kind of object; return (features, kinds).
+
+    ``camo``: every object painted in the floor's checker by a random amount
+    (:attr:`~.arena.Item.camo`); and ``kinds`` may include :data:`LANDMARK`,
+    one of the landscape's columns, shown the same way.
 
     For the drone, pass its :data:`~.dronebrain.SCAN_RATE` as ``scan_rate``:
     it turns more slowly than a fly. The close looks taken before landing
@@ -112,12 +131,18 @@ def tethered_training(
         d = rng.uniform(*distance)
         h = rng.uniform(-np.pi, np.pi)
         eye_pos = np.array([rng.uniform(-30, 30), rng.uniform(-30, 30), rng.uniform(4.5, 5.5)])
-        shown = [Item(kind, eye_pos[0] + d * np.cos(h), eye_pos[1] + d * np.sin(h), 5.0)]
+        if kind == LANDMARK:
+            column = background[rng.integers(len(background))].position
+            eye_pos[:2] = column[:2] - d * np.array([np.cos(h), np.sin(h)])
+            shown = []
+        else:
+            x, y = eye_pos[0] + d * np.cos(h), eye_pos[1] + d * np.sin(h)
+            shown = [Item(kind, x, y, 5.0, camo=painted(rng, camo))]
         for other in rng.choice(list(KINDS), 2):
             b = h + np.deg2rad(rng.uniform(90, 150)) * rng.choice([-1, 1])
             r = rng.uniform(40, 90)
             x, y = eye_pos[0] + r * np.cos(b), eye_pos[1] + r * np.sin(b)
-            shown.append(Item(str(other), x, y))
+            shown.append(Item(str(other), x, y, camo=painted(rng, camo)))
         world = World(background + eye_things(shown), ground_height=fly_eye.world.ground_height)
 
         def look(yaw, eye_pos=eye_pos, world=world, at=None, pitch=0.0):
@@ -251,6 +276,9 @@ class Navigator:
     #: keeps turning 25-35 deg/s after its drifting target, judges well doing
     #: so, and drifts into the object if it waits.
     centred: float = 15.0
+    #: See what breaks the skyline as well as what is dark
+    #: (:meth:`~.watch.FlysEye.standing`): for camouflaged targets.
+    skyline: bool = False
     still: float = 60.0
     face_time: float = 1.5
     #: A close look that turns the object down by less than ``unsure``, taken
@@ -367,14 +395,15 @@ class Navigator:
         if self._last_heading is not None and dt > 0:
             self._turning = (heading_now - self._last_heading) / dt
         self._last_heading = heading_now
+        see = fly_eye.standing if self.skyline else fly_eye.eye.dark
         if self.phase == "approach":
             # Only what is where the target should be counts as the target.
             off = (self._target.heading - heading_now + 180) % 360 - 180
             centre = float(np.clip(off, -half, half)) / half
-            size, bearing = fly_eye.eye.dark(DARK, within=TRACK / half, centre=centre)
+            size, bearing = see(DARK, within=TRACK / half, centre=centre)
         else:
             # Only what is near the middle can be fixated and judged.
-            size, bearing = fly_eye.eye.dark(DARK, within=FIXATE / half)
+            size, bearing = see(DARK, within=FIXATE / half)
         bearing_deg = bearing * half  # +left
         if (
             self.phase == "approach"
@@ -726,6 +755,7 @@ def nearest(items, x: float, y: float) -> tuple[Item, float]:
 
 __all__ = [
     "KINDS",
+    "LANDMARK",
     "Navigator",
     "Sighting",
     "describe",

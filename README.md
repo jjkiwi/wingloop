@@ -472,6 +472,45 @@ there, found 68 of 72 with 2 mistakes; on the exam arenas what it missed
 was a ball its close look judged just below zero from 18-27 mm, where it
 ends up after braking.
 
+**Camouflaged targets.** `--kamuflaz 0.7` paints every object that much in
+the floor's checker (`Item.camo`, 0-1); at 1 it is painted like the floor
+beneath it, tile for tile. The expert drone, which sees what is dark, is
+blind to it, and it is not wrong about anything -- it sees nothing. On six
+new arenas, targets found of 12 per target, no mistake anywhere:
+
+| camouflage | ball | slab | pole |
+| --- | --- | --- | --- |
+| 0 | 12 | 12 | 12 |
+| 0.25 | 5 | 11 | 12 |
+| 0.5 | 0 | 0 | 6 |
+| 1 | 0 | 0 | 0 |
+
+What a camouflaged object still does is break the skyline: whatever of it
+stands above the horizon blots out the sky, and no floor ever does. So the
+brain for camouflaged targets also sees what is darker than the sky more
+than 3 degrees above the horizon (`FlysEye.standing`, `Navigator.skyline`),
+the horizon taken from the body's sense of its own attitude, as a fly's is
+from its halteres and ocelli -- tilted 20 degrees and rolled 10, it sees no
+floor. A fully camouflaged slab is then 2.6-3.6% of the eye, a pole 3%, a
+ball 0.4-0.7%, where the fixation threshold is 0.3%. But the landscape's
+columns break the skyline too, and some stand among the objects, so they
+become a kind of their own in the lessons -- a non-target, punished, and a
+mistake when landed on (`LANDMARK`). The camouflage brain has its own
+lessons (`--kamuflaz` on `trening` and `egzamin`): every object painted a
+random 0-1, the columns shown and flown to, and practice in arenas painted
+0-1, a different amount each mission.
+
+Measured so far, on the same six arenas fully camouflaged (targets found of
+12, wrong landings): the camouflage novice found the slab 7 times (4 wrong
+landings, 2 of them on columns), the pole 6 (3), the ball once (3); at half
+camouflage, the ball 7 times with none. It sees them now; what it cannot do
+as well is tell them apart. On 60 flown close looks at full camouflage the
+best any threshold could do was 77-91% right (the ball worst): painted like
+the floor, an object is known by the shape of what of it breaks the skyline
+alone. And practice at full punishment made it worse, not better -- 0-2 of
+12 found, though no wrong landing: camouflaged objects look alike, and the
+punishments for the many non-targets it lands on spread onto the targets.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
@@ -1707,7 +1746,7 @@ as what it is -- lost margin, the worst attitude swing going from 10.9 to
 
 ```bash
 pip install -e ".[dev,body]"
-pytest -q             # 171 tests, about forty minutes on one core
+pytest -q             # 174 tests, about forty minutes on one core
 pytest -q -m sweep    # the 9 measurement sweeps, about half an hour
 pytest -q -n 4        # with pytest-xdist: about ten minutes on four cores
 ```

@@ -28,7 +28,7 @@ from pathlib import Path
 import numpy as np
 
 from . import arena
-from .navigate import Navigator, describe, nearest, teach, tethered_training
+from .navigate import LANDMARK, Navigator, describe, nearest, painted, teach, tethered_training
 
 #: Polish names of the kinds, as the person types them, and back.
 NAMES = {"kula": "sphere", "płytka": "slab", "plytka": "slab", "słupek": "bar", "slupek": "bar"}
@@ -61,23 +61,33 @@ VIEWS = "flylab_widoki_na_uwiezi.npz"
 SHIPPED = Path(__file__).with_name("data") / "tethered_views.npz"
 
 
-def shipped(every_ms: float = 5.0, close: bool = False, drone: bool = False) -> Path:
+def shipped(
+    every_ms: float = 5.0, close: bool = False, drone: bool = False, camo: bool = False
+) -> Path:
     """The shipped views for an eye stepped every ``every_ms`` (5, or 20 in the fast
     mode): the scanning ones, or with ``close`` the close looks before landing,
     flown (:func:`flown_close_looks`); with ``drone``, the drone's."""
     name = "tethered_views" + ("" if every_ms == 5.0 else f"_{every_ms:g}ms")
-    return SHIPPED.with_name(
-        name + ("_close" if close else "") + ("_dron" if drone else "") + ".npz"
+    tail = (
+        ("_close" if close else "") + ("_dron" if drone else "") + ("_kamuflaz" if camo else "")
     )
+    return SHIPPED.with_name(name + tail + ".npz")
 
 
 def _signature(
-    samples: int, seed: int, every_ms: float = 5.0, close: bool = False, drone: bool = False
+    samples: int,
+    seed: int,
+    every_ms: float = 5.0,
+    close: bool = False,
+    drone: bool = False,
+    camo: bool = False,
 ) -> str:
     """What the views depend on; a saved file with another signature is stale."""
     sizes = {k: v["size"] for k, v in arena.KINDS.items()}
     eye = "" if every_ms == 5.0 else f" eye {every_ms:g} ms"
     body = " drone 90 deg/s" if drone else ""
+    if camo:
+        body += " camouflage 0-1, columns, skyline"
     if close:
         return f"v7 flown close looks {samples} {seed} {sizes}{eye}{body}"
     return f"v3 {samples} {seed} lead 120-180 {sizes}{eye}{body}"
@@ -92,8 +102,14 @@ def views(
     progress=print,
     close: bool = False,
     drone: bool = False,
+    camo: bool = False,
 ):
     """The tethered fly's look at every kind: (features, kinds), from disk if seen before.
+
+    ``camo``: the camouflage lesson -- every object painted in the floor's
+    checker by a random amount, the landscape's columns shown as a kind of
+    their own (:data:`~.navigate.LANDMARK`), and the close looks flown seeing
+    what breaks the skyline.
 
     ``close``: the close looks it takes before landing, flown
     (:func:`flown_close_looks`, ``samples`` of them), rather than the views
@@ -109,8 +125,10 @@ def views(
         path = path.with_name(path.stem + "_close.npz")
     if drone:
         path = path.with_name(path.stem + "_dron.npz")
-    sig = _signature(samples, seed, every_ms, close, drone)
-    for saved in (path, shipped(every_ms, close, drone)):
+    if camo:
+        path = path.with_name(path.stem + "_kamuflaz.npz")
+    sig = _signature(samples, seed, every_ms, close, drone, camo)
+    for saved in (path, shipped(every_ms, close, drone, camo)):
         if saved.exists() and not fresh:
             with np.load(saved) as d:
                 if str(d["signature"]) == sig:
@@ -127,18 +145,19 @@ def views(
             + " (kilka minut, tylko za pierwszym razem)..."
         )
     t0 = time.time()
+    kinds = tuple(arena.KINDS) + ((LANDMARK,) if camo else ())
     if close:
         F, K = flown_close_looks(
-            fly_eye, tuple(arena.KINDS), samples, seed=seed, drone=drone, progress=progress
+            fly_eye, kinds, samples, seed=seed, drone=drone, progress=progress, camo=camo
         )
     else:
-        extra = {}
+        extra = {"camo": camo}
         if drone:
             from .dronebrain import SCAN_RATE
 
             extra["scan_rate"] = SCAN_RATE
         F, K = tethered_training(
-            fly_eye, tuple(arena.KINDS), samples=samples, seed=seed, progress=progress, **extra
+            fly_eye, kinds, samples=samples, seed=seed, progress=progress, **extra
         )
     if progress:
         progress(f"  {len(K)} widoków w {time.time() - t0:.0f} s -> {path}")
@@ -153,6 +172,12 @@ def views(
 #: judge new close looks as well (97% of the targets liked, 0-2% of the rest).
 CLOSE_LOOKS = 300
 CLOSE_DOSE = 0.1
+#: In the camouflage world a punishment gets this share of a reward's
+#: dopamine: practising lands on about three non-targets -- columns
+#: included -- for every target, camouflaged objects look alike, and at full
+#: dose the punishments spread onto the targets: after 25 practice missions
+#: the brain turned nearly everything down, targets with the rest.
+CAMO_PUNISH = 0.35
 
 
 class _Looker:
@@ -170,7 +195,9 @@ class _Looker:
         pass
 
 
-def flown_close_looks(fly_eye, kinds, samples, seed=0, drone=False, progress=None, tries=20.0):
+def flown_close_looks(
+    fly_eye, kinds, samples, seed=0, drone=False, progress=None, tries=20.0, camo=False
+):
     """The close-look lesson flown, not replayed: (features, kinds).
 
     The body itself -- the fast fly, or the drone -- with its own navigator,
@@ -186,6 +213,10 @@ def flown_close_looks(fly_eye, kinds, samples, seed=0, drone=False, progress=Non
     could not reproduce was the body: the drone looks while it is still
     settling, leaning against its drift, sometimes still turning. Taught on
     flown close looks, new flown ones are judged right 94-100% of the time.
+
+    ``camo``: the objects painted in the floor's checker by a random amount,
+    the landscape's columns flown to as a kind of their own, and the body
+    seeing what breaks the skyline.
     """
     from .navigate import Sighting
 
@@ -198,21 +229,29 @@ def flown_close_looks(fly_eye, kinds, samples, seed=0, drone=False, progress=Non
         i += 1
         d = rng.uniform(55.0, 95.0)
         h = np.deg2rad(rng.uniform(60.0, 150.0) * rng.choice([-1, 1]))
-        items = [arena.Item(kind, round(d * np.cos(h), 1), round(d * np.sin(h), 1))]
-        for other in rng.choice(kinds, 2):
+        if kind == LANDMARK:
+            # A column of the landscape within reach of the start instead.
+            near = [
+                b.position for b in fly_eye.background if 55 < np.hypot(*b.position[:2]) < 95
+            ]
+            x, y = near[rng.integers(len(near))][:2]
+            h, items = np.arctan2(y, x), []
+        else:
+            x, y = round(d * np.cos(h), 1), round(d * np.sin(h), 1)
+            items = [arena.Item(kind, x, y, camo=painted(rng, camo))]
+        for other in rng.choice(tuple(arena.KINDS), 2):
             b = h + np.deg2rad(rng.uniform(90, 150)) * rng.choice([-1, 1])
             r = rng.uniform(40, 90)
-            items.append(
-                arena.Item(str(other), round(r * np.cos(b), 1), round(r * np.sin(b), 1))
-            )
+            ox, oy = round(r * np.cos(b), 1), round(r * np.sin(b), 1)
+            items.append(arena.Item(str(other), ox, oy, camo=painted(rng, camo)))
         fly_eye.set_items(tuple(items))
         looker = _Looker()
-        pilot = _pilot(items, looker, fly_eye, {}, {kind}, drone, fast=True)
+        pilot = _pilot(items, looker, fly_eye, {}, {kind}, drone, fast=True, camo=camo)
         looker.nav = nav = pilot.nav
         nav.reward, nav.inspect, nav.curious = None, True, False
         pilot.step()  # spun up, and facing away from it
         s = pilot.flight.state()
-        bearing = np.degrees(np.arctan2(items[0].y - s["y"], items[0].x - s["x"]))
+        bearing = np.degrees(np.arctan2(y - s["y"], x - s["x"]))
         nav._target = Sighting(float(bearing), 0.5, 0.01, (s["x"], s["y"]))
         nav._since, nav.phase = 0.0, "approach"
         while looker.view is None and nav.phase == "approach" and pilot.flight.t < tries:
@@ -237,7 +276,8 @@ def teach_targets(F, K, targets, seed: int = 0, close=None):
     from .learning import MushroomBody
 
     kinds = tuple(arena.KINDS)
-    reward = {k: (1.0 if k in targets else -1.0) for k in kinds}
+    seen = {str(k) for k in K} | (set(map(str, close[1])) if close is not None else set())
+    reward = {k: (1.0 if k in targets else -1.0) for k in (*kinds, *sorted(seen - set(kinds)))}
     mb = MushroomBody(F.shape[1], seed=seed, on_off=True)
     if close is None:
         teach(mb, F, K, reward)
@@ -250,7 +290,13 @@ def teach_targets(F, K, targets, seed: int = 0, close=None):
 
 
 def learned(
-    fly_eye, targets, folder=".", retrain: bool = False, progress=print, drone: bool = False
+    fly_eye,
+    targets,
+    folder=".",
+    retrain: bool = False,
+    progress=print,
+    drone: bool = False,
+    camo: bool = False,
 ):
     """What the brain knows about these targets.
 
@@ -258,15 +304,15 @@ def learned(
     these targets, this body and this eye; otherwise a brain trained here and
     shipped (:func:`shipped_memory`), if there is one; otherwise the tethered
     lesson. ``retrain`` ignores them all and starts again from the tether.
+    ``camo``: the brain for camouflaged targets, its own lessons and memory.
     """
-    F, K = views(fly_eye, folder, fresh=retrain, progress=progress, drone=drone)
-    close = views(
-        fly_eye, folder, CLOSE_LOOKS, fresh=retrain, progress=progress, close=True, drone=drone
-    )
+    look = dict(fresh=retrain, progress=progress, drone=drone, camo=camo)
+    F, K = views(fly_eye, folder, **look)
+    close = views(fly_eye, folder, CLOSE_LOOKS, close=True, **look)
     every_ms = getattr(fly_eye, "every_ms", 5.0)
-    path = memory_path(targets, drone, every_ms, folder)
+    path = memory_path(targets, drone, every_ms, folder, camo)
     if not path.exists():
-        path = shipped_memory(targets, drone, every_ms)
+        path = shipped_memory(targets, drone, every_ms, camo)
     if path.exists() and not retrain:
         from .learning import load
 
@@ -282,21 +328,25 @@ def learned(
     return teach_targets(F, K, targets, close=close)
 
 
-def shipped_memory(targets, drone: bool = False, every_ms: float = 5.0) -> Path:
+def shipped_memory(
+    targets, drone: bool = False, every_ms: float = 5.0, camo: bool = False
+) -> Path:
     """The brain practised here and shipped, for these targets, body and eye rate.
 
     The drone's three, one target each, in the fast mode: 50 practice
     missions, and in 24 exam arenas -- twelve of them never used while the
     navigator was being put right -- 144 targets of 144, no wrong landing.
     """
-    return SHIPPED.with_name(memory_path(targets, drone, every_ms).name)
+    return SHIPPED.with_name(memory_path(targets, drone, every_ms, camo=camo).name)
 
 
-def memory_path(targets, drone: bool = False, every_ms: float = 5.0, folder=".") -> Path:
+def memory_path(
+    targets, drone: bool = False, every_ms: float = 5.0, folder=".", camo: bool = False
+) -> Path:
     """Where practice flights leave what was learned, per targets, body and eye rate."""
     names = "+".join(POLISH[t] for t in sorted(targets))
     names = names.replace("ł", "l").replace("ó", "o")
-    body = "_dron" if drone else ""
+    body = ("_dron" if drone else "") + ("_kamuflaz" if camo else "")
     return Path(folder) / f"pamiec_{names}{body}_{every_ms:g}ms.npz"
 
 
@@ -326,8 +376,13 @@ def practise(
     folder=".",
     progress=print,
     first_arena: int = 1000,
+    camo: bool = False,
 ) -> list:
     """Practice flights: missions in new arenas, learning from every landing.
+
+    ``camo``: the brain for camouflaged targets, practising in arenas painted
+    0-1 in the floor's checker, a different amount each mission, where
+    landing on a landscape column is a mistake like any other.
 
     The brain is the same from one mission to the next, so what it learns
     where it lands -- reward on a target, punishment on anything else --
@@ -338,8 +393,10 @@ def practise(
     from .watch import FlysEye
 
     eye = FlysEye(items=(), every_ms=EYE_MS[fast])
-    mb, valence = learned(eye, targets, folder=folder, progress=progress, drone=drone)
-    path = memory_path(targets, drone, eye.every_ms, folder)
+    mb, valence = learned(
+        eye, targets, folder=folder, progress=progress, drone=drone, camo=camo
+    )
+    path = memory_path(targets, drone, eye.every_ms, folder, camo)
     done, curve = 0, []
     if path.exists():
         with np.load(path) as d:
@@ -350,7 +407,8 @@ def practise(
         # Practice arenas are numbered from 1000 up, apart from the ones
         # missions are flown in (0, 1, 2 ...), so the test is on new ground.
         seed = first_arena + done + i
-        items = arena.mission(seed, per_kind=2)
+        level = float(np.random.default_rng(seed).uniform()) if camo else 0.0
+        items = arena.mission(seed, per_kind=2, camo=level)
         eye.set_items(items)
         pilot = run(
             items,
@@ -363,12 +421,13 @@ def practise(
             drone=drone,
             fast=fast,
             practice=True,
+            camo=camo,
         )
         wanted = [it for it in items if it.kind in targets]
         reached = pilot.reached()
         row = (
             sum(it in reached for it in wanted),
-            sum(it not in wanted for it in reached),
+            sum(it not in wanted for it in reached) + pilot.on_landmarks(),
             round(pilot.flight.t, 1),
         )
         curve.append(row)
@@ -404,11 +463,18 @@ class Autopilot:
         height: float = 5.0,
         learn_in_flight: bool = True,
         vehicle=None,
+        landmarks=(),
+        punish: float = 1.0,
         **navigator,
     ):
         from .watch import Flight
 
         self.items = tuple(items)
+        #: (x, y) of the landscape's columns, where landing counts as a
+        #: mistake: in the camouflage world, where the eye sees them too.
+        self.landmarks = tuple(landmarks)
+        #: The punishment's share of a reward's dopamine.
+        self.punish = punish
         self.eye = eye
         # The fly, or anything with its interface -- the drone of
         # :mod:`.dronebrain` is one.
@@ -453,10 +519,12 @@ class Autopilot:
 
     def reward(self, x: float, y: float) -> float:
         """The world's answer where the fly lands: reward on a target, punishment elsewhere."""
+        if any(np.hypot(x - lx, y - ly) < 30.0 for lx, ly in self.landmarks):
+            return -LESSON * self.punish
         item, d = nearest(self.items, x, y)
         if d > 30.0:
             return 0.0
-        return LESSON if item.kind in self.targets else -LESSON
+        return LESSON if item.kind in self.targets else -LESSON * self.punish
 
     def reached(self) -> list:
         """The items the fly has flown to, in order."""
@@ -466,6 +534,15 @@ class Autopilot:
             if d < 30.0:
                 out.append(item)
         return out
+
+    def on_landmarks(self) -> int:
+        """Landings on a landscape column rather than near any object: mistakes."""
+        return sum(
+            1
+            for vx, vy in self.nav.visited
+            if nearest(self.items, vx, vy)[1] >= 30.0
+            and any(np.hypot(vx - lx, vy - ly) < 30.0 for lx, ly in self.landmarks)
+        )
 
     def seen_as(self, sighting):
         """Which item a sighting was (for the person; the fly does not know)."""
@@ -555,12 +632,14 @@ def run(
     drone: bool = False,
     fast: bool = False,
     practice: bool = False,
+    camo: bool = False,
 ):
     """The mission without a window: returns the :class:`Autopilot` when it ends.
 
     ``practice``: it lands after every close look, liked or not, to learn.
+    ``camo``: the brain for camouflaged targets, seeing what breaks the skyline.
     """
-    pilot = _pilot(items, mushroom_body, eye, valence, targets, drone, fast)
+    pilot = _pilot(items, mushroom_body, eye, valence, targets, drone, fast, camo)
     if practice:
         pilot.nav.inspect = pilot.nav.land_to_learn = True
         pilot.nav.look_before_leaving = True
@@ -588,23 +667,35 @@ GRADES = (("ekspert", 0.9, 0.2), ("zaawansowany", 0.75, 0.5), ("uczeń", 0.0, 99
 
 
 def exam(
-    targets, arenas: int = 6, drone: bool = False, fast: bool = True, folder=".", progress=print
+    targets,
+    arenas: int = 6,
+    drone: bool = False,
+    fast: bool = True,
+    folder=".",
+    progress=print,
+    camo: float | None = None,
+    first: int = 0,
 ) -> dict:
     """Missions in arenas it never practised in, with no learning: what it knows now.
 
     Practice arenas are numbered from 1000 up and the exam's from 0, so the
     exam is always on new ground; the brain is loaded fresh for each mission
-    and learns nothing during the exam.
+    and learns nothing during the exam. ``camo``: the brain for camouflaged
+    targets, in arenas painted that much (0-1) in the floor's checker.
+    ``first``: the first arena.
     """
     from .watch import FlysEye
 
     eye = FlysEye(items=(), every_ms=EYE_MS[fast])
     rows = []
-    for seed in range(arenas):
-        mb, valence = learned(eye, targets, folder=folder, progress=None, drone=drone)
-        items = arena.mission(seed, per_kind=2)
+    hidden = camo is not None
+    for seed in range(first, first + arenas):
+        mb, valence = learned(
+            eye, targets, folder=folder, progress=None, drone=drone, camo=hidden
+        )
+        items = arena.mission(seed, per_kind=2, camo=camo or 0.0)
         eye.set_items(items)
-        pilot = _pilot(items, mb, eye, valence, targets, drone, fast)
+        pilot = _pilot(items, mb, eye, valence, targets, drone, fast, hidden)
         pilot.nav.reward = None  # an exam: no dopamine
         while pilot.flight.t < MISSION_S[drone] and not pilot.done:
             pilot.step()
@@ -613,7 +704,7 @@ def exam(
         rows.append(
             (
                 sum(it in reached for it in wanted),
-                sum(it not in wanted for it in reached),
+                sum(it not in wanted for it in reached) + pilot.on_landmarks(),
                 len(wanted),
             )
         )
@@ -637,23 +728,29 @@ def window(
     folder=".",
     drone: bool = False,
     fast: bool = False,
+    camo: float | None = None,
 ) -> None:
     """Teach, then open the 3-D window and the brain page, and let it fly.
 
     ``fast``: the fast fly of :mod:`.fastfly` (or, for the drone, only the
     faster eye), the optic lobe at its trained 20 ms, kept to real time.
+    ``camo``: the objects painted that much (0-1) in the floor's checker,
+    and the brain for camouflaged targets flying.
     """
     from .livebrain import LiveBrain
     from .watch import FlysEye, Pilot
 
-    items = arena.mission(seed, per_kind=per_kind)
+    hidden = camo is not None
+    items = arena.mission(seed, per_kind=per_kind, camo=camo or 0.0)
     print("Wczytuję oko muchy (flyvis)...")
     eye = FlysEye(items=items, every_ms=EYE_MS[fast])  # before MuJoCo; see watch.interactive
-    mb, valence = learned(eye, targets, folder=folder, retrain=retrain, drone=drone)
+    mb, valence = learned(
+        eye, targets, folder=folder, retrain=retrain, drone=drone, camo=hidden
+    )
     _print_valence(valence, targets)
     import mujoco.viewer
 
-    pilot = _pilot(items, mb, eye, valence, targets, drone, fast)
+    pilot = _pilot(items, mb, eye, valence, targets, drone, fast, hidden)
     view, keys = _view(drone, pretty, items), Pilot()
     live = LiveBrain(eye.eye)
     print(f"Strona z mózgiem i autopilotem: {live.url}")
@@ -725,7 +822,9 @@ FRAME_S = 1.0 / 30.0
 CHASE = {False: 22.0, True: 12.0}
 
 
-def _pilot(items, mb, eye, valence, targets, drone: bool, fast: bool = False) -> Autopilot:
+def _pilot(
+    items, mb, eye, valence, targets, drone: bool, fast: bool = False, camo: bool = False
+) -> Autopilot:
     """The autopilot on the fly (the full physics, or the fast fly), or on the drone.
 
     It takes a close look before it lands, and before it calls a mission done.
@@ -733,8 +832,17 @@ def _pilot(items, mb, eye, valence, targets, drone: bool, fast: bool = False) ->
     most targets -- 7 of 24 balls found -- and only practice made them
     useful; taught it in flight (:func:`flown_close_looks`), a novice's close
     look is as good as a practised one's.
+
+    ``camo``: it also sees what breaks the skyline, and the landscape's
+    columns are things it can wrongly land on.
     """
     expert = {"inspect": True, "look_before_leaving": True}
+    if camo:
+        from .watch import COLUMNS
+
+        expert.update(
+            skyline=True, landmarks=[(x, y) for x, y, _ in COLUMNS], punish=CAMO_PUNISH
+        )
     if not drone:
         if fast:
             from .fastfly import FastFly
@@ -779,6 +887,7 @@ def video(
     retrain: bool = False,
     drone: bool = False,
     fast: bool = False,
+    camo: float | None = None,
 ) -> Path:
     """Record a whole mission: the chase view, with the map and the fly's eye beside it.
 
@@ -792,12 +901,15 @@ def video(
     if frame_ms is None:
         frame_ms = 33.0 if drone else 10.0
 
-    items = arena.mission(seed, per_kind=per_kind)
+    hidden = camo is not None
+    items = arena.mission(seed, per_kind=per_kind, camo=camo or 0.0)
     eye = FlysEye(items=items, every_ms=EYE_MS[fast])
-    mb, valence = learned(eye, targets, folder=folder, retrain=retrain, drone=drone)
+    mb, valence = learned(
+        eye, targets, folder=folder, retrain=retrain, drone=drone, camo=hidden
+    )
     import mujoco
 
-    pilot = _pilot(items, mb, eye, valence, targets, drone, fast)
+    pilot = _pilot(items, mb, eye, valence, targets, drone, fast, hidden)
     view = _view(drone, True, items)
     renderer = mujoco.Renderer(view.model, height, width)
     cam = mujoco.MjvCamera()

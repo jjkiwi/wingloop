@@ -129,6 +129,15 @@ def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
                     assert str(d["signature"]) == sig, path.name
                     assert d["F"].shape == (n, 325)
                     assert sorted(set(d["K"].tolist())) == sorted(arena.KINDS)
+    # And the drone's camouflage lessons, in the fast mode, with the landscape's columns.
+    from wingloop.lab.navigate import LANDMARK
+
+    for close in (False, True):
+        path = autopilot.shipped(20.0, close, drone=True, camo=True)
+        n = autopilot.CLOSE_LOOKS if close else 90
+        with np.load(path) as d:
+            assert str(d["signature"]) == autopilot._signature(n, 0, 20.0, close, True, True)
+            assert sorted(set(d["K"].tolist())) == sorted([*arena.KINDS, LANDMARK])
 
 
 # --------------------------------------------------------------- navigating
@@ -639,6 +648,35 @@ def test_the_drones_expert_brains_are_shipped_and_flown_with_by_default(tmp_path
         Eye(), {"bar"}, folder=here, progress=None, drone=True, retrain=True
     )
     assert not np.allclose(mb.approach, 0.5) and not np.allclose(mb.approach, 0.25)
+
+
+def test_in_the_camouflage_world_a_landscape_column_is_a_kind_to_avoid():
+    """Seen by what breaks the skyline, a column is taught as a non-target, and landing on one
+    is punished and counted as a mistake."""
+    from types import SimpleNamespace
+
+    from wingloop.lab import autopilot
+    from wingloop.lab.navigate import LANDMARK
+
+    rng = np.random.default_rng(5)
+    kinds = (*arena.KINDS, LANDMARK)
+    centres = {k: rng.normal(0, 1, 40) for k in kinds}
+    K = np.array([kinds[i % 4] for i in range(120)])
+    F = np.array([centres[k] + rng.normal(0, 0.4, 40) for k in K])
+    mb, valence = autopilot.teach_targets(F[:60], K[:60], {"sphere"}, close=(F[60:], K[60:]))
+    column = np.mean([mb.valence(f) for f in F[K == LANDMARK]])
+    ball = np.mean([mb.valence(f) for f in F[K == "sphere"]])
+    assert column < 0 < ball
+
+    items = (arena.Item("sphere", 60.0, 0.0), arena.Item("bar", -60.0, 0.0))
+    pilot = SimpleNamespace(
+        items=items, targets={"sphere"}, landmarks=((0.0, 70.0),), punish=1.0
+    )
+    pilot.nav = SimpleNamespace(visited=[(55.0, 0.0), (0.0, 65.0), (0.0, -40.0)])
+    reward = autopilot.Autopilot.reward
+    assert reward(pilot, 55.0, 0.0) > 0 > reward(pilot, 0.0, 65.0)
+    assert reward(pilot, 0.0, -40.0) == 0.0  # nowhere in particular
+    assert autopilot.Autopilot.on_landmarks(pilot) == 1
 
 
 @needs_flyvis
