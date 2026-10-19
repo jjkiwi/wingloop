@@ -90,6 +90,8 @@ def _signature(
         body += " camouflage 0-1, columns, skyline"
         if close and drone and CAMO_LOOKS > 1:
             body += f", {CAMO_LOOKS} looks {AROUND:g} deg round"
+        if close and drone and CAMO_PEER:
+            body += f", peering {CAMO_PEER:g} for {CAMO_PEER_TIME:g} s"
     if close:
         return f"v7 flown close looks {samples} {seed} {sizes}{eye}{body}"
     return f"v3 {samples} {seed} lead 120-180 {sizes}{eye}{body}"
@@ -149,9 +151,16 @@ def views(
     t0 = time.time()
     kinds = tuple(arena.KINDS) + ((LANDMARK,) if camo else ())
     if close:
-        F, K = flown_close_looks(
-            fly_eye, kinds, samples, seed=seed, drone=drone, progress=progress, camo=camo
-        )
+        # In parts of CLOSE_LOOKS, each from its own seed: a bigger lesson
+        # keeps the smaller one as its first part, and the parts can be flown
+        # side by side (:func:`close_part`).
+        parts = [
+            close_part(
+                fly_eye, kinds, seed, j, samples, drone=drone, progress=progress, camo=camo
+            )
+            for j in range(-(-samples // CLOSE_LOOKS))
+        ]
+        F, K = np.concatenate([f for f, _ in parts]), np.concatenate([k for _, k in parts])
     else:
         extra = {"camo": camo}
         if drone:
@@ -174,6 +183,15 @@ def views(
 #: judge new close looks as well (97% of the targets liked, 0-2% of the rest).
 CLOSE_LOOKS = 300
 CLOSE_DOSE = 0.1
+#: The camouflage close-look lesson is three times as big, flown in parts
+#: of :data:`CLOSE_LOOKS` (seeds 0, 1, 2), and taught at twice the dose.
+#: What tells camouflaged objects apart is subtle, and more of it is
+#: learned from more looks: on 120 new flown looks at full camouflage, the
+#: ball was told apart at AUC 0.86 after 300 and 0.92 after 900, the slab
+#: 0.94 and 0.97, the pole 0.94 and 0.96; and more targets were liked
+#: outright -- 82% of the balls right at zero against 68%.
+CAMO_CLOSE_LOOKS = 900
+CAMO_CLOSE_DOSE = 0.2
 #: In the camouflage world a punishment gets this share of a reward's
 #: dopamine: practising lands on about three non-targets -- columns
 #: included -- for every target, camouflaged objects look alike, and at full
@@ -187,11 +205,15 @@ CAMO_PUNISH = 0.35
 #: Measured, it did not pay, and it looks once: see the README.
 CAMO_LOOKS = 1
 AROUND = 45.0
+#: And it peers (:attr:`~.navigate.Navigator.peer`) for ``CAMO_PEER_TIME``
+#: seconds: 0 looks hovering still.
+CAMO_PEER = 0.0
+CAMO_PEER_TIME = 0.4
 
 
 def close_looks(camo: bool = False) -> int:
     """How many close looks the close-look lesson is made of."""
-    return CLOSE_LOOKS * CAMO_LOOKS if camo else CLOSE_LOOKS
+    return CAMO_CLOSE_LOOKS * CAMO_LOOKS if camo else CLOSE_LOOKS
 
 
 class _Looker:
@@ -207,6 +229,12 @@ class _Looker:
 
     def learn(self, f, dopamine) -> None:
         pass
+
+
+def close_part(fly_eye, kinds, seed, j, samples, **kw):
+    """Part ``j`` of a close-look lesson of ``samples`` looks: (features, kinds)."""
+    n = min(CLOSE_LOOKS, samples - j * CLOSE_LOOKS)
+    return flown_close_looks(fly_eye, kinds, n, seed=seed + j, **kw)
 
 
 def flown_close_looks(
@@ -289,11 +317,11 @@ def flown_close_looks(
     return np.asarray(F)[:samples], np.asarray(K)[:samples]
 
 
-def teach_targets(F, K, targets, seed: int = 0, close=None):
+def teach_targets(F, K, targets, seed: int = 0, close=None, dose: float = CLOSE_DOSE):
     """Dopamine for the targets, punishment for the rest: (mushroom body, valence per kind).
 
     ``close``: the flown close looks, (features, kinds), taught on top at
-    :data:`CLOSE_DOSE` of the dopamine.
+    ``dose`` of the dopamine (:data:`CLOSE_DOSE`).
     """
     from .learning import MushroomBody
 
@@ -306,7 +334,7 @@ def teach_targets(F, K, targets, seed: int = 0, close=None):
     else:
         mb.calibrate(np.concatenate([F, close[0]]))
         teach(mb, F, K, reward, calibrate=False)
-        teach(mb, *close, reward, dose=CLOSE_DOSE, calibrate=False)
+        teach(mb, *close, reward, dose=dose, calibrate=False)
     valence = {k: float(np.mean([mb.valence(f) for f in F[K == k]])) for k in kinds}
     return mb, valence
 
@@ -347,7 +375,8 @@ def learned(
         kinds = tuple(arena.KINDS)
         valence = {k: float(np.mean([mb.valence(f) for f in F[K == k]])) for k in kinds}
         return mb, valence
-    return teach_targets(F, K, targets, close=close)
+    dose = CAMO_CLOSE_DOSE if camo and drone else CLOSE_DOSE
+    return teach_targets(F, K, targets, close=close, dose=dose)
 
 
 def shipped_memory(
@@ -868,7 +897,9 @@ def _pilot(
             skyline=True, landmarks=[(x, y) for x, y, _ in COLUMNS], punish=CAMO_PUNISH
         )
         if drone:
-            expert.update(looks=CAMO_LOOKS, around=AROUND)
+            expert.update(
+                looks=CAMO_LOOKS, around=AROUND, peer=CAMO_PEER, peer_time=CAMO_PEER_TIME
+            )
     if not drone:
         if fast:
             from .fastfly import FastFly

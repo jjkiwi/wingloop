@@ -304,6 +304,30 @@ class Navigator:
     #: About how far off it looks from, mm: how fast the object wheels round
     #: in the eye as it flies sideways, to turn ahead of it.
     around_from: float = 60.0
+    #: Peer: take the close look flying sideways, to the left at ``peer``
+    #: (read as a speed, like the pitch), turning to keep the object in the
+    #: middle of the eye, for ``peer_time`` seconds -- as a locust sways
+    #: before it jumps. What is near moves across the eye unlike what is far
+    #: behind it, and the optic lobe's motion cells see that: an object
+    #: painted like the floor still does not move like the floor. Measured,
+    #: taught on peering looks, the pole was told apart better (AUC 0.97
+    #: against 0.93 at full camouflage), the ball and slab no better, and
+    #: peering harder made the ball worse: kept off. 0: look hovering still.
+    peer: float = 0.0
+    peer_time: float = 0.4
+    #: Judge a close look against the others of the mission rather than
+    #: against zero: land when it is liked by more than ``relative`` above
+    #: the middle (median) of the close looks it has turned down so far --
+    #: at least ``compared`` of them -- and before calling the mission done,
+    #: go back to the best one it turned down if that stands out so now. A
+    #: brain taught on camouflaged objects values its targets below zero up
+    #: close, but above the rest. Replayed over every close look of 18
+    #: practice missions it was a trade, not a gain -- each target more
+    #: cost one or two wrong landings: in a mission the target is often not
+    #: the best looking thing, with columns among the poles and slabs among
+    #: the balls. 0: never.
+    relative: float = 0.0
+    compared: int = 2
     #: Practice: land after a close look even when it is not liked, to find
     #: out. A rejected close look teaches nothing -- no landing, no dopamine
     #: -- so without this, practice could never correct a close look that
@@ -371,6 +395,8 @@ class Navigator:
         self._spot = None  # where it looks around from, if not home
         self._spots = []  # the places it has gone back to, to look again
         self._views = []  # valences of the close looks at this target so far
+        self._judged = []  # close looks turned down: [where from, heading, valence, gone back]
+        self._pick = None  # the one it is going back to
         self._round_from = 0.0  # its heading when it set off round the object
         self._size = self._round_size = 0.0  # how big the target is in the eye: now, and then
         self.sideways = 0.0  # flying sideways, to the left: a roll read as a speed
@@ -460,6 +486,8 @@ class Navigator:
             out = self._go_home(here, heading_now)
         elif self.phase == "around":
             out = self._go_around(size, bearing_deg, heading_now, dt)
+        elif self.phase == "back":
+            out = self._go_back(here, heading_now)
         else:
             out = 0.0, self.heading, self.height
         if out[0] == 0.0 and "vx" in state:
@@ -595,11 +623,18 @@ class Navigator:
             return (-6.0 if self._looking < 0.1 else 0.0), self.heading, self.height
         if fly_eye is not None and fly_eye.activity is not None:
             self._fovea.append(fly_eye.eye.fovea_shape(fly_eye.activity))
-        if self._looking < self.fixate_time or not self._fovea:
+        if self.peer:
+            spin = -np.degrees(self._lateral / self.around_from)
+            if heading_now is not None:
+                self.heading = heading_now + bearing_deg + spin * 0.3
+            self.sideways = self.peer
+        look_for = self.peer_time if self.peer else self.fixate_time
+        if self._looking < look_for or not self._fovea:
             return 0.0, self.heading, self.height
         f = np.mean(self._fovea[len(self._fovea) // 2 :], axis=0)
         self._fovea, self._looking, self._inspected = [], 0.0, True
         self._stopped = False
+        self.sideways = 0.0
         v = float(self.mushroom_body.valence(f))
         # The closer look is the one the decision -- and any lesson -- rests on.
         if not self._closer and not self._views:
@@ -617,9 +652,11 @@ class Navigator:
             # Not sure, and still far: go closer and look again.
             self._closer, self._inspected, self._since = True, False, 0.0
             return 0.0, self.heading, self.height
-        if v <= self._needed and not self.land_to_learn:
+        if v <= self._needed and not self.land_to_learn and not self._stands_out(v):
             h = np.deg2rad(self.heading)
             self.rejected.append((here[0] + 50 * np.cos(h), here[1] + 50 * np.sin(h)))
+            if self.relative:
+                self._judged.append([tuple(here), float(self.heading), v, False])
             self.inspections.append((v, False))
             self._rescan()
             return 0.0, self.heading, self.height
@@ -629,6 +666,40 @@ class Navigator:
         # and judged the object again from too close -- and turned it down.
         self._since = 0.0
         return 0.0, self.heading, self.height
+
+    def _stands_out(self, v, others=None) -> bool:
+        """Is this close look liked well above the ones it has turned down?"""
+        if not self.relative:
+            return False
+        others = [j[2] for j in self._judged] if others is None else others
+        return len(others) >= self.compared and v - float(np.median(others)) > self.relative
+
+    def _judged_to_try(self):
+        """The best close look turned down, if it stands out from the rest now."""
+        left = [j for j in self._judged if not j[3]]
+        if not left:
+            return None
+        best = max(left, key=lambda j: j[2])
+        others = [j[2] for j in self._judged if j is not best]
+        return best if self._stands_out(best[2], others) else None
+
+    def _go_back(self, here, heading_now):
+        """Back to where it looked from, then in to land: the decision is made."""
+        (x, y), heading, v, _ = self._pick
+        dx, dy = x - here[0], y - here[1]
+        if np.hypot(dx, dy) < 10.0:
+            self._target = Sighting(heading, v, 0.01, tuple(here))
+            self._since, self._lost = 0.0, 0.0
+            self._faced, self._inspected = False, True
+            self.phase = "approach"
+            return -6.0, self.heading, self.height
+        want = np.degrees(np.arctan2(dy, dx))
+        off = (want - heading_now + 180) % 360 - 180
+        self.heading = heading_now + np.clip(off, -30, 30)
+        if abs(off) > 25:
+            return 0.0, self.heading, self.height
+        near = np.hypot(dx, dy) < 30
+        return self.cruise_pitch * (0.5 if near else 1.0), self.heading, self.height
 
     def _round_to(self, heading_now) -> None:
         """Set off round the object it is facing, to look at it from another side."""
@@ -765,6 +836,10 @@ class Navigator:
                 self._spot = spot
                 self._spots.append(spot)
                 self.phase = "home"
+            elif self.relative and (pick := self._judged_to_try()):
+                self._pick = pick
+                pick[3] = True
+                self.phase = "back"
             elif self.explore and (spot := self._gap_to_explore()):
                 self._spot = spot
                 self._spots.append(spot)
@@ -829,6 +904,7 @@ def describe(phase: str, who: str = "Muszka") -> str:
         "approach": "leci do celu",
         "home": "wraca na start, by rozejrzeć się stamtąd",
         "around": "obchodzi cel, by obejrzeć go z innej strony",
+        "back": "wraca do najlepszego z obejrzanych",
         "done": "zwiedziła wszystkie cele" if who == "Muszka" else "zwiedził wszystkie cele",
     }.get(phase, phase)
 

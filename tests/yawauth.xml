@@ -1,5 +1,5 @@
 <mujoco model="Animat">
-	<compiler autolimits="true" boundmass="1e-06" boundinertia="1e-12" angle="radian" eulerseq="XYZ" fusestatic="false" meshdir="/tmp/probe/lib/python3.11/site-packages/flygym_gymnasium/data/mesh" />
+	<compiler autolimits="true" boundmass="1e-06" boundinertia="1e-12" angle="radian" eulerseq="XYZ" fusestatic="false" meshdir="/home/user/venv/lib/python3.11/site-packages/flygym_gymnasium/data/mesh" />
 	<option timestep="0.0001" gravity="0 0 -9810" integrator="Euler" solver="Newton" iterations="1000" tolerance="1e-12" noslip_iterations="100" noslip_tolerance="1e-08" ccd_iterations="100">
 		<flag multiccd="enable" energy="enable" />
 		

@@ -448,6 +448,59 @@ def test_a_camouflaged_object_is_looked_at_from_three_sides_and_judged_on_all_th
     assert len(nav.visited) == 1
 
 
+def test_peering_it_takes_its_close_look_flying_sideways_and_facing_the_object():
+    world = [(65.0, 0.0, "bar")]
+    eye, dt = _Eye(world, {"bar": 0.3}), 0.005
+    nav = Navigator(_Judge(), inspect=True, curious=False, peer=10.0, peer_time=0.4)
+    x = y = h = t = 0.0
+    nav.start(h)
+    looking = []
+    while t < 20.0 and not nav.inspections:
+        eye.pose = (x, y, h)
+        pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+        if nav._stopped:
+            off = (np.degrees(np.arctan2(-y, 65.0 - x)) - h + 180) % 360 - 180
+            looking.append((nav.sideways, abs(off)))
+        h += np.clip(heading - h, -3.0, 3.0)
+        v, side, r = max(pitch, 0.0) * 20.0, nav.sideways * 20.0, np.deg2rad(h)
+        x += (v * np.cos(r) - side * np.sin(r)) * dt
+        y += (v * np.sin(r) + side * np.cos(r)) * dt
+        t += dt
+    assert nav.inspections and nav.sideways == 0.0  # and still again once it has looked
+    assert len(looking) * dt >= 0.4 and all(s == 10.0 for s, _ in looking[1:])
+    assert max(off for _, off in looking) < 10.0 and abs(y) > 5.0  # moved, facing it
+
+
+def test_judged_against_the_rest_it_goes_back_to_what_stood_out_though_disliked():
+    """Every close look below zero, the target least so: it lands there, and only there."""
+    world = [(65.0, 0.0, "sphere"), (-40.0, 55.0, "bar"), (-10.0, -70.0, "bar")]
+
+    def fly(relative):
+        eye, dt = _Eye(world, {"sphere": -0.05, "bar": -0.1}), 0.005
+        eye.close_value = {"sphere": -0.06, "bar": -0.3}
+        nav = Navigator(
+            _Judge(), inspect=True, curious=False, look_before_leaving=True, relative=relative
+        )
+        x = y = h = t = 0.0
+        nav.start(h)
+        phases = set()
+        while t < 90.0 and nav.phase != "done":
+            eye.pose = (x, y, h)
+            pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+            phases.add(nav.phase)
+            h += np.clip(heading - h, -3.0, 3.0)
+            v = max(pitch, 0.0) * 20.0
+            x, y = x + v * dt * np.cos(np.deg2rad(h)), y + v * dt * np.sin(np.deg2rad(h))
+            t += dt
+        return nav, phases
+
+    plain, _ = fly(0.0)
+    assert not plain.visited and len(plain.inspections) == 3
+    nav, phases = fly(0.1)
+    assert "back" in phases  # turned down first, with nothing yet to compare it to
+    assert len(nav.visited) == 1 and np.hypot(*np.subtract(nav.visited[0], (65.0, 0.0))) < 30
+
+
 def test_it_looks_closely_only_once_it_faces_the_object_and_has_stopped_turning():
     """Starting its approach near enough to look, the drone first turns to face it."""
     from wingloop.lab.dronebrain import NAVIGATOR
