@@ -150,7 +150,10 @@ class FlyPilot:
         bw = np.array([self.attitude_bandwidth, self.attitude_bandwidth, self.yaw_bandwidth])
         return inertia * bw**2, inertia * 2 * bw
 
-    def control(self, drone: Quadrotor, forward_speed: float, turn: float, dt: float):
+    def control(
+        self, drone: Quadrotor, forward_speed: float, turn: float, dt: float, side: float = 0.0
+    ):
+        """Motor commands for a speed ahead, a turn rate and ``side``: a speed to the left."""
         s, f = drone.state, self.frame
         self.heading = wrap(self.heading + turn * dt)
         roll, pitch, yaw = s.attitude
@@ -161,7 +164,7 @@ class FlyPilot:
         pitch_cmd = np.clip(
             self.speed_gain * (forward_speed - forward), -self.max_tilt, self.max_tilt
         )
-        roll_cmd = np.clip(self.speed_gain * lateral, -self.max_tilt, self.max_tilt)
+        roll_cmd = np.clip(self.speed_gain * (lateral - side), -self.max_tilt, self.max_tilt)
         kp, kd = self.gains()
         error = np.array([roll_cmd - roll, pitch_cmd - pitch, wrap(self.heading - yaw)])
         torque = kp * error - kd * s.rate

@@ -288,6 +288,22 @@ class Navigator:
     #: -0.04 -- from 62-74 mm. 0: never.
     unsure: float = 0.0
     closer_size: float = 0.04
+    #: Close looks from different sides before deciding, on the mean of their
+    #: valences: after each but the last it flies ``around`` degrees round
+    #: the object, sideways at ``side_pitch`` (read as a speed, like the
+    #: pitch) -- a body that can (:meth:`~.dronebrain.DroneFlight.strafe`).
+    #: Meant for camouflaged targets, where one close look is right 70-90%
+    #: of the time and the floor's checker behind and on the object changes
+    #: from side to side. Measured, it did not pay (see the README): looks
+    #: from the side were judged worse unless taught, the mean of three told
+    #: targets apart little better than one, and three looks took three
+    #: times as long -- fewer objects looked at in a mission.
+    looks: int = 1
+    around: float = 45.0
+    side_pitch: float = 10.0
+    #: About how far off it looks from, mm: how fast the object wheels round
+    #: in the eye as it flies sideways, to turn ahead of it.
+    around_from: float = 60.0
     #: Practice: land after a close look even when it is not liked, to find
     #: out. A rejected close look teaches nothing -- no landing, no dopamine
     #: -- so without this, practice could never correct a close look that
@@ -335,6 +351,7 @@ class Navigator:
         self._brake = 0.0
         self._braking = False
         self._moving = 0.0
+        self._lateral = 0.0  # mm/s to the left
         self._turning = 0.0  # deg/s, from the heading look to look
         self._faced = False  # has this approach turned to face its target yet
         self._closer = False  # going closer for a second look
@@ -353,6 +370,10 @@ class Navigator:
         self._home = (0.0, 0.0)
         self._spot = None  # where it looks around from, if not home
         self._spots = []  # the places it has gone back to, to look again
+        self._views = []  # valences of the close looks at this target so far
+        self._round_from = 0.0  # its heading when it set off round the object
+        self._size = self._round_size = 0.0  # how big the target is in the eye: now, and then
+        self.sideways = 0.0  # flying sideways, to the left: a roll read as a speed
         self.heading = 0.0
 
     def start(self, heading: float, home=(0.0, 0.0)) -> None:
@@ -392,15 +413,19 @@ class Navigator:
         here = (state["x"], state["y"])
         heading_now = state["heading"]
         self._moving = float(np.hypot(state.get("vx", 0.0), state.get("vy", 0.0)))
+        h = np.deg2rad(heading_now)
+        self._lateral = -state.get("vx", 0.0) * np.sin(h) + state.get("vy", 0.0) * np.cos(h)
         if self._last_heading is not None and dt > 0:
             self._turning = (heading_now - self._last_heading) / dt
         self._last_heading = heading_now
         see = fly_eye.standing if self.skyline else fly_eye.eye.dark
-        if self.phase == "approach":
-            # Only what is where the target should be counts as the target.
+        if self.phase in ("approach", "around"):
+            # Only what is where the target should be counts as the target --
+            # going round it, nearer still: the landscape wheels past behind.
             off = (self._target.heading - heading_now + 180) % 360 - 180
             centre = float(np.clip(off, -half, half)) / half
-            size, bearing = see(DARK, within=TRACK / half, centre=centre)
+            track = TRACK if self.phase == "approach" else TRACK / 2
+            size, bearing = see(DARK, within=track / half, centre=centre)
         else:
             # Only what is near the middle can be fixated and judged.
             size, bearing = see(DARK, within=FIXATE / half)
@@ -433,6 +458,8 @@ class Navigator:
             out = self._approach(size, bearing_deg, here, heading_now, dt, fly_eye)
         elif self.phase == "home":
             out = self._go_home(here, heading_now)
+        elif self.phase == "around":
+            out = self._go_around(size, bearing_deg, heading_now, dt)
         else:
             out = 0.0, self.heading, self.height
         if out[0] == 0.0 and "vx" in state:
@@ -501,6 +528,7 @@ class Navigator:
                 self._rescan()
             return -6.0, self.heading, self.height
         self._since += dt
+        self._size = size
         off = (self._target.heading - heading_now + 180) % 360 - 180
         if abs(off) > 25 and (size < self.slow_size or not self._faced):
             # Not facing it yet: turn on the spot toward where it was. Until it
@@ -574,11 +602,18 @@ class Navigator:
         self._stopped = False
         v = float(self.mushroom_body.valence(f))
         # The closer look is the one the decision -- and any lesson -- rests on.
-        if not self._closer:
+        if not self._closer and not self._views:
             self._scan_view = self._target.features
         self._target.features, self._target.valence = f, v
+        if self.looks > 1 and not self.land_to_learn:
+            self._views.append(v)
+            if len(self._views) < self.looks:
+                self._round_to(heading_now)
+                return 0.0, self.heading, self.height
+            v = float(np.mean(self._views))
+            self._target.valence = v
         unsure = self._needed - self.unsure < v <= self._needed
-        if unsure and not self._closer and not self.land_to_learn:
+        if unsure and not self._closer and not self.land_to_learn and self.looks == 1:
             # Not sure, and still far: go closer and look again.
             self._closer, self._inspected, self._since = True, False, 0.0
             return 0.0, self.heading, self.height
@@ -593,6 +628,53 @@ class Navigator:
         # some, and a drone giving up here, a few centimetres short, came back
         # and judged the object again from too close -- and turned it down.
         self._since = 0.0
+        return 0.0, self.heading, self.height
+
+    def _round_to(self, heading_now) -> None:
+        """Set off round the object it is facing, to look at it from another side."""
+        self._round_from, self._round_size = heading_now, self._size
+        self._since = self._lost = 0.0
+        self.phase = "around"
+
+    def _go_around(self, size, bearing_deg, heading_now, dt):
+        """Fly sideways, turning to keep the object in the middle of the eye.
+
+        Facing it the whole way, it goes round it, at the distance it is: how
+        far round is how far it has turned. Going round to a place worked out
+        from where the object should be did not work: the eye gives no
+        distance, and from a guessed one the drone came round to look at a
+        column behind a camouflaged object, or at nothing, one look in two.
+        """
+        self._since += dt
+        # Flying left, what it is going round wheels right in the eye: turn
+        # ahead of it. Only following it, the drone lagged 5 degrees behind,
+        # and a column wheeling past behind a camouflaged object took it over.
+        spin = -np.degrees(self._lateral / self.around_from)
+        if size > 0.002:
+            self._target.heading = heading_now + bearing_deg + spin * dt
+            self._lost = 0.0
+        else:
+            self._target.heading += spin * dt
+            self._lost += dt
+        self.heading = self._target.heading + spin * 0.3
+        turned = abs(heading_now - self._round_from)
+        going = self._since < 2 * self.give_up and self._lost < self.lost_after
+        if turned < self.around and going:
+            self.sideways = self.side_pitch
+            # Lagging behind it, it drifts outward: closer again when it has
+            # shrunk, but not so close that it cannot come in to look. Backing
+            # off further, to come in as the first time, other objects and
+            # columns came into view and it went to them instead.
+            closer = size < 0.7 * self._round_size
+            return (self.cruise_pitch * 0.35 if closer else 0.0), self.heading, self.height
+        # Round: in to it, to stop and look as the first time. Looking from
+        # where it came round to, still leaning out of the sideways flight
+        # or hardly moving in, the drone judged everything worse than from
+        # the front.
+        self.sideways = 0.0
+        self.phase = "approach"
+        self._faced, self._inspected, self._stopped = True, False, False
+        self._looking, self._since, self._lost = 0.0, 0.0, 0.0
         return 0.0, self.heading, self.height
 
     def _learn_from(self, place) -> None:
@@ -735,6 +817,8 @@ class Navigator:
         self._needed = 0.0
         self._faced = False
         self._closer = False
+        self._views = []
+        self.sideways = 0.0
         self.sightings = []
 
 
@@ -744,6 +828,7 @@ def describe(phase: str, who: str = "Muszka") -> str:
         "scan": "rozgląda się",
         "approach": "leci do celu",
         "home": "wraca na start, by rozejrzeć się stamtąd",
+        "around": "obchodzi cel, by obejrzeć go z innej strony",
         "done": "zwiedziła wszystkie cele" if who == "Muszka" else "zwiedził wszystkie cele",
     }.get(phase, phase)
 

@@ -88,6 +88,8 @@ def _signature(
     body = " drone 90 deg/s" if drone else ""
     if camo:
         body += " camouflage 0-1, columns, skyline"
+        if close and drone and CAMO_LOOKS > 1:
+            body += f", {CAMO_LOOKS} looks {AROUND:g} deg round"
     if close:
         return f"v7 flown close looks {samples} {seed} {sizes}{eye}{body}"
     return f"v3 {samples} {seed} lead 120-180 {sizes}{eye}{body}"
@@ -178,17 +180,29 @@ CLOSE_DOSE = 0.1
 #: dose the punishments spread onto the targets: after 25 practice missions
 #: the brain turned nearly everything down, targets with the rest.
 CAMO_PUNISH = 0.35
+#: In the camouflage world the drone can look at an object from several
+#: sides before it decides, going :data:`AROUND` degrees round it between
+#: looks (:attr:`~.navigate.Navigator.looks`); its close-look lesson is
+#: then flown the same way, every look of it, ``CAMO_LOOKS`` times as long.
+#: Measured, it did not pay, and it looks once: see the README.
+CAMO_LOOKS = 1
+AROUND = 45.0
+
+
+def close_looks(camo: bool = False) -> int:
+    """How many close looks the close-look lesson is made of."""
+    return CLOSE_LOOKS * CAMO_LOOKS if camo else CLOSE_LOOKS
 
 
 class _Looker:
-    """A mushroom body that likes everything, and keeps the view of the close look."""
+    """A mushroom body that likes everything, and keeps the views of its close looks."""
 
     def __init__(self):
-        self.nav, self.view = None, None
+        self.nav, self.views = None, []
 
     def valence(self, f) -> float:
-        if self.nav.phase == "approach" and self.view is None:
-            self.view = np.asarray(f, dtype=np.float32)
+        if self.nav.phase == "approach":
+            self.views.append(np.asarray(f, dtype=np.float32))
         return 0.5
 
     def learn(self, f, dopamine) -> None:
@@ -215,8 +229,11 @@ def flown_close_looks(
     flown close looks, new flown ones are judged right 94-100% of the time.
 
     ``camo``: the objects painted in the floor's checker by a random amount,
-    the landscape's columns flown to as a kind of their own, and the body
-    seeing what breaks the skyline.
+    the landscape's columns flown to as a kind of their own, the body
+    seeing what breaks the skyline, and every one of the drone's
+    :data:`CAMO_LOOKS` looks from different sides a lesson -- taught on its
+    first looks only, its later ones were judged far worse (a ball's second,
+    AUC 0.46 against 0.81).
     """
     from .navigate import Sighting
 
@@ -254,17 +271,22 @@ def flown_close_looks(
         bearing = np.degrees(np.arctan2(y - s["y"], x - s["x"]))
         nav._target = Sighting(float(bearing), 0.5, 0.01, (s["x"], s["y"]))
         nav._since, nav.phase = 0.0, "approach"
-        while looker.view is None and nav.phase == "approach" and pilot.flight.t < tries:
+        looks = nav.looks
+        while (
+            len(looker.views) < looks
+            and nav.phase in ("approach", "around")
+            and pilot.flight.t < tries * looks
+        ):
             pilot.step()
-        if looker.view is None:
-            continue  # lost it on the way in: no lesson
-        F.append(looker.view)
-        K.append(kind)
-        if progress and len(F) % 30 == 0:
+        # Lost it on the way in: no lesson.
+        new = looker.views[:looks]
+        F += new
+        K += [kind] * len(new)
+        if progress and new and len(F) // 30 > (len(F) - len(new)) // 30:
             progress(f"  obejrzała z bliska {len(F)} z {samples}")
     fly_eye.world = world
     fly_eye.eye.reset()
-    return np.asarray(F), np.asarray(K)
+    return np.asarray(F)[:samples], np.asarray(K)[:samples]
 
 
 def teach_targets(F, K, targets, seed: int = 0, close=None):
@@ -308,7 +330,7 @@ def learned(
     """
     look = dict(fresh=retrain, progress=progress, drone=drone, camo=camo)
     F, K = views(fly_eye, folder, **look)
-    close = views(fly_eye, folder, CLOSE_LOOKS, close=True, **look)
+    close = views(fly_eye, folder, close_looks(camo and drone), close=True, **look)
     every_ms = getattr(fly_eye, "every_ms", 5.0)
     path = memory_path(targets, drone, every_ms, folder, camo)
     if not path.exists():
@@ -510,6 +532,8 @@ class Autopilot:
         self.eye.look_from(*f.pose())
         s = f.state()
         f.command(*self.nav.decide(self.eye, s, self.eye.every_ms / 1000.0))
+        if hasattr(f, "strafe"):
+            f.strafe(self.nav.sideways)
         f.step(self.every)
         if (
             not self.trail
@@ -843,6 +867,8 @@ def _pilot(
         expert.update(
             skyline=True, landmarks=[(x, y) for x, y, _ in COLUMNS], punish=CAMO_PUNISH
         )
+        if drone:
+            expert.update(looks=CAMO_LOOKS, around=AROUND)
     if not drone:
         if fast:
             from .fastfly import FastFly

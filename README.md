@@ -522,6 +522,39 @@ At full dose it turned down nearly everything (0-2 of 12, no mistake); at
 poles at half camouflage with at most one wrong landing. The ball, and full
 camouflage, are not solved, and no camouflage brain is shipped.
 
+**Looking from three sides did not pay.** If one close look is right 77-91%
+of the time, three from different sides should be right more often, as
+long as their mistakes differ. The drone can now fly sideways
+(`DroneFlight.strafe`) and go round an object at the distance it is,
+turning to keep it in the middle of the eye, and turning ahead of how fast
+it wheels round; how far round it has gone is how far it has turned, so no
+distance is needed (`Navigator.looks`, `around`). Going round to a place
+worked out from a guessed distance failed: one look in two, it came round
+to a column behind the object, or to nothing. Measured on 80 objects at
+each camouflage, each looked at from 0, 45 and 90 degrees round:
+
+- The looks from the side were judged worse than the first: the ball's
+  second look told it apart at AUC 0.48-0.58, against 0.83-0.93 for the
+  first. Their mistakes were mostly not the first look's (correlation -0.4
+  to 0.7, near none for the ball), but the brain had been taught on looks
+  from straight ahead only.
+- Taught on the looks from the side too (the close-look lesson flown with
+  all three), the ball's side looks rose to 0.68-0.76. But the mean of three
+  told targets apart no better than the first look alone: from 0.03 worse
+  to 0.03 better, kind for kind.
+- In a mission three looks take three times as long, about 10 s an object.
+  With the same brain on the same six fully camouflaged arenas, the drone
+  decided on 4 objects a mission instead of 7, and found 4 balls and 6 poles
+  of 12 instead of 8 and 9, with wrong landings in about the same share.
+
+So the drone looks once (`CAMO_LOOKS`). What limits it is less how often it
+looks than where it draws the line: up close, its targets are valued below
+zero. Taught the three-look lesson and given a landing bar taken from it --
+where that lesson's targets and the rest are told apart best -- it found 8 of 12
+fully camouflaged balls, where the novice found 1, but with 11 wrong
+landings in 6 missions instead of 3. That is a trade, not a cure, and it was
+not kept.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight

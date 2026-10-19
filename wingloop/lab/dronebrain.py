@@ -75,6 +75,7 @@ class DroneFlight:
         self.drone.state.position = np.array([0.0, 0.0, self._metres(height_mm)])
         self.pilot = FlyPilot(altitude=self._metres(height_mm), cruise=cruise)
         self.speed = 0.0
+        self.side = 0.0  # m/s to the left
         self._t = 0.0
         self._heading = 0.0  # unwrapped, radians
         self._yaw = 0.0
@@ -93,10 +94,14 @@ class DroneFlight:
         self.pilot.heading = wrap(math.radians(heading_deg))
         self.pilot.altitude = self._metres(height_mm)
 
+    def strafe(self, pitch_deg: float) -> None:
+        """Fly sideways, to the left for a positive value: a roll read as a speed."""
+        self.side = self.cruise * pitch_deg / 12.0
+
     def step(self, n: int = 1) -> None:
         d = self.drone
         for _ in range(n):
-            motors = self.pilot.control(d, self.speed, 0.0, self.timestep)
+            motors = self.pilot.control(d, self.speed, 0.0, self.timestep, self.side)
             d.step(motors, self.timestep)
             self._t += self.timestep
             yaw = float(d.state.attitude[2])

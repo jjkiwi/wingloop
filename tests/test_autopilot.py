@@ -134,7 +134,7 @@ def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
 
     for close in (False, True):
         path = autopilot.shipped(20.0, close, drone=True, camo=True)
-        n = autopilot.CLOSE_LOOKS if close else 90
+        n = autopilot.close_looks(camo=True) if close else 90
         with np.load(path) as d:
             assert str(d["signature"]) == autopilot._signature(n, 0, 20.0, close, True, True)
             assert sorted(set(d["K"].tolist())) == sorted([*arena.KINDS, LANDMARK])
@@ -409,6 +409,43 @@ def test_turned_down_by_a_hair_from_afar_it_goes_closer_and_looks_again():
     assert not fly(0.0).visited  # the first close look's no is final
     nav = fly(0.06)
     assert [round(v, 6) for v, _ in nav.inspections] == [0.2] and len(nav.visited) == 1
+
+
+def test_a_camouflaged_object_is_looked_at_from_three_sides_and_judged_on_all_three():
+    """Disliked from the side it came from, liked from the two others: it lands."""
+    world = [(65.0, 0.0, "slab")]
+
+    class Sides(_Eye):
+        def fovea_shape(self, activity):
+            x, y, _ = self.pose
+            if np.hypot(x - 65.0, y) > 50.0:
+                return np.array([0.3])  # liked from afar
+            side = np.degrees(np.arctan2(y, x - 65.0))  # where it looks from
+            return np.array([-0.2 if abs(abs(side) - 180) < 20 else 0.2])
+
+    def fly(looks):
+        eye, dt = Sides(world, {"slab": 0.3}), 0.005
+        nav = Navigator(_Judge(), inspect=True, curious=False, looks=looks)
+        x = y = h = t = 0.0
+        nav.start(h)
+        phases = set()
+        while t < 40.0 and nav.phase != "done":
+            eye.pose = (x, y, h)
+            pitch, heading, _ = nav.decide(eye, dict(t=t, x=x, y=y, heading=h), dt)
+            phases.add(nav.phase)
+            h += np.clip(heading - h, -3.0, 3.0)
+            v, side, r = max(pitch, 0.0) * 20.0, nav.sideways * 20.0, np.deg2rad(h)
+            x += (v * np.cos(r) - side * np.sin(r)) * dt  # and sideways, to the left
+            y += (v * np.sin(r) + side * np.cos(r)) * dt
+            t += dt
+        return nav, phases
+
+    once, _ = fly(1)
+    assert not once.visited and [round(v, 6) for v, _ in once.inspections] == [-0.2]
+    nav, phases = fly(3)
+    assert "around" in phases
+    assert [round(v, 6) for v, _ in nav.inspections] == [round(0.2 / 3, 6)]
+    assert len(nav.visited) == 1
 
 
 def test_it_looks_closely_only_once_it_faces_the_object_and_has_stopped_turning():
