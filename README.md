@@ -500,16 +500,27 @@ lessons (`--kamuflaz` on `trening` and `egzamin`): every object painted a
 random 0-1, the columns shown and flown to, and practice in arenas painted
 0-1, a different amount each mission.
 
-Measured so far, on the same six arenas fully camouflaged (targets found of
-12, wrong landings): the camouflage novice found the slab 7 times (4 wrong
-landings, 2 of them on columns), the pole 6 (3), the ball once (3); at half
-camouflage, the ball 7 times with none. It sees them now; what it cannot do
-as well is tell them apart. On 60 flown close looks at full camouflage the
-best any threshold could do was 77-91% right (the ball worst): painted like
-the floor, an object is known by the shape of what of it breaks the skyline
-alone. And practice at full punishment made it worse, not better -- 0-2 of
-12 found, though no wrong landing: camouflaged objects look alike, and the
+On the same six new arenas, targets found of 12 and wrong landings (columns
+included), for the expert that sees what is dark, the camouflage novice, and
+the camouflage brain after 25 practice missions:
+
+| | half camouflage: expert / novice / practised | full: expert / novice / practised |
+| --- | --- | --- |
+| ball | 0 / 7, 0 / 2, 0 | 0 / 1, 3 / 1, 0 |
+| slab | 0 / 9, 8 / 9, 1 | 0 / 7, 4 / 1, 0 |
+| pole | 6 / 9, 3 / **10, 0** | 0 / 6, 3 / 3, 1 |
+
+It sees them now; what it cannot do as well is tell them apart. On 60 flown
+close looks at full camouflage the best any threshold could do was 77-91%
+right, the ball worst: painted like the floor, an object is known by the
+shape of what of it breaks the skyline alone, and the targets still rank
+above the rest -- a slab at -0.10 against -0.21 to -0.35 -- but below zero.
+Practice trades targets for fewer wrong landings: camouflaged objects look alike, and the
 punishments for the many non-targets it lands on spread onto the targets.
+At full dose it turned down nearly everything (0-2 of 12, no mistake); at
+0.35 of a reward's dopamine (`CAMO_PUNISH`) it finds 9-10 of 12 slabs and
+poles at half camouflage with at most one wrong landing. The ball, and full
+camouflage, are not solved, and no camouflage brain is shipped.
 
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
