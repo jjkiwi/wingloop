@@ -555,6 +555,59 @@ fully camouflaged balls, where the novice found 1, but with 11 wrong
 landings in 6 missions instead of 3. That is a trade, not a cure, and it was
 not kept.
 
+**Peering, judging against the rest, and a bigger lesson.** Three more
+tries, each measured on looks or arenas the brain had not been taught on:
+
+- *Peering* (`Navigator.peer`): take the close look flying sideways,
+  turning to keep the object in the middle, as a locust sways before it
+  jumps. What is near moves across the eye unlike what is far behind it,
+  and the 325 numbers a close look is made of include the optic lobe's
+  motion cells (T4, T5). Taught on 300 peering looks and judged on 120 new
+  ones, the pole was told apart better -- AUC 0.97 against 0.93 at full
+  camouflage, 0.98 against 0.94 at half -- the slab and the ball no better
+  (0.90 and 0.86 against 0.93 and 0.85). In 0.4 s the drone moves only 3 mm
+  sideways; peering twice as fast for twice as long (16 mm) helped the pole a
+  little more (0.98) and made the ball worse (0.77). Left off.
+- *Judging against the rest* (`Navigator.relative`): land on a close look
+  that is liked well above the ones turned down so far in the mission, and
+  before calling the mission done, go back to the best one turned down if
+  it stands out. Replayed over every close look of 18 practice missions at
+  full camouflage, it was a trade at every setting: each extra target cost
+  one or two wrong landings (balls 2 found and 2 wrong became 4 and 4; poles
+  3 and 1 became 5 and 5). In a mission the target is often not the
+  best-looking thing there: columns compete with the poles, slabs with the
+  balls. Left off.
+- *A bigger close-look lesson* (`CAMO_CLOSE_LOOKS`, `CAMO_CLOSE_DOSE`): this
+  one helped. The camouflaged objects' differences are subtle, and more of
+  them are learned from more looks. On 120 new flown looks, AUC with the
+  lesson of 300 and of 900 (taught at 0.2 of the dopamine):
+
+  | | full camouflage: 300 / 900 | half: 300 / 900 |
+  | --- | --- | --- |
+  | ball | 0.86 / **0.92** | 0.91 / **0.96** |
+  | slab | 0.94 / **0.97** | 0.97 / **0.98** |
+  | pole | 0.94 / **0.96** | 0.95 / **0.98** |
+
+  More targets are also liked outright, the bar at zero: 82% of the balls
+  instead of 68%, 91% of the poles instead of 83%. The lesson is now 900
+  looks, flown in three parts of 300 (seeds 0, 1, 2), the old lesson its
+  first part.
+
+On the six new arenas (100-105), targets found of 12 and wrong landings
+(columns included), for the novice taught the lesson of 300, the novice
+taught the lesson of 900, and the latter after 25 practice missions:
+
+| | half camouflage: 300 / 900 / practised | full: 300 / 900 / practised |
+| --- | --- | --- |
+| ball | 7, 0 / **9, 0** / 6, 0 | 1, 3 / **9, 7** / 1, 0 |
+| slab | 9, 8 / 9, 5 / 6, 1 | 7, 4 / 7, 5 / 1, 0 |
+| pole | 9, 3 / 8, 5 / **10, 1** | 6, 3 / **10, 5** / 6, 5 |
+
+The bigger lesson finds more -- nine fully camouflaged balls of twelve where
+the novice found one -- and still lands wrongly about once a mission at
+full camouflage. Practice again buys fewer wrong landings with fewer targets
+found. Camouflage is better, not solved.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
