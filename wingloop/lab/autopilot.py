@@ -187,9 +187,10 @@ CLOSE_DOSE = 0.1
 #: of :data:`CLOSE_LOOKS` (seeds 0, 1, 2), and taught at twice the dose.
 #: What tells camouflaged objects apart is subtle, and more of it is
 #: learned from more looks: on 120 new flown looks at full camouflage, the
-#: ball was told apart at AUC 0.86 after 300 and 0.92 after 900, the slab
-#: 0.94 and 0.97, the pole 0.94 and 0.96; and more targets were liked
-#: outright -- 82% of the balls right at zero against 68%.
+#: ball was told apart at AUC 0.86 after 300 and 0.93 after 900, the slab
+#: 0.94 and 0.96, the pole 0.94 and 0.96; and more targets were liked
+#: outright -- 83% of the balls right at zero against 68%. 1800 told them
+#: apart a little better again, and in missions found no more.
 CAMO_CLOSE_LOOKS = 900
 CAMO_CLOSE_DOSE = 0.2
 #: In the camouflage world a punishment gets this share of a reward's

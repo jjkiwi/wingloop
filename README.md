@@ -584,11 +584,11 @@ tries, each measured on looks or arenas the brain had not been taught on:
 
   | | full camouflage: 300 / 900 | half: 300 / 900 |
   | --- | --- | --- |
-  | ball | 0.86 / **0.92** | 0.91 / **0.96** |
-  | slab | 0.94 / **0.97** | 0.97 / **0.98** |
-  | pole | 0.94 / **0.96** | 0.95 / **0.98** |
+  | ball | 0.86 / **0.93** | 0.91 / **0.94** |
+  | slab | 0.94 / **0.96** | 0.97 / **0.98** |
+  | pole | 0.94 / **0.96** | 0.95 / **0.97** |
 
-  More targets are also liked outright, the bar at zero: 82% of the balls
+  More targets are also liked outright, the bar at zero: 83% of the balls
   instead of 68%, 91% of the poles instead of 83%. The lesson is now 900
   looks, flown in three parts of 300 (seeds 0, 1, 2), the old lesson its
   first part.
@@ -607,6 +607,14 @@ The bigger lesson finds more -- nine fully camouflaged balls of twelve where
 the novice found one -- and still lands wrongly about once a mission at
 full camouflage. Practice again buys fewer wrong landings with fewer targets
 found. Camouflage is better, not solved.
+
+Twice as big again did not pay. A lesson of 1800 looks (seeds 0-5) still
+told new looks apart a little better -- AUC 0.94 for the ball at full
+camouflage against 0.93, 0.98 for the slab against 0.96, 0.97 for the pole
+against 0.96 -- but in missions it made no difference that showed: on twelve
+new fully camouflaged arenas (100-111) the drone found 54 targets of 72 with
+1800 and 53 with 900, and landed wrongly 29 times against 23. The lesson
+stays at 900.
 
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
