@@ -138,6 +138,19 @@ def test_the_shipped_views_are_the_ones_the_current_arena_would_produce():
         with np.load(path) as d:
             assert str(d["signature"]) == autopilot._signature(n, 0, 20.0, close, True, True)
             assert sorted(set(d["K"].tolist())) == sorted([*arena.KINDS, LANDMARK])
+    # And its looks from missions, which a stale signature would fly again.
+
+    class Eye:
+        every_ms = 20.0
+
+    def stale(*a, **kw):
+        raise AssertionError("the shipped mission looks are stale: fly them again")
+
+    with pytest.MonkeyPatch.context() as m:
+        m.setattr(autopilot, "mission_looks", stale)
+        F, K = autopilot.mission_views(Eye(), "/nonexistent", progress=None)
+    assert F.shape[1] == 325 and len(F) == len(K) > 500
+    assert sorted(set(K.tolist())) == sorted([*arena.KINDS, LANDMARK])
 
 
 # --------------------------------------------------------------- navigating
@@ -777,3 +790,21 @@ def test_the_exam_grades_what_it_knows_now(tmp_path):
     found, mistakes, wanted = result["rows"][0]
     assert wanted == 2 and 0 <= found <= 2 and mistakes >= 0
     assert result["grade"] in [g for g, _, _ in GRADES]
+
+
+def test_taught_with_a_prediction_error_it_learns_only_what_it_still_gets_wrong():
+    """A view already valued as aimed teaches nothing; the rest is pulled to +-aim."""
+    rng = np.random.default_rng(0)
+    centres = {k: rng.normal(0, 1, 30) for k in ("bar", "slab", "sphere")}
+    K = np.array(["bar", "slab", "sphere"] * 40)
+    F = np.array([centres[k] + rng.normal(0, 0.5, 30) for k in K])
+    reward = {"bar": 1.0, "slab": -1.0, "sphere": -1.0}
+    mb = MushroomBody(30, on_off=True, sparseness=0.03)
+    teach(mb, F, K, reward, aim=0.3, epochs=3)
+    v = np.array([mb.valence(f) for f in F])
+    assert np.median(v[K == "bar"]) > 0.2 and np.median(v[K != "bar"]) < -0.2
+    # Taught once more, nothing it already values as aimed is touched.
+    before = mb.approach.copy(), mb.avoid.copy()
+    there = (K == "bar") & (v >= 0.3) | (K != "bar") & (v <= -0.3)
+    teach(mb, F[there], K[there], reward, calibrate=False, aim=0.3, epochs=1)
+    assert np.array_equal(before[0], mb.approach) and np.array_equal(before[1], mb.avoid)

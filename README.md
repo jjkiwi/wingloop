@@ -616,6 +616,45 @@ new fully camouflaged arenas (100-111) the drone found 54 targets of 72 with
 1800 and 53 with 900, and landed wrongly 29 times against 23. The lesson
 stays at 900.
 
+**Machine-learning techniques, tried on the camouflage brain**
+(`docs/uczenie_maszynowe.md`, in Polish, has the survey and every number).
+They were chosen on 1500 flown close looks kept for the purpose and checked
+once on 240 others:
+
+- *Classical learners as a yardstick.* SVM, random forest and gradient
+  boosting told targets apart at AUC 0.98-0.999 on the same 325 numbers,
+  where the mushroom body managed 0.95-0.98. There was more in the eye than
+  the brain took out.
+- *What helped the mushroom body:* dopamine as a prediction error
+  (Rescorla-Wagner: `teach(..., aim=0.3, epochs=3)`, after Bennett,
+  Philippides & Nowotny 2021), a sparser Kenyon-cell code (3% active rather
+  than 5%), and the close looks at twice the dose. On the test set, at full
+  camouflage, AUC 0.98 for the slab instead of 0.96 and 0.99 for the pole
+  instead of 0.96. More Kenyon cells, more claws, bagged ensembles and
+  mirrored views gave little or nothing.
+- *Dataset shift.* That brain was worse in missions: 48 targets of 72 at full
+  camouflage and 36 wrong landings, against 53 and 23. In a mission half of
+  what the drone looks at closely is a landscape column, which the lessons --
+  one object at a time -- hardly show it. So it flew 100 practice missions
+  (arenas 4000-4099), turning every close look down to see everything, and
+  the 712 looks it took, labelled from where things are, became a third
+  lesson (`mission_looks`; dataset aggregation). On looks from missions it had
+  not been taught on, the ball was told apart at AUC 0.93 instead of 0.91, the
+  slab 0.92 instead of 0.90, the pole 0.98 instead of 0.96, and the columns it
+  liked fell from 14-29% to 9-22%.
+
+On the new arenas, targets found and wrong landings:
+
+| | before | prediction error, lessons only | **prediction error + mission looks** |
+| --- | --- | --- | --- |
+| full camouflage, 12 arenas (72 targets) | 53, 23 | 48, 36 | **37, 8** |
+| half camouflage, 6 arenas (36 targets) | 26, 10 | 27, 16 | **25, 5** |
+
+At half camouflage it finds as many with half the wrong landings; at full
+camouflage it is far more careful -- 0.22 wrong landings a mission instead of
+0.64, at the price of 37 targets instead of 53. Of its landings 82% are on a
+target, against 70%. It is the camouflage brain now.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight

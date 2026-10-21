@@ -179,12 +179,30 @@ def tethered_training(
 
 
 def teach(
-    mushroom_body, features, kinds, reward: dict, dose: float = 1.0, calibrate: bool = True
+    mushroom_body,
+    features,
+    kinds,
+    reward: dict,
+    dose: float = 1.0,
+    calibrate: bool = True,
+    aim: float | None = None,
+    epochs: int = 1,
+    seed: int = 0,
 ) -> None:
     """Dopamine for each view: ``reward[kind]``, positive for a target.
 
     ``dose`` scales the dopamine of this lesson; ``calibrate=False`` keeps the
     input normalisation an earlier lesson set, for a second lesson on top.
+
+    ``aim``: dopamine as a prediction error (Rescorla-Wagner) instead -- the
+    valence aimed at, ``aim`` for a target and ``-aim`` for the rest, minus
+    the valence the view already has; a view already there teaches nothing.
+    The lesson is shown ``epochs`` times, in a new random order each time.
+    Learning only from what it still gets wrong, the brain does not spend
+    its synapses on what it knows, and spends them on the views near the
+    line, the hard ones -- as a model of the fly's mushroom body in which
+    dopamine signals a prediction error does (Bennett, Philippides &
+    Nowotny 2021, Nat. Commun. 12:2569).
 
     Each side is balanced by how often it was seen: with one target kind and
     two punished ones, unbalanced punishment depresses the approach output
@@ -197,11 +215,25 @@ def teach(
     n_bad = max(1, sum(reward.get(k, 0.0) < 0 for k in kinds))
     if calibrate:
         mushroom_body.calibrate(features)
+    # Capped only where depression would overshoot zero: lr * dopamine < 1.
+    cap = 0.95 / mushroom_body.learning_rate
+    if aim is not None:
+        rng = np.random.default_rng(seed)
+        for _ in range(epochs):
+            for i in rng.permutation(len(kinds)):
+                r = reward.get(kinds[i], 0.0)
+                if r == 0:
+                    continue
+                error = np.sign(r) * aim - mushroom_body.valence(features[i])
+                if error * r <= 0:
+                    continue  # already where it should be
+                scale = len(kinds) / (2 * (n_good if r > 0 else n_bad))
+                dopamine = dose * abs(r) * scale * error
+                mushroom_body.learn(features[i], float(np.clip(dopamine, -cap, cap)))
+        return
     for f, k in zip(features, kinds, strict=True):
         r = reward.get(k, 0.0)
         scale = (len(kinds) / (2 * n_good)) if r > 0 else (len(kinds) / (2 * n_bad))
-        # Capped only where depression would overshoot zero: lr * dopamine < 1.
-        cap = 0.95 / mushroom_body.learning_rate
         mushroom_body.learn(f, float(np.clip(dose * r * scale, -cap, cap)))
 
 

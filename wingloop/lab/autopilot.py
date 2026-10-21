@@ -192,7 +192,28 @@ CLOSE_DOSE = 0.1
 #: outright -- 83% of the balls right at zero against 68%. 1800 told them
 #: apart a little better again, and in missions found no more.
 CAMO_CLOSE_LOOKS = 900
-CAMO_CLOSE_DOSE = 0.2
+#: And it is taught the way that, of the machine-learning techniques tried
+#: (docs/uczenie_maszynowe.md), told camouflaged objects apart best: dopamine
+#: as a prediction error, three passes (``aim``, ``epochs`` of
+#: :func:`~.navigate.teach`), a sparser Kenyon-cell code -- 3% active
+#: rather than 5% -- and the close looks at twice the dose. Chosen on 1500
+#: flown looks kept for the purpose, and checked once on 240 others: at full
+#: camouflage the slab was told apart at AUC 0.98 instead of 0.96, the pole
+#: 0.99 instead of 0.96, the ball 0.94 as before; at half, all three better.
+CAMO_CLOSE_DOSE = 0.4
+CAMO_TEACHING = {"sparseness": 0.03, "aim": 0.3, "epochs": 3}
+#: Its third lesson: the close looks the drone takes in missions, in 100
+#: practice arenas (:func:`mission_looks`). The lessons above are flown one
+#: object at a time; in a mission the drone looks from wherever it is, at
+#: whatever it chose, and half of what it looks at closely is a landscape
+#: column. Judged on looks from other missions, the brains taught on the
+#: lessons alone told targets apart worse there than on the lessons' kind of
+#: look (AUC 0.90-0.96 against 0.95-0.99) and liked 14-29% of the columns --
+#: dataset shift, in machine-learning terms. Taught these looks as well
+#: (dataset aggregation), AUC 0.93 for the ball, 0.92 for the slab and 0.98
+#: for the pole, and 9-22% of the columns liked.
+MISSION_ARENAS = (4000, 4100)
+MISSION_PART = 25
 #: In the camouflage world a punishment gets this share of a reward's
 #: dopamine: practising lands on about three non-targets -- columns
 #: included -- for every target, camouflaged objects look alike, and at full
@@ -318,24 +339,129 @@ def flown_close_looks(
     return np.asarray(F)[:samples], np.asarray(K)[:samples]
 
 
-def teach_targets(F, K, targets, seed: int = 0, close=None, dose: float = CLOSE_DOSE):
+def mission_looks(fly_eye, arenas, progress=None):
+    """Close looks the camouflage drone takes in missions, labelled: (features, kinds).
+
+    It flies a mission in each arena -- camouflage drawn 0.3-1 -- turning
+    every close look down, so it goes on to look at everything it would go
+    to. Each look is labelled with what is really there, an object or a
+    landscape column, when that lies within 12 degrees of where it faces.
+    The brain flying is the one taught on the other two lessons.
+    """
+    from .watch import COLUMNS
+
+    F, K = views(fly_eye, "/nonexistent", progress=None, drone=True, camo=True)
+    close = views(
+        fly_eye,
+        "/nonexistent",
+        close_looks(True),
+        close=True,
+        progress=None,
+        drone=True,
+        camo=True,
+    )
+    mb, valence = teach_targets(
+        F, K, {"bar"}, close=close, dose=CAMO_CLOSE_DOSE, **CAMO_TEACHING
+    )
+    columns = [arena.Item(LANDMARK, float(x), float(y)) for x, y, _ in COLUMNS]
+    world = fly_eye.world
+    looks, kinds = [], []
+
+    class Looker:
+        def valence(self, f):
+            v = mb.valence(f)
+            if pilot.nav.phase != "approach":
+                return v
+            st = pilot.flight.state()
+            things = list(pilot.items) + columns
+            near = [q for q in things if q.distance_from(st["x"], st["y"]) < 120] or things
+
+            def off(q):
+                return abs((q.bearing_from(st["x"], st["y"]) - st["heading"] + 180) % 360 - 180)
+
+            q = min(near, key=off)
+            if off(q) < 12.0:
+                looks.append(np.asarray(f, dtype=np.float32))
+                kinds.append(q.kind)
+            return v - 10.0  # turned down, whatever it is
+
+        def learn(self, f, dopamine):
+            pass
+
+    for seed in range(*arenas):
+        level = float(np.random.default_rng(seed).uniform(0.3, 1.0))
+        items = arena.mission(seed, per_kind=2, camo=level)
+        fly_eye.set_items(items)
+        pilot = _pilot(items, Looker(), fly_eye, valence, {"bar"}, True, fast=True, camo=True)
+        pilot.nav.reward = None
+        while pilot.flight.t < MISSION_S[True] and not pilot.done:
+            pilot.step()
+        if progress:
+            progress(f"  misja {seed}: {len(looks)} spojrzeń z bliska")
+    fly_eye.world = world
+    fly_eye.eye.reset()
+    return np.asarray(looks), np.asarray(kinds)
+
+
+def mission_views(fly_eye, folder=".", fresh=False, progress=print):
+    """The mission close looks (:func:`mission_looks`), from disk if taken before."""
+    every_ms = getattr(fly_eye, "every_ms", 5.0)
+    name = f"_{every_ms:g}ms_dron_kamuflaz.npz"
+    path = Path(folder) / ("flylab_spojrzenia_z_misji" + name)
+    sizes = {k: v["size"] for k, v in arena.KINDS.items()}
+    lesson = _signature(close_looks(True), 0, every_ms, True, True, True)
+    sig = (
+        f"v1 mission looks, arenas {MISSION_ARENAS[0]}-{MISSION_ARENAS[1]} in parts of "
+        f"{MISSION_PART}, camouflage 0.3-1, labelled within 12 deg {sizes}; brain: {lesson}, "
+        f"{CAMO_TEACHING}, dose {CAMO_CLOSE_DOSE}"
+    )
+    for saved in (path, SHIPPED.with_name("mission_looks" + name)):
+        if saved.exists() and not fresh:
+            with np.load(saved) as d:
+                if str(d["signature"]) == sig:
+                    return d["F"], d["K"]
+    if progress:
+        progress("Dron lata misje treningowe i zbiera spojrzenia z bliska (długo, raz)...")
+    parts = [
+        mission_looks(fly_eye, (a, min(a + MISSION_PART, MISSION_ARENAS[1])), progress)
+        for a in range(*MISSION_ARENAS, MISSION_PART)
+    ]
+    F, K = np.concatenate([f for f, _ in parts]), np.concatenate([k for _, k in parts])
+    np.savez_compressed(path, F=F, K=K, signature=np.array(sig))
+    return F, K
+
+
+def teach_targets(
+    F,
+    K,
+    targets,
+    seed: int = 0,
+    close=None,
+    dose: float = CLOSE_DOSE,
+    sparseness: float = 0.05,
+    aim: float | None = None,
+    epochs: int = 1,
+):
     """Dopamine for the targets, punishment for the rest: (mushroom body, valence per kind).
 
     ``close``: the flown close looks, (features, kinds), taught on top at
-    ``dose`` of the dopamine (:data:`CLOSE_DOSE`).
+    ``dose`` of the dopamine (:data:`CLOSE_DOSE`). ``sparseness``: the share
+    of Kenyon cells active; ``aim``, ``epochs``: dopamine as a prediction
+    error (:func:`~.navigate.teach`).
     """
     from .learning import MushroomBody
 
     kinds = tuple(arena.KINDS)
     seen = {str(k) for k in K} | (set(map(str, close[1])) if close is not None else set())
     reward = {k: (1.0 if k in targets else -1.0) for k in (*kinds, *sorted(seen - set(kinds)))}
-    mb = MushroomBody(F.shape[1], seed=seed, on_off=True)
+    mb = MushroomBody(F.shape[1], seed=seed, on_off=True, sparseness=sparseness)
+    how = {"aim": aim, "epochs": epochs, "seed": seed}
     if close is None:
-        teach(mb, F, K, reward)
+        teach(mb, F, K, reward, **how)
     else:
         mb.calibrate(np.concatenate([F, close[0]]))
-        teach(mb, F, K, reward, calibrate=False)
-        teach(mb, *close, reward, dose=dose, calibrate=False)
+        teach(mb, F, K, reward, calibrate=False, **how)
+        teach(mb, *close, reward, dose=dose, calibrate=False, **how)
     valence = {k: float(np.mean([mb.valence(f) for f in F[K == k]])) for k in kinds}
     return mb, valence
 
@@ -376,8 +502,11 @@ def learned(
         kinds = tuple(arena.KINDS)
         valence = {k: float(np.mean([mb.valence(f) for f in F[K == k]])) for k in kinds}
         return mb, valence
-    dose = CAMO_CLOSE_DOSE if camo and drone else CLOSE_DOSE
-    return teach_targets(F, K, targets, close=close, dose=dose)
+    if camo and drone:
+        M = mission_views(fly_eye, folder, fresh=retrain, progress=progress)
+        close = (np.concatenate([close[0], M[0]]), np.concatenate([close[1], M[1]]))
+        return teach_targets(F, K, targets, close=close, dose=CAMO_CLOSE_DOSE, **CAMO_TEACHING)
+    return teach_targets(F, K, targets, close=close)
 
 
 def shipped_memory(
