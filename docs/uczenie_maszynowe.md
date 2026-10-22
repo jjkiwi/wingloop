@@ -261,6 +261,37 @@ Trafność lądowań, czyli odsetek lądowań na celu, rośnie z 70% do 82%.
 Ponieważ kryterium „eksperta” w tym projekcie stawia na brak pomyłek (≤ 0,2
 na misję), finalny mózg jest domyślny.
 
+### Druga runda DAgger: bez zysku w misjach
+
+W klasycznym DAgger zbiera się dane kolejnymi rundami, za każdym razem
+modelem nauczonym na poprzednich. Dron z finalnym mózgiem przeleciał więc
+100 kolejnych misji (areny 4100–4199) i zebrał 719 nowych spojrzeń, w tym
+376 na kolumny. Ocena na spojrzeniach z drugiej rundy, z innych aren niż
+uczące:
+
+- Douczanie na drugiej rundzie podniosło AUC tylko o 0,002–0,007. Mniej
+  było lubianych kolumn (kula 11→5%, płytka 20→14%, słupek 16→11%), ale też
+  mniej celów (87→83%, 85→80%, 85→83%). Mózg znowu stał się ostrożniejszy.
+- Asymetryczne cele uczenia (+0,35 dla celu, −0,25 dla reszty) oddawały
+  cele na walidacji: 94%, 91% i 88% polubionych przy podobnej liczbie
+  polubionych kolumn (10%, 20%, 17%).
+
+W misjach, na tych samych arenach 100–111 (znalezione / złe lądowania):
+
+| | runda 1 (domyślny) | rundy 1 i 2, cele +0,35/−0,25 |
+| --- | --- | --- |
+| pełny kamuflaż (72 cele) | 37 / 8 | 38 / 11 |
+| połowiczny (36 celów) | 25 / 5 | 27 / 4 |
+
+Razem 62 trafienia i 13 pomyłek wobec 65 i 15, czyli różnica w granicach
+szumu. Kolejna runda danych nic już nie dodała: mózg doszedł do granicy
+tego, co daje się rozróżnić w cechach oka (por. las losowy i SVM wyżej).
+Druga runda nie weszła do kodu.
+
+Uwaga metodologiczna: areny 100–111 posłużyły już do porównania kilku
+wersji mózgu. Nie są więc całkiem „dziewicze”, choć żaden mózg nie był na
+nich uczony.
+
 ### Czego się nauczyłem
 
 1. **Najpierw miara, potem model.** Klasyczne metody od razu pokazały, że w

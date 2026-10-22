@@ -655,6 +655,12 @@ camouflage it is far more careful -- 0.22 wrong landings a mission instead of
 0.64, at the price of 37 targets instead of 53. Of its landings 82% are on a
 target, against 70%. It is the camouflage brain now.
 
+A second round of mission looks did not pay. Flown by this brain in 100 more
+practice arenas (4100-4199), 719 looks told targets apart only a little
+better (AUC +0.002-0.007), and in missions on the same new arenas, with the
+aims raised to give the targets back, it found 65 and landed wrongly 15 times
+where this brain found 62 and landed wrongly 13: noise. Left out.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
