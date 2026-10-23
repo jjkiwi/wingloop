@@ -313,7 +313,9 @@ def flown_close_looks(
             items.append(arena.Item(str(other), ox, oy, camo=painted(rng, camo)))
         fly_eye.set_items(tuple(items))
         looker = _Looker()
-        pilot = _pilot(items, looker, fly_eye, {}, {kind}, drone, fast=True, camo=camo)
+        pilot = _pilot(
+            items, looker, fly_eye, {}, {kind}, drone, fast=True, camo=camo, pace=False
+        )
         looker.nav = nav = pilot.nav
         nav.reward, nav.inspect, nav.curious = None, True, False
         pilot.step()  # spun up, and facing away from it
@@ -392,7 +394,9 @@ def mission_looks(fly_eye, arenas, progress=None):
         level = float(np.random.default_rng(seed).uniform(0.3, 1.0))
         items = arena.mission(seed, per_kind=2, camo=level)
         fly_eye.set_items(items)
-        pilot = _pilot(items, Looker(), fly_eye, valence, {"bar"}, True, fast=True, camo=True)
+        pilot = _pilot(
+            items, Looker(), fly_eye, valence, {"bar"}, True, fast=True, camo=True, pace=False
+        )
         pilot.nav.reward = None
         while pilot.flight.t < MISSION_S[True] and not pilot.done:
             pilot.step()
@@ -1006,7 +1010,15 @@ CHASE = {False: 22.0, True: 12.0}
 
 
 def _pilot(
-    items, mb, eye, valence, targets, drone: bool, fast: bool = False, camo: bool = False
+    items,
+    mb,
+    eye,
+    valence,
+    targets,
+    drone: bool,
+    fast: bool = False,
+    camo: bool = False,
+    pace: bool = True,
 ) -> Autopilot:
     """The autopilot on the fly (the full physics, or the fast fly), or on the drone.
 
@@ -1017,7 +1029,9 @@ def _pilot(
     look is as good as a practised one's.
 
     ``camo``: it also sees what breaks the skyline, and the landscape's
-    columns are things it can wrongly land on.
+    columns are things it can wrongly land on. ``pace``: the drone at its
+    mission pace (:data:`~.dronebrain.PACE`); False for the lessons, flown at
+    the pace they were first flown at.
     """
     expert = {"inspect": True, "look_before_leaving": True}
     if camo:
@@ -1036,11 +1050,10 @@ def _pilot(
 
             return Autopilot(items, mb, eye, valence, targets, vehicle=FastFly(), **expert)
         return Autopilot(items, mb, eye, valence, targets, **expert)
-    from .dronebrain import NAVIGATOR, DroneFlight
+    from .dronebrain import NAVIGATOR, PACE, DroneFlight
 
-    return Autopilot(
-        items, mb, eye, valence, targets, vehicle=DroneFlight(), **NAVIGATOR, **expert
-    )
+    how = {**NAVIGATOR, **(PACE if pace else {}), **expert}
+    return Autopilot(items, mb, eye, valence, targets, vehicle=DroneFlight(), **how)
 
 
 def _view(drone: bool, pretty: bool, items):

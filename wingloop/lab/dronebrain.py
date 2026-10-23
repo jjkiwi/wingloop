@@ -54,6 +54,18 @@ NAVIGATOR = {
     "explore": 40.0,
     "unsure": 0.06,
 }
+#: And its pace in a mission. Two thirds of a mission went in looking
+#: around: at 90 deg/s each look around takes four seconds, and after it had
+#: found its last target -- 30 s in, on average -- the drone looked on for
+#: as long again before it called the mission done. Looking around at 270
+#: deg/s -- faster gains nothing, the yaw loop cannot follow -- and calling it
+#: done after one empty look rather than two, the expert drone's missions in
+#: 18 practice arenas took 40 s instead of 76, every target found and no
+#: wrong landing either way; on 12 new arenas 39 s instead of 73, all 72
+#: targets found, and camouflaged missions half as long, as accurate. The
+#: lessons were flown at the old pace and are flown so still
+#: (:func:`~.autopilot.flown_close_looks`).
+PACE = {"scan_rate": 270.0, "patience": 1}
 
 
 class DroneFlight:

@@ -661,6 +661,27 @@ better (AUC +0.002-0.007), and in missions on the same new arenas, with the
 aims raised to give the targets back, it found 65 and landed wrongly 15 times
 where this brain found 62 and landed wrongly 13: noise. Left out.
 
+**Faster missions** (`dronebrain.PACE`). Two thirds of the drone's mission
+went in looking around: at 90 deg/s a look around takes four seconds, and
+after its last target -- found 30 s in, on average -- it looked on for as
+long again before calling the mission done. Measured in 18 practice arenas
+per target, with the expert brains: looking around at 135, 180, 225, 270 and
+360 deg/s took the missions from 76 s to 62, 51, 43, 40 and 38 s (no faster
+past 270: the yaw loop cannot follow), and one empty look before calling it
+done instead of two saved another 3-7 s; flying faster saved 2 s more and
+was left out. Every target was found and nothing wrongly landed on, except
+one slab missed at 180 deg/s with two empty looks. The drone now looks
+around at 270 deg/s and stops after one empty look. The lessons are still
+flown at the old pace, the pace they were recorded at. On the new arenas:
+
+| | before: found, wrong, mean mission | now |
+| --- | --- | --- |
+| no camouflage, 12 arenas (72 targets) | 72, 0, 73 s | **72, 0, 39 s** |
+| full camouflage, 12 arenas (72 targets) | 37, 8, 87 s | **39, 7, 44 s** |
+| half camouflage, 6 arenas (36 targets) | 25, 5, 88 s | **27, 5, 50 s** |
+
+Missions take half the time, as accurate as before.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
