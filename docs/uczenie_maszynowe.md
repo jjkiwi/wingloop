@@ -292,6 +292,64 @@ Uwaga metodologiczna: areny 100–111 posłużyły już do porównania kilku
 wersji mózgu. Nie są więc całkiem „dziewicze”, choć żaden mózg nie był na
 nich uczony.
 
+### Pamięć miejsc kar (kolumn): szkodzi
+
+Kolumny krajobrazu stoją zawsze w tych samych miejscach, a obiekty co misję
+gdzie indziej. Pomysł był taki: dron zapamiętuje miejsca, w których kara
+powtarzała się w wielu misjach, i tam ląduje tylko na czymś wyraźnie
+lubianym (ocena ≥ 0,1).
+
+- **Pamięć powstaje, jak trzeba.** W 60 misjach treningowych (areny
+  5000–5059), z lądowaniem „na próbę” po każdym spojrzeniu z bliska, dron
+  sam znalazł wszystkie 6 kolumn w zasięgu. Zgadywane miejsca obiektów
+  wypadały 1–13 mm od kolumn.
+- **Pamięć jest jednak też zanieczyszczona.** Zapamiętał 10 fałszywych
+  miejsc, bo obiekty stoją na tym samym pierścieniu 50–80 mm co kolumny.
+  54% obiektów stoi do 30 mm od kolumny, a 18% do 15 mm.
+- **W misjach to katastrofa.** Na 18 arenach treningowych przy pełnym
+  kamuflażu dron znalazł 2 cele z 34 zamiast 13 z 36. Zakamuflowane cele
+  rzadko mają ocenę ≥ 0,1, a stoją właśnie przy kolumnach.
+
+Pamięć miejsc nie weszła do kodu. W tym świecie miejsce nie odróżnia
+kolumny od obiektu obok niej.
+
+### Dłuższe szukanie w kamuflażu: wymiana, nie zysk
+
+Po przyspieszeniu misje w kamuflażu kończyły się po ok. 45 s z 90 s.
+Sprawdziłem, czy dron może wykorzystać ten zaoszczędzony czas. Zmiany:
+
+- bliższe drugie spojrzenie także przy ocenach odrzuconych o więcej niż
+  włos (`unsure` 0,15 zamiast 0,06),
+- dwa puste rozglądania przed końcem misji zamiast jednego.
+
+Na arenach treningowych 3000–3005 wyglądało to dobrze: 18 celów z 36
+zamiast 13 i 4 pomyłki zamiast 5. Na nowych arenach 200–211 (pełny
+kamuflaż, 72 cele) dron znalazł 39 celów zamiast 33, ale wylądował źle 12
+razy zamiast 6, a misja trwała 62 s zamiast 49 s. Sześć trafień więcej za
+sześć pomyłek więcej, więc to nie weszło do kodu. To też przestroga przed
+strojeniem na małej liczbie aren: przewaga z aren treningowych nie
+powtórzyła się na nowych.
+
+### Ostrzejsze oko (siatka zamiast pięciu obszarów): niejednoznaczne
+
+Klasyczne metody pokazały, że mózg jest blisko granicy tego, co da się
+wyczytać z 325 liczb. Sprawdziłem więc gęstszy opis środka pola widzenia:
+siatkę 3×3 (585 liczb) i 5×5 (1625 liczb), też z narożnikami, których pięć
+obszarów nie obejmuje. Na tych samych przelotach (lekcja 300 spojrzeń,
+test 2 × 120) wyszło AUC mózgu:
+
+| | 5 obszarów | siatka 3×3 | siatka 5×5 |
+| --- | --- | --- | --- |
+| kula, pełny / połowiczny kamuflaż | 0,885 / 0,942 | 0,925 / 0,948 | 0,877 / 0,935 |
+| płytka | 0,979 / 0,980 | 0,987 / 0,955 | 0,958 / 0,961 |
+| słupek | 0,986 / 0,993 | 0,983 / 0,993 | 0,970 / 0,999 |
+
+Siatka 3×3 pomogła kuli przy pełnym kamuflażu, ale płytce przy połowicznym
+zaszkodziła. Gęstsza siatka była zwykle gorsza: więcej liczb przy tej samej
+liczbie przykładów to więcej szumu. SVM pokazał ten sam mieszany obraz. Zysk
+jest za mały i za niepewny, żeby przebudowywać wszystkie lekcje, więc oko
+zostaje przy pięciu obszarach.
+
 ### Czego się nauczyłem
 
 1. **Najpierw miara, potem model.** Klasyczne metody od razu pokazały, że w
