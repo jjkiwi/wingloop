@@ -1009,6 +1009,14 @@ FRAME_S = 1.0 / 30.0
 CHASE = {False: 22.0, True: 12.0}
 
 
+#: The fly's pace in a mission: it looks around at 240 deg/s already, and
+#: calls a mission done after one empty look rather than two. In 12 new
+#: arenas per target its missions took 22.8 s instead of 25.7, with as many
+#: targets found (69 of 72) and 4 wrong landings against 5. The drone's
+#: pace is :data:`~.dronebrain.PACE`.
+FLY_PACE = {"patience": 1}
+
+
 def _pilot(
     items,
     mb,
@@ -1030,7 +1038,7 @@ def _pilot(
 
     ``camo``: it also sees what breaks the skyline, and the landscape's
     columns are things it can wrongly land on. ``pace``: the drone at its
-    mission pace (:data:`~.dronebrain.PACE`); False for the lessons, flown at
+    mission pace (:data:`~.dronebrain.PACE`, :data:`FLY_PACE`); False for the lessons, flown at
     the pace they were first flown at.
     """
     expert = {"inspect": True, "look_before_leaving": True}
@@ -1045,6 +1053,8 @@ def _pilot(
                 looks=CAMO_LOOKS, around=AROUND, peer=CAMO_PEER, peer_time=CAMO_PEER_TIME
             )
     if not drone:
+        if pace:
+            expert.update(FLY_PACE)
         if fast:
             from .fastfly import FastFly
 

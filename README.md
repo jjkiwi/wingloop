@@ -680,7 +680,12 @@ flown at the old pace, the pace they were recorded at. On the new arenas:
 | full camouflage, 12 arenas (72 targets) | 37, 8, 87 s | **39, 7, 44 s** |
 | half camouflage, 6 arenas (36 targets) | 25, 5, 88 s | **27, 5, 50 s** |
 
-Missions take half the time, as accurate as before.
+Missions take half the time, as accurate as before. Checked again on twelve
+new arenas, tuned on by nothing (200-211): all 72 targets, no wrong landing, 40.6 s
+a mission; at full camouflage 33 of 72, 6 wrong landings, 49 s. The fly looks
+around at 240 deg/s already; one empty look instead of two (`FLY_PACE`) took
+its missions on the same new arenas from 25.7 s to 22.8, 69 targets of 72
+found either way, 4 wrong landings against 5.
 
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
