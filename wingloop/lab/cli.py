@@ -27,6 +27,9 @@ from pathlib import Path
 
 import numpy as np
 
+#: :data:`.watch.NIR_MATCH`, without loading the eye to read the arguments.
+NIR_DEFAULT = 0.5
+
 FIXTURES = Path(__file__).resolve().parents[2] / "tests"
 
 
@@ -232,6 +235,8 @@ def cmd_video(args) -> dict:
             fast=args.szybko,
             camo=args.kamuflaz,
             thermal=args.termowizja,
+            moving=args.ruch,
+            nir=args.nir,
         )
     else:
         from .watch import video
@@ -258,6 +263,8 @@ def cmd_cel(args) -> dict:
             drone=args.dron,
             fast=args.szybko,
             camo=args.kamuflaz,
+            moving=args.ruch,
+            nir=args.nir,
         )
         return {}
     from . import arena
@@ -265,9 +272,12 @@ def cmd_cel(args) -> dict:
     from .watch import FlysEye
 
     hidden = args.kamuflaz is not None
-    items = arena.mission(args.seed, per_kind=args.ile, camo=args.kamuflaz or 0.0)
+    items = arena.mission(
+        args.seed, per_kind=args.ile, camo=args.kamuflaz or 0.0, moving=args.ruch
+    )
     eye = FlysEye(items=items, every_ms=EYE_MS[args.szybko])
     mb, valence = learned(eye, targets, retrain=args.od_nowa, drone=args.dron, camo=hidden)
+    eye.nir = args.nir
     _print_valence(valence, targets)
     t0 = time.time()
     seconds = args.seconds or (90.0 if args.dron else 30.0)
@@ -461,8 +471,26 @@ def main(argv=None) -> None:
             )
             s.add_argument(
                 "--termowizja",
-                action="store_true",
-                help="show the drone's thermal camera and laser rangefinder too",
+                nargs="?",
+                const="kolor",
+                default=None,
+                choices=("kolor", "bw"),
+                help="the drone's thermal camera and rangefinder too (bw: black and white)",
+            )
+            s.add_argument(
+                "--ruch",
+                type=float,
+                default=0.0,
+                help="the objects move round the start at this many mm/s",
+            )
+            s.add_argument(
+                "--nir",
+                type=float,
+                nargs="?",
+                const=NIR_DEFAULT,
+                default=None,
+                help="the eye sees through a near-infrared camera; how well the camouflage "
+                "paint matches the floor in it, 0-1 (0.5 if no number given)",
             )
         if name == "trening":
             s.add_argument("target", nargs="*", default=["kula"], help="kula, płytka, słupek")
@@ -525,6 +553,21 @@ def main(argv=None) -> None:
                 help="fast mode: a model of the fly fitted to the physics, eye at 20 ms",
             )
             s.add_argument("--pretty", action="store_true", help="shadows on (slower)")
+            s.add_argument(
+                "--ruch",
+                type=float,
+                default=0.0,
+                help="the objects move round the start at this many mm/s",
+            )
+            s.add_argument(
+                "--nir",
+                type=float,
+                nargs="?",
+                const=NIR_DEFAULT,
+                default=None,
+                help="the eye sees through a near-infrared camera; how well the camouflage "
+                "paint matches the floor in it, 0-1 (0.5 if no number given)",
+            )
         if name == "watch":
             s.add_argument(
                 "--no-brain", action="store_true", help="no optic lobe: lighter, flies faster"

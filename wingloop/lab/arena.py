@@ -47,6 +47,17 @@ class Item:
     #: Camouflage, 0-1: painted in the floor's checker instead of its colour
     #: (:attr:`~.scene.Thing.camo`). Only the eye sees it.
     camo: float = 0.0
+    #: How fast it moves, mm/s: round the start, on its own circle, anticlockwise
+    #: if positive. ``x`` and ``y`` are where it is at the start (:meth:`at`).
+    speed: float = 0.0
+
+    def at(self, t: float) -> tuple[float, float]:
+        """Where it is ``t`` seconds into the mission."""
+        if not self.speed:
+            return self.x, self.y
+        r = float(np.hypot(self.x, self.y))
+        a = np.arctan2(self.y, self.x) + self.speed * t / r
+        return float(r * np.cos(a)), float(r * np.sin(a))
 
     @property
     def size(self):
@@ -81,11 +92,14 @@ def mission(
     distance=(50.0, 80.0),
     height: float = 5.0,
     camo: float = 0.0,
+    moving: float = 0.0,
 ) -> tuple[Item, ...]:
     """A random arena: ``per_kind`` of each kind around the start, well apart.
 
     ``camo``: every object painted that much in the floor's checker. The
-    arena is otherwise the same as without it.
+    arena is otherwise the same as without it. ``moving``: every object goes
+    round the start at that many mm/s, each its own way round (the same
+    objects, starting where they stand without it).
 
     Headings are spread evenly, each jittered by up to 10 degrees, so that
     seen from the start no two objects are closer than 360/n - 20 degrees
@@ -97,8 +111,9 @@ def mission(
     n = len(wanted)
     slots = np.linspace(0, 360, n, endpoint=False) + rng.uniform(0, 360)
     rng.shuffle(wanted)
+    ways = np.random.default_rng(seed + 1_000_003).choice([-1.0, 1.0], n)
     items = []
-    for kind, heading in zip(wanted, slots, strict=True):
+    for kind, heading, way in zip(wanted, slots, ways, strict=True):
         h = np.deg2rad(heading + rng.uniform(-10, 10))
         d = rng.uniform(*distance)
         items.append(
@@ -108,9 +123,17 @@ def mission(
                 round(float(d * np.sin(h)), 1),
                 height,
                 camo=camo,
+                speed=float(way * moving),
             )
         )
     return tuple(items)
+
+
+def move_geoms(model, items, t: float) -> None:
+    """Put the moving items of a MuJoCo scene (:func:`add_to_mjcf`) where they are at ``t``."""
+    for i, it in enumerate(items):
+        if it.speed:
+            model.geom_pos[model.geom(f"flylab_item{i}").id][:2] = it.at(t)
 
 
 def add_to_mjcf(world: ET.Element, items) -> None:

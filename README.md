@@ -119,7 +119,9 @@ The brain page gains a section for it: the arena from above with the fly's
 track, what it has learned, each object it judged on its last look and what
 it is flying to now. `flylab video --cel kula` records a whole mission
 (with `--dron --termowizja`, the drone's thermal camera and laser
-rangefinder in a corner as well -- what they see; it does not fly by them);
+rangefinder in a corner as well -- what they see, `bw` in black and white;
+it does not fly by them; `--ruch 5` moves the objects, `--nir` puts a
+near-infrared camera in place of the eye's);
 `flylab cel kula --bez-okna` flies it without a window and prints the result.
 
 Measured, nine missions -- three arenas, each kind the target once, two of
@@ -789,6 +791,34 @@ checks before landing -- the depth camera from close, then the rangefinder
 against where the close look had put the target -- turned down true balls
 (from that close a ball fills the view, or the beam passes it to the column
 behind) and were taken out. The sensors stay, tested, off by default.
+
+**A near-infrared camera, with a slider for the paint.** A black-and-white
+camera with its own infrared lamp, as night-vision cameras are, in place of
+the eye's camera (`FlysEye.nir`; `--nir` for `cel` and `video`): the brain
+sees brightness either way. Everything is assumed as bright in it as in
+visible light but camouflage paint, which matches the floor in near
+infrared only so well -- `watch.NIR_MATCH`, the slider: 1 as well as for
+the eye, 0 not at all. At full camouflage on arenas 6100-6111 (72 targets;
+found, wrong landings, mean mission): 43, 0, 49 s with the plain camera; 44,
+0, 46 s at 0.5; at 0 the camouflage brain, taught on painted objects, knows
+them unpainted no better (39, 1, 35 s), and flying as in the world without
+camouflage the drone finds 71, 0, 39 s -- the camouflage gone. It wins
+exactly when the paint was not made for near infrared, which the simulation
+cannot say.
+
+**Moving objects** (`arena.mission(moving=)`, `--ruch` mm/s): every object
+goes round the start on its own circle, its own way round; the eye, the map,
+the 3-D view and the judging of landings (`Autopilot.landed`, what it came
+down by then) follow them. Without camouflage, on the same arenas: 71, 0,
+39 s standing; 49, 15, 47 s at 5 mm/s; 36, 8, 54 s at 10. The optic lobe
+has motion detectors, and the brain was taught on still objects: from 30 mm
+it likes a still ball by +0.017, one moving across at 5 mm/s by -0.018 and
+at 10 by -0.078. Turning after the object while it looks (`pursue`) brings
+that back to about zero in isolation but found no more in missions (51 and
+34); and the drone's memory of places assumes things stay put -- looking
+for slabs it came down again and again by a ball travelling beside one.
+Lessons with moving objects, and a memory of objects rather than places,
+are what it would take.
 
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the

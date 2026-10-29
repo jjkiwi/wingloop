@@ -713,6 +713,9 @@ class Autopilot:
         self.every = max(1, int(round(eye.every_ms / 1000.0 / self.flight.timestep)))
         self.trail: list = []
         self.started = False
+        self.moving = any(it.speed for it in self.items)
+        #: Each place landed on: the item nearest it then, and how far it was.
+        self.landed: list = []
 
     @property
     def done(self) -> bool:
@@ -727,9 +730,14 @@ class Autopilot:
             f.step(self.every * 20)
             self.nav.start(f.state()["heading"])
             self.started = True
+        if self.moving:
+            self.eye.move_to(f.t)
         self.eye.look_from(*f.pose())
         s = f.state()
         f.command(*self.nav.decide(self.eye, s, self.eye.every_ms / 1000.0))
+        for vx, vy in self.nav.visited[len(self.landed) :]:
+            # What it came down by, there and then: a moving item moves on.
+            self.landed.append(nearest(self.items, vx, vy, f.t))
         if hasattr(f, "strafe"):
             f.strafe(self.nav.sideways)
         f.step(self.every)
@@ -743,27 +751,21 @@ class Autopilot:
         """The world's answer where the fly lands: reward on a target, punishment elsewhere."""
         if any(np.hypot(x - lx, y - ly) < 30.0 for lx, ly in self.landmarks):
             return -LESSON * self.punish
-        item, d = nearest(self.items, x, y)
+        item, d = nearest(self.items, x, y, self.flight.t)
         if d > 30.0:
             return 0.0
         return LESSON if item.kind in self.targets else -LESSON * self.punish
 
     def reached(self) -> list:
         """The items the fly has flown to, in order."""
-        out = []
-        for vx, vy in self.nav.visited:
-            item, d = nearest(self.items, vx, vy)
-            if d < 30.0:
-                out.append(item)
-        return out
+        return [item for item, d in self.landed if d < 30.0]
 
     def on_landmarks(self) -> int:
         """Landings on a landscape column rather than near any object: mistakes."""
         return sum(
             1
-            for vx, vy in self.nav.visited
-            if nearest(self.items, vx, vy)[1] >= 30.0
-            and any(np.hypot(vx - lx, vy - ly) < 30.0 for lx, ly in self.landmarks)
+            for (vx, vy), (_, d) in zip(self.nav.visited, self.landed, strict=False)
+            if d >= 30.0 and any(np.hypot(vx - lx, vy - ly) < 30.0 for lx, ly in self.landmarks)
         )
 
     def seen_as(self, sighting):
@@ -771,7 +773,10 @@ class Autopilot:
         x, y = sighting.where
         best, off = None, 15.0
         for it in self.items:
-            o = abs((it.bearing_from(x, y) - sighting.heading + 180) % 360 - 180)
+            ix, iy = it.at(self.flight.t)
+            o = abs(
+                (np.degrees(np.arctan2(iy - y, ix - x)) - sighting.heading + 180) % 360 - 180
+            )
             if o < off:
                 best, off = it, o
         return best
@@ -779,6 +784,7 @@ class Autopilot:
     def status(self) -> dict:
         """Everything the brain page shows about the mission."""
         s = self.flight.state()
+        now_t = self.flight.t
         nav = self.nav
         reached = self.reached()
         now = None
@@ -797,8 +803,8 @@ class Autopilot:
                 dict(
                     kind=it.kind,
                     name=POLISH[it.kind],
-                    x=it.x,
-                    y=it.y,
+                    x=it.at(self.flight.t)[0],
+                    y=it.at(self.flight.t)[1],
                     reached=it in reached,
                     target=it.kind in self.targets,
                 )
@@ -818,7 +824,7 @@ class Autopilot:
             "visited": [[round(float(a), 1), round(float(b), 1)] for a, b in nav.visited],
             "reached": [POLISH[it.kind] for it in reached],
             "lessons": [
-                dict(name=POLISH[nearest(self.items, *place)[0].kind], dopamine=d)
+                dict(name=POLISH[nearest(self.items, *place, now_t)[0].kind], dopamine=d)
                 for _, d, place in nav.lessons
             ],
             "targets_left": sum(
@@ -951,24 +957,30 @@ def window(
     drone: bool = False,
     fast: bool = False,
     camo: float | None = None,
+    moving: float = 0.0,
+    nir: float | None = None,
 ) -> None:
     """Teach, then open the 3-D window and the brain page, and let it fly.
 
     ``fast``: the fast fly of :mod:`.fastfly` (or, for the drone, only the
     faster eye), the optic lobe at its trained 20 ms, kept to real time.
     ``camo``: the objects painted that much (0-1) in the floor's checker,
-    and the brain for camouflaged targets flying.
+    and the brain for camouflaged targets flying. ``moving``: the objects go
+    round the start at that many mm/s (:func:`~.arena.mission`). ``nir``:
+    the eye looks through the near-infrared camera, camouflage matching the
+    floor in it that well (:attr:`~.watch.FlysEye.nir`).
     """
     from .livebrain import LiveBrain
     from .watch import FlysEye, Pilot
 
     hidden = camo is not None
-    items = arena.mission(seed, per_kind=per_kind, camo=camo or 0.0)
+    items = arena.mission(seed, per_kind=per_kind, camo=camo or 0.0, moving=moving)
     print("Wczytuję oko muchy (flyvis)...")
     eye = FlysEye(items=items, every_ms=EYE_MS[fast])  # before MuJoCo; see watch.interactive
     mb, valence = learned(
         eye, targets, folder=folder, retrain=retrain, drone=drone, camo=hidden
     )
+    eye.nir = nir  # after the lessons, which are what the eye saw
     _print_valence(valence, targets)
     import mujoco.viewer
 
@@ -1007,6 +1019,7 @@ def window(
                 if now - last_frame > FRAME_S or not fast:
                     # Drawing is the expensive part once the fly itself is
                     # cheap, so the fast mode draws at most 30 frames a second.
+                    arena.move_geoms(view.model, pilot.items, pilot.flight.t)
                     view.show(pilot.flight)
                     if follow:
                         heading = pilot.flight.state()["heading"]
@@ -1139,14 +1152,18 @@ def video(
     drone: bool = False,
     fast: bool = False,
     camo: float | None = None,
-    thermal: bool = False,
+    thermal: str | None = None,
+    moving: float = 0.0,
+    nir: float | None = None,
 ) -> Path:
     """Record a whole mission: the chase view, with the map and the fly's eye beside it.
 
     ``frame_ms`` of flight per frame: 10 for the fly (slow motion, it is
     quick), 33 for the drone (about real time). ``thermal``: and the drone's
     thermal camera, with its laser rangefinder's reading, bottom left -- what
-    they see; the drone does not fly by them (docs/kamera_drona.md).
+    they see; the drone does not fly by them (docs/kamera_drona.md) --
+    ``"kolor"`` in a thermal palette, ``"bw"`` black and white, warm white.
+    ``moving`` and ``nir`` as for :func:`window`.
     """
     import imageio.v2 as imageio
 
@@ -1156,11 +1173,12 @@ def video(
         frame_ms = 33.0 if drone else 10.0
 
     hidden = camo is not None
-    items = arena.mission(seed, per_kind=per_kind, camo=camo or 0.0)
+    items = arena.mission(seed, per_kind=per_kind, camo=camo or 0.0, moving=moving)
     eye = FlysEye(items=items, every_ms=EYE_MS[fast])
     mb, valence = learned(
         eye, targets, folder=folder, retrain=retrain, drone=drone, camo=hidden
     )
+    eye.nir = nir
     import mujoco
 
     pilot = _pilot(items, mb, eye, valence, targets, drone, fast, hidden)
@@ -1176,6 +1194,7 @@ def video(
                 pilot.step()
             if not pilot.flight.upright():
                 break
+            arena.move_geoms(view.model, items, pilot.flight.t)
             view.show(pilot.flight)
             view.chase(cam, pilot.flight.state()["heading"], distance=CHASE[drone])
             renderer.update_scene(view.data, camera=cam)
@@ -1204,7 +1223,7 @@ def _font(size: int):
 
 
 def _frame(
-    scene: np.ndarray, pilot: Autopilot, frame_ms: float, fps: int, thermal: bool = False
+    scene: np.ndarray, pilot: Autopilot, frame_ms: float, fps: int, thermal: str | None = None
 ) -> np.ndarray:
     """The 3-D view with the map, the fly's eye and the mission state on top."""
     from PIL import Image, ImageDraw
@@ -1240,11 +1259,10 @@ def _frame(
     draw.rectangle((8, 6, 20 + width, 12 + step * len(lines)), fill=(255, 255, 255))
     for k, line in enumerate(lines):
         draw.text((14, 10 + step * k), line, fill=(20, 20, 20), font=font)
-    draw.text(
-        (img.width - side - 10, 24 + 2 * side), "oko muchy", fill=(255, 255, 255), font=font
-    )
+    seen_by = "oko muchy" if pilot.eye.nir is None else "oko muchy: kamera NIR"
+    draw.text((img.width - side - 10, 24 + 2 * side), seen_by, fill=(255, 255, 255), font=font)
     if thermal:
-        _thermal_panel(img, draw, pilot.eye, side, font, pilot.flight.t)
+        _thermal_panel(img, draw, pilot.eye, side, font, pilot.flight.t, thermal == "bw")
     return np.asarray(img)
 
 
@@ -1254,7 +1272,7 @@ IRONBOW = np.array(
 )
 
 
-def _thermal_panel(img, draw, fly_eye, side: int, font, t: float) -> None:
+def _thermal_panel(img, draw, fly_eye, side: int, font, t: float, bw: bool = False) -> None:
     """The thermal camera's picture, bottom left, with the rangefinder's beam and reading."""
     from PIL import Image
 
@@ -1263,10 +1281,15 @@ def _thermal_panel(img, draw, fly_eye, side: int, font, t: float) -> None:
     rng = np.random.default_rng(int(t * 1000))
     k = fly_eye.thermal_view(rng)
     # The floor's middle to the warmest solid: sky and floor dark, solids bright.
-    x = np.clip((k + 1.0) / (2.4 * IR_HEAT + 1.0), 0.0, 1.0) * (len(IRONBOW) - 1)
-    rgb = np.stack(
-        [np.interp(x, np.arange(len(IRONBOW)), IRONBOW[:, c]) for c in range(3)], axis=-1
-    )
+    x = np.clip((k + 1.0) / (2.4 * IR_HEAT + 1.0), 0.0, 1.0)
+    if bw:  # "white hot", as thermal cameras show it in black and white
+        x = np.clip((k + 0.3) / (1.4 * IR_HEAT + 0.3), 0.0, 1.0)
+        rgb = np.repeat(255 * x[..., None], 3, axis=-1)
+    else:
+        x = x * (len(IRONBOW) - 1)
+        rgb = np.stack(
+            [np.interp(x, np.arange(len(IRONBOW)), IRONBOW[:, c]) for c in range(3)], axis=-1
+        )
     panel = Image.fromarray(rgb.astype(np.uint8)).resize((side, side), Image.BILINEAR)
     x0, y0 = 10, img.height - side - 10
     img.paste(panel, (x0, y0))

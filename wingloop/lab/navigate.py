@@ -351,6 +351,12 @@ class Navigator:
     #: peering harder made the ball worse: kept off. 0: look hovering still.
     peer: float = 0.0
     peer_time: float = 0.4
+    #: While it looks closely, turn after the object by this share of where it
+    #: is in the eye: a moving object then stays still in the eye. Its motion
+    #: otherwise reaches the optic lobe's motion detectors, and the brain,
+    #: taught on still objects, likes a ball moving across at 10 mm/s by
+    #: -0.08 where it likes it still by +0.02 -- and by +0.00 followed.
+    pursue: float = 0.0
     #: The size of what it is looking for, as its depth camera measures it
     #: (:meth:`~.watch.FlysEye.measure`): ``{"height": (lo, hi), "width": (lo,
     #: hi), "top": bool}``, mm. A close look at something measured another
@@ -713,6 +719,9 @@ class Navigator:
             return (-6.0 if self._looking < 0.1 else 0.0), self.heading, self.height
         if fly_eye is not None and fly_eye.activity is not None:
             self._fovea.append(fly_eye.eye.fovea_shape(fly_eye.activity))
+        if self.pursue and heading_now is not None:
+            # Keep a moving object still in the eye, as a fly chasing one does.
+            self.heading = heading_now + self.pursue * bearing_deg
         if self.peer:
             spin = -np.degrees(self._lateral / self.around_from)
             if heading_now is not None:
@@ -1042,9 +1051,15 @@ def describe(phase: str, who: str = "Muszka") -> str:
     }.get(phase, phase)
 
 
-def nearest(items, x: float, y: float) -> tuple[Item, float]:
-    best = min(items, key=lambda it: it.distance_from(x, y))
-    return best, best.distance_from(x, y)
+def nearest(items, x: float, y: float, t: float = 0.0) -> tuple[Item, float]:
+    """The item nearest (x, y) ``t`` seconds into the mission, and how far it is."""
+
+    def far(it):
+        ix, iy = it.at(t)
+        return float(np.hypot(ix - x, iy - y))
+
+    best = min(items, key=far)
+    return best, far(best)
 
 
 __all__ = [

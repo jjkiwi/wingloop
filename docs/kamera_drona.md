@@ -247,6 +247,77 @@ misjach nie znajdują więcej celów, mimo korzystnego dla termowizji założeni
 Nie robiłem już kontroli na nowych arenach, bo żaden wariant nie wygrał na
 arenach treningowych.
 
+## Kamera bliskiej podczerwieni (NIR) z suwakiem
+
+Zwykła kamera czarno-biała bez filtra podczerwieni, z własnym oświetlaczem IR
+(jak w kamerach nocnych). Nie widzi ciepła, tylko to, jak powierzchnie odbijają
+niewidzialne światło. Podmienia kamerę oka muchy (`FlysEye.nir`): mózg i tak
+widzi tylko jasność.
+
+**Założenie i suwak.** W NIR wszystko jest tak jasne jak w świetle
+widzialnym, poza farbą maskującą. Farba dobrana do podłogi „dla oka” pasuje
+do niej w NIR tylko w ułamku `NIR_MATCH`: 1 to jak w świetle widzialnym, 0 to
+wcale, czyli obiekt pokazuje swój własny kolor. Suwak mówi więc, jak dobrą
+farbę ma przeciwnik. Prawdziwe farby maskujące odporne na NIR istnieją
+właśnie dlatego, że zwykłe w NIR „pękają”.
+
+Misje na arenach 6100–6111, pełny kamuflaż (72 cele, złe lądowania, czas):
+
+| Suwak `NIR_MATCH` | Wynik |
+| --- | --- |
+| 1 (zwykła kamera) | 43, 0, 49 s |
+| 0,5 | 44, 0, 46 s |
+| 0, mózg do kamuflażu | 39, 1, 35 s |
+| 0, dron lata jak w świecie bez kamuflażu | **71, 0, 39 s** |
+
+Przy suwaku 0 obiekty w NIR wyglądają jak niepomalowane. Mózg do kamuflażu
+nauczył się jednak obiektów *pomalowanych*, więc niepomalowanych nie poznaje
+(39). Gdy dron lata wtedy tak jak w świecie bez kamuflażu, znajduje 71 z 72
+celów: kamuflaż przestaje istnieć. Przy suwaku 0,5 kamuflaż jest „w połowie”
+i wynik przypomina połowiczny kamuflaż. Wniosek: NIR wygrywa wtedy i tylko
+wtedy, gdy farba przeciwnika nie była dobrana pod NIR. Symulacja nie powie,
+jaka jest farba. Pokazuje tylko, ile od niej zależy.
+
+## Ruchome cele
+
+`arena.mission(..., moving=v)` (w poleceniach `--ruch v`): każdy obiekt krąży
+wokół startu z prędkością v mm/s, po swoim okręgu, w swoją stronę. Oko, mapa,
+widok 3D i ocena lądowań (`Autopilot.landed`: przy czym dron wylądował *w
+chwili* lądowania) wiedzą, gdzie obiekt jest w danej chwili.
+
+Misje w świecie bez kamuflażu, areny 6100–6111 (72 cele, złe lądowania, czas):
+
+| Ruch | Wynik |
+| --- | --- |
+| obiekty stoją | **71, 0, 39 s** |
+| 5 mm/s (0,25 m/s w prawdziwej skali) | 49, 15, 47 s |
+| … i dron podąża wzrokiem (`pursue`) | 51, 16, 45 s |
+| 10 mm/s | 36, 8, 54 s |
+| … i dron podąża wzrokiem | 34, 10, 52 s |
+
+**Dlaczego ruch tak szkodzi.**
+
+- **Mózg uczył się na nieruchomych obiektach.** Model płata wzrokowego muchy ma
+  detektory ruchu (komórki T4 i T5), więc obiekt przesuwający się w kadrze
+  daje inną „sygnaturę”. Zmierzone z 30 mm: mózg ocenia nieruchomą kulę na
+  +0,017, jadącą 5 mm/s na −0,018, a 10 mm/s na −0,078. Dron odrzuca więc
+  cele.
+- **Podążanie wzrokiem pomaga tylko w izolacji.** Gdy dron obraca się za
+  kulą, ocena wraca do około 0. W misjach prawie nic to nie daje, bo ruch
+  zaburza też szukanie z daleka.
+- **Pamięć miejsc zakłada, że obiekty stoją.** Dron pamięta, gdzie już był i
+  co odrzucił. Ruchomy obiekt z tego miejsca odjeżdża, a inny może wjechać.
+  Szukając płytek, dron raz za razem lądował przy kuli, która jechała obok
+  płytki (stąd złe lądowania przy płytkach).
+
+Podążanie wzrokiem zostaje w kodzie jako wyłączona opcja.
+
+**Co dalej.**
+
+- Lekcje z ruchomymi obiektami, żeby mózg znał ich wygląd w ruchu.
+- Pamięć obiektów zamiast pamięci miejsc, czyli śledzenie, dokąd obiekt
+  pojechał.
+
 ## Co dalej
 
 - **Termowizja, ale z rozróżnieniem kolumn.** Gdyby obiekty i kolumny różniły

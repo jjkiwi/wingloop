@@ -400,6 +400,14 @@ LRF_BEAM, LRF_RANGE, LRF_NOISE = 2.0, 240.0, 0.01
 #: the floor is uneven by ``IR_CLUTTER``. 0 heat: thermally invisible.
 IR_FOV, IR_SIZE, IR_NETD = 60.0, 96, 0.05
 IR_HEAT, IR_CLUTTER = 1.5, 0.3
+#: Its near-infrared camera: black and white, with its own infrared lamp, as
+#: night-vision cameras have; it can stand in for the eye's camera
+#: (:attr:`FlysEye.nir`), the brain sees brightness either way. Everything
+#: looks as bright in it as in visible light -- an assumption -- except
+#: camouflage paint: matched to the floor for the eye, it matches it in near
+#: infrared only so well (1: as well; 0: not at all, the object shows its
+#: own colour). That is the slider, how good the paint is; this its default.
+NIR_MATCH = 0.5
 
 
 def _warm(things) -> list:
@@ -444,6 +452,10 @@ class FlysEye:
         self.image = np.zeros((64, 64), dtype=np.float32)
         self.activity = None
         self.pose = None  # where it looked from last: (position, body-to-world R)
+        #: Look through the near-infrared camera instead: how well camouflage
+        #: paint matches the floor in it, 0-1 (:data:`NIR_MATCH`). None: visible.
+        self.nir: float | None = None
+        self._moving = self._moving_things(items)
         # Each photoreceptor's line of sight in the body frame, and its
         # elevation above the horizon as of the last look.
         half = np.deg2rad(self.camera.fov) / 2
@@ -457,7 +469,19 @@ class FlysEye:
         from .scene import World
 
         self.world = World(_warm(self.background + eye_things(items)), ground_height=FLOOR)
+        self._moving = self._moving_things(items)
         self.eye.reset()
+
+    def _moving_things(self, items) -> list:
+        """The eye's solids for the items that move, each with its item."""
+        mine = self.world.things[len(self.background) :]
+        return [(thing, it) for thing, it in zip(mine, items, strict=True) if it.speed]
+
+    def move_to(self, t: float) -> None:
+        """Put the moving items where they are ``t`` seconds into the mission."""
+        for thing, it in self._moving:
+            x, y = it.at(t)
+            thing.position = np.array([x, y, thing.position[2]])
 
     def look(self, body) -> None:
         """Render the fly's view from where the physics has it, and step the optic lobe."""
@@ -469,7 +493,13 @@ class FlysEye:
         from .scene import render
 
         self.image = render(
-            self.world, position, None, self.camera, rotation_matrix=R, checker=20.0
+            self.world,
+            position,
+            None,
+            self.camera,
+            rotation_matrix=R,
+            checker=20.0,
+            match=1.0 if self.nir is None else self.nir,
         )
         self.pose = (np.asarray(position, dtype=float), np.asarray(R, dtype=float))
         self.activity = self.eye.step(self.image, frames=1)

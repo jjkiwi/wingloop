@@ -141,12 +141,16 @@ def render(
     *,
     rotation_matrix=None,
     checker: float = CHECKER,
+    match: float = 1.0,
 ) -> np.ndarray:
     """What the camera sees: a (size, size) image of brightness in [0, 1].
 
     ``attitude`` is (roll, pitch, yaw), radians, body to world; or pass the
     body-to-world ``rotation_matrix`` directly and ``attitude`` is ignored.
-    ``checker`` is the floor tile size in the world's own units.
+    ``checker`` is the floor tile size in the world's own units. ``match``:
+    how much of its camouflage a thing keeps in this camera's light -- 1 in
+    visible light, what it was painted for; less in near infrared, where
+    paint that matches the floor to the eye need not.
     """
     camera = camera or Camera()
     o = np.asarray(position, dtype=float)
@@ -172,10 +176,11 @@ def render(
             t = _box_hits(o, d, thing.position, thing.size)
         closer = t < depth
         shade = thing.brightness
-        if thing.camo > 0:
+        camo = thing.camo * match
+        if camo > 0:
             reach = np.where(np.isfinite(t), t, 0.0)
             px, py = o[0] + reach * d[..., 0], o[1] + reach * d[..., 1]
-            shade = (1 - thing.camo) * thing.brightness + thing.camo * _floor(px, py, checker)
+            shade = (1 - camo) * thing.brightness + camo * _floor(px, py, checker)
         image = np.where(closer, shade, image)
         depth = np.where(closer, t, depth)
     return image.astype(np.float32)

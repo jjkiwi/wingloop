@@ -12,7 +12,7 @@ from test_lab import needs_flyvis, needs_model_lab
 from wingloop.lab import arena
 from wingloop.lab.autopilot import POLISH, kind_of, map_image
 from wingloop.lab.learning import MushroomBody
-from wingloop.lab.navigate import Navigator, teach
+from wingloop.lab.navigate import Navigator, nearest, teach
 
 # ------------------------------------------------------------------- the arena
 
@@ -773,9 +773,14 @@ def test_in_the_camouflage_world_a_landscape_column_is_a_kind_to_avoid():
 
     items = (arena.Item("sphere", 60.0, 0.0), arena.Item("bar", -60.0, 0.0))
     pilot = SimpleNamespace(
-        items=items, targets={"sphere"}, landmarks=((0.0, 70.0),), punish=1.0
+        items=items,
+        targets={"sphere"},
+        landmarks=((0.0, 70.0),),
+        punish=1.0,
+        flight=SimpleNamespace(t=0.0),
     )
     pilot.nav = SimpleNamespace(visited=[(55.0, 0.0), (0.0, 65.0), (0.0, -40.0)])
+    pilot.landed = [nearest(items, x, y) for x, y in pilot.nav.visited]
     reward = autopilot.Autopilot.reward
     assert reward(pilot, 55.0, 0.0) > 0 > reward(pilot, 0.0, 65.0)
     assert reward(pilot, 0.0, -40.0) == 0.0  # nowhere in particular

@@ -566,3 +566,41 @@ def test_far_size_decides_what_is_worth_flying_to():
     assert nav._worth(disliked) and not nav._worth(liked)
     nav.far_veto = False
     assert nav._worth(liked)  # another size: the brain decides again
+
+
+def test_moving_objects_go_round_and_the_eye_follows():
+    """Moving objects keep their circle, the eye sees them where they are, the arena stays."""
+    from wingloop.lab import arena
+    from wingloop.lab.navigate import nearest
+    from wingloop.lab.watch import FlysEye
+
+    still, moving = arena.mission(3, per_kind=2), arena.mission(3, per_kind=2, moving=10.0)
+    assert [(it.x, it.y) for it in still] == [(it.x, it.y) for it in moving]
+    assert {np.sign(it.speed) for it in moving} == {-1.0, 1.0}
+    it = moving[0]
+    x, y = it.at(2.0)
+    r = np.hypot(it.x, it.y)
+    assert np.hypot(x, y) == pytest.approx(r)
+    assert np.hypot(x - it.x, y - it.y) == pytest.approx(20.0, rel=0.02)  # 2 s at 10 mm/s
+    assert nearest(moving, x, y, 2.0) == (it, pytest.approx(0.0, abs=1e-9))
+    eye = FlysEye(items=moving)
+    eye.move_to(2.0)
+    thing = eye.world.things[len(eye.background)]
+    assert np.allclose(thing.position[:2], (x, y))
+
+
+def test_near_infrared_camera_sees_through_paint_by_its_match():
+    """Through the NIR camera, camouflage counts only as much as the paint matches."""
+    from wingloop.lab import arena
+    from wingloop.lab.watch import FlysEye
+
+    heading = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    pictures = {}
+    for camo, nir in ((0.0, None), (1.0, None), (1.0, 0.0), (1.0, 1.0)):
+        eye = FlysEye(items=(arena.Item("bar", 0.0, 40.0, camo=camo),))
+        eye.nir = nir
+        eye.look_from(np.array([0.0, 0.0, 5.0]), heading)
+        pictures[camo, nir] = eye.image.copy()
+    assert np.array_equal(pictures[1.0, 0.0], pictures[0.0, None])  # paint not matched at all
+    assert np.array_equal(pictures[1.0, 1.0], pictures[1.0, None])  # matched as for the eye
+    assert not np.array_equal(pictures[1.0, None], pictures[0.0, None])
