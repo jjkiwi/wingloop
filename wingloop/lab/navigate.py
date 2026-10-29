@@ -57,6 +57,9 @@ class Sighting:
     size: float
     where: tuple  # the fly's own position when it saw it, mm
     features: np.ndarray = field(default=None, repr=False)  # what the mushroom body was shown
+    #: Is it the size of the target, as measured from where it was seen
+    #: (:attr:`Navigator.far_sizes`)? None: not measured.
+    fits: bool | None = None
 
 
 # --------------------------------------------------------------- teaching
@@ -358,6 +361,9 @@ class Navigator:
     #: And see by the depth camera what stands on the floor, as well as by
     #: eye: a camouflaged object below the horizon is invisible to the eye.
     depth_sight: bool = False
+    #: And by the thermal camera: what is warmer than the floor, however it
+    #: is painted (:meth:`~.watch.FlysEye.standing`).
+    warm_sight: bool = False
     size_bar: float | None = None
     #: A measure from further than this, mm, that is not its size does not
     #: turn the object down: from far the drone faces it only roughly, and
@@ -366,6 +372,24 @@ class Navigator:
     #: None: every measure counts.
     size_near: float | None = None
     size_recheck: bool = True
+    #: Measure what it sees while looking around, from far, by the thermal
+    #: camera and the laser rangefinder (:meth:`~.watch.FlysEye.measure_far`),
+    #: against ``far_sizes`` -- its target's size as measured that way. What
+    #: is another size it does not fly to; what is its size it flies to if the
+    #: brain likes it by more than ``far_bar``, which can be below zero.
+    far_sizes: dict | None = None
+    far_bar: float = 0.0
+    #: And what is measured another size from far it does not fly to even if
+    #: the brain likes it. False: the brain decides those, as without it.
+    far_veto: bool = True
+    #: Remember what it turned down where the laser rangefinder finds it, and
+    #: keep a narrow berth of it -- 12 mm, at least 8 degrees -- rather than
+    #: about 50 mm ahead with a wide one -- 30 mm, at least 25 degrees: a few
+    #: wide berths hide most of the panorama, and with it the targets beside
+    #: the columns it turned down.
+    ranged_rejects: bool = False
+    #: Every measure taken from far, and whether it fitted.
+    far_measured: list = field(default_factory=list)
     #: Every measure taken at a close look, and whether it fitted.
     measured: list = field(default_factory=list)
     #: Judge a close look against the others of the mission rather than
@@ -454,6 +478,7 @@ class Navigator:
         self._size = self._round_size = 0.0  # how big the target is in the eye: now, and then
         self.sideways = 0.0  # flying sideways, to the left: a roll read as a speed
         self._depth_noise = np.random.default_rng(0)
+        self._ranged = {}  # turned down where the rangefinder found it: (radius, cone)
         self.heading = 0.0
 
     def start(self, heading: float, home=(0.0, 0.0)) -> None:
@@ -478,11 +503,12 @@ class Navigator:
         from close by a wide one -- standing next to a visited object, most
         of what is around is that object.
         """
-        radii = [*self._radii, *([30.0] * len(self.rejected))]
-        for v, r in zip((*self.visited, *self.rejected), radii, strict=False):
+        places = [(v, r, 25.0) for v, r in zip(self.visited, self._radii, strict=False)]
+        places += [(v, *self._ranged.get(i, (30.0, 25.0))) for i, v in enumerate(self.rejected)]
+        for v, r, least in places:
             dx, dy = v[0] - here[0], v[1] - here[1]
             to = np.degrees(np.arctan2(dy, dx))
-            cone = max(25.0, np.degrees(np.arctan2(r, np.hypot(dx, dy))))
+            cone = max(least, np.degrees(np.arctan2(r, np.hypot(dx, dy))))
             if abs((to - heading_deg + 180) % 360 - 180) < cone:
                 return True
         return False
@@ -499,8 +525,10 @@ class Navigator:
             self._turning = (heading_now - self._last_heading) / dt
         self._last_heading = heading_now
         see = fly_eye.standing if self.skyline else fly_eye.eye.dark
-        if self.depth_sight:
-            see = functools.partial(fly_eye.standing, depth=True)
+        if self.depth_sight or self.warm_sight:
+            see = functools.partial(
+                fly_eye.standing, depth=self.depth_sight, warm=self.warm_sight
+            )
         if self.phase in ("approach", "around"):
             # Only what is where the target should be counts as the target --
             # going round it, nearer still: the landscape wheels past behind.
@@ -579,7 +607,13 @@ class Navigator:
             if self._fix >= self.fixate_time:
                 f = np.mean(self._fovea[len(self._fovea) // 2 :], axis=0)
                 v = float(self.mushroom_body.valence(f))
-                self.sightings.append(Sighting(heading_now + bearing_deg, v, size, here, f))
+                seen = Sighting(heading_now + bearing_deg, v, size, here, f)
+                if self.far_sizes is not None and fly_eye is not None:
+                    m = fly_eye.measure_far(self._depth_noise)
+                    if m is not None:
+                        seen.fits = self._fits(m, self.far_sizes)
+                    self.far_measured.append((m, seen.fits))
+                self.sightings.append(seen)
                 self.seen.append(self.sightings[-1])
                 self._fix, self._fovea = 0.0, []
                 self._refr = self.refractory
@@ -730,7 +764,14 @@ class Navigator:
             return 0.0, self.heading, self.height
         if v <= self._needed and not self.land_to_learn and not self._stands_out(v):
             h = np.deg2rad(self.heading)
-            self.rejected.append((here[0] + 50 * np.cos(h), here[1] + 50 * np.sin(h)))
+            ahead = 50.0
+            if self.ranged_rejects and fly_eye is not None:
+                r = fly_eye.laser_range(self._depth_noise)
+                if r < 150.0:
+                    # Where it is, not about where: a narrow berth will do.
+                    ahead = r + 5.0
+                    self._ranged[len(self.rejected)] = (12.0, 8.0)
+            self.rejected.append((here[0] + ahead * np.cos(h), here[1] + ahead * np.sin(h)))
             if self.relative:
                 self._judged.append([tuple(here), float(self.heading), v, False])
             self.inspections.append((v, False))
@@ -777,9 +818,15 @@ class Navigator:
         near = np.hypot(dx, dy) < 30
         return self.cruise_pitch * (0.5 if near else 1.0), self.heading, self.height
 
-    def _fits(self, m) -> bool:
-        """Is a depth camera's measure the size of what it is looking for?"""
-        size = self.sizes
+    def _worth(self, s) -> bool:
+        """Is a sighting worth flying to?"""
+        if s.fits is None or (s.fits is False and not self.far_veto):
+            return s.valence > 0
+        return s.fits and s.valence > self.far_bar
+
+    def _fits(self, m, size=None) -> bool:
+        """Is a measure the size of what it is looking for?"""
+        size = self.sizes if size is None else size
         lo, hi = size["height"]
         wlo, whi = size["width"]
         return lo <= m["height"] <= hi and wlo <= m["width"] <= whi and m["top"] == size["top"]
@@ -884,7 +931,7 @@ class Navigator:
         liked = [
             s
             for s in self.sightings
-            if s.valence > 0 and not self._already_visited(here, s.heading)
+            if self._worth(s) and not self._already_visited(here, s.heading)
         ]
         if liked:
             self._target = max(liked, key=lambda s: s.valence)
@@ -896,7 +943,10 @@ class Navigator:
         else:
             self._empty_looks += 1
             unvisited = [
-                s for s in self.sightings if not self._already_visited(here, s.heading)
+                s
+                for s in self.sightings
+                if (s.fits is not False or not self.far_veto)
+                and not self._already_visited(here, s.heading)
             ]
             if self._empty_looks < self.patience:
                 self._rescan()

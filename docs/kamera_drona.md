@@ -27,7 +27,7 @@ jaki czujnik widzi to, czego farba nie ukryje?
 | Wyższa rozdzielczość | ostrzejszy obraz tego samego wzoru | odłożona |
 | Zoom | węższe pole, każdy fotoreceptor ~1° zamiast ~4° | odłożony |
 | Kolor | w symulacji rozwiązuje kamuflaż „za darmo” | odrzucony |
-| Termowizja (IR pasywna) | temperatura obiektów | odrzucona |
+| Termowizja (IR pasywna) | temperatura obiektów | odrzucona; później dodana i zmierzona (niżej) |
 | Kamera głębi ToF (IR aktywna) | odległość, czyli rozmiar i kształt | **wybrana** |
 
 **Wyższa rozdzielczość.** Model płata wzrokowego ma stałe 721 wejść, bo tak
@@ -165,12 +165,96 @@ które obejrzałem, dron dobrze zmierzył słupek z odległości 58–78 mm, ale
 drodze do niego kurs przejęła bliższa kolumna. Wylądował 28 mm od kolumny i
 35–43 mm od słupka.
 
+## Termowizja i dalmierz laserowy (dodane później)
+
+Drony inspekcyjne często noszą razem kamerę termowizyjną i dalmierz laserowy
+(np. DJI Zenmuse H20T). Dodałem oba czujniki i sprawdziłem, czy pomagają.
+
+### Czujniki
+
+- **Dalmierz laserowy** (`FlysEye.laser_range`): jeden promień wzdłuż kursu,
+  wiązka 2°, zasięg 240 mm (12 m w prawdziwej skali), szum 1%. Na gimbalu,
+  czyli zawsze poziomo, niezależnie od przechyłu drona.
+- **Kamera termowizyjna** (`scene.thermal`): 96×96 pikseli na 60° (0,6° na
+  piksel), szum 0,05 K. Farby w niej nie ma, jest tylko temperatura.
+- **Założenie, którego symulacja nie sprawdzi:** każda bryła (obiekt albo
+  kolumna) jest średnio o `IR_HEAT` = 1,5 K cieplejsza od podłogi, każda z
+  osobna 0,6–1,4 raza tyle (materiał, słońce). Podłoga jest nierówna o
+  `IR_CLUTTER` = 0,3 K, a niebo zimne. To założenie korzystne dla
+  termowizji: obiekty są w niej wyraźnie widoczne. Przy 0 K czujnik nic nie
+  widzi i dron lata jak bez niego.
+- **Rozmiar z daleka** (`FlysEye.measure_far`): dalmierz daje odległość,
+  termowizja daje, ile stopni obiekt ma wysokości i szerokości. Razem to
+  milimetry, z trzy razy większej odległości niż kamera ToF (4 m). Dla
+  pojedynczej kuli wychodzi 23–24 mm wysokości z 50, 100 i 150 mm, z
+  kamuflażem i bez.
+
+### Gdzie dron gubił cele
+
+Zanim cokolwiek podłączyłem, sprawdziłem na arenach treningowych 6100–6111
+(pełny kamuflaż, 72 cele), gdzie dron gubi cele. Znalazł 43. Z 29
+zgubionych:
+
+- 22 nigdy nie zauważył, rozglądając się,
+- 5 zauważył, ale do nich nie podleciał,
+- 2 odrzucił po pomiarze z bliska.
+
+Termowizja powinna więc pomóc głównie w zauważaniu.
+
+### Co sprawdziłem
+
+Rozmiary z daleka (`autopilot.FAR_SIZES`) wyznaczyłem z 255 obserwacji
+podczas rozglądania się na arenach 6000–6039. Uczone na arenach parzystych
+i sprawdzone na nieparzystych: kolumny pasowały do rozmiaru kuli w 0 na 72 przypadki, do słupka w 0 na 72,
+do płytki w 7 na 72. Cele pasowały w 60–83% przypadków.
+
+Misje na arenach 6100–6111, pełny kamuflaż, 12 misji na cel. W komórkach:
+znalezione cele (z 72), złe lądowania, średni czas misji:
+
+| Wariant | Wynik |
+| --- | --- |
+| bez nowych czujników | **43, 0, 49 s** |
+| dalmierz: odrzucone miejsca zapamiętane dokładnie (`ranged_rejects`) | 46, 0, 68 s |
+| … i wykrywanie w termowizji (`warm_sight`) | 34, 0, 45 s |
+| … i rozmiar z daleka (`far_sizes`, próg −0,2) | 39, 0, 43 s |
+| … to samo, ale zły rozmiar z daleka nie skreśla (`far_veto=False`) | 38, 0, 50 s |
+| … i ląduje bez względu na mózg, gdy oba pomiary są zgodne | kule 14 z 24 (bez czujników 14) |
+
+Do tego dwie próby kontroli tuż przed lądowaniem (pomiar ToF z bliska, potem
+laser trafiający w zapamiętane miejsce). Obie przerywały dobre lądowania na
+kulach: z bliska kula wypełnia cały kadr albo laser trafia w kolumnę za nią.
+Usunąłem je z kodu.
+
+### Dlaczego to nie pomogło
+
+- **Kolumny też są ciepłe.** Termowizja widzi każdą bryłę, a kolumn jest
+  dużo. Dron częściej podlatuje do kolumn, a słupek w termowizji wygląda jak
+  kolumna (słupki: 8 z 24 zamiast 15).
+- **Cele stoją przy kolumnach.** 54% obiektów stoi bliżej niż 30 mm od
+  kolumny. W termowizji kula 6 mm od kolumny zlewa się z nią w jedną plamę.
+  Pomiar z daleka wychodzi wtedy „za wysoki” i prawdziwy cel zostaje
+  skreślony.
+- **Szerokie „zakazane stożki”.** Każde odrzucone miejsce zasłania co
+  najmniej 50° panoramy, więc kilka odrzuceń zasłania cele obok. Dalmierz
+  pozwala odrzucać dokładnie (wąski stożek) i daje +3 cele, ale misje
+  trwają o 40% dłużej, bo dron ma więcej miejsc do sprawdzenia.
+
+### Decyzja
+
+Czujniki są w kodzie, przetestowane i gotowe do włączenia (`warm_sight`,
+`far_sizes`, `ranged_rejects`), ale **domyślnie wyłączone**. Zmierzone w
+misjach nie znajdują więcej celów, mimo korzystnego dla termowizji założenia.
+Nie robiłem już kontroli na nowych arenach, bo żaden wariant nie wygrał na
+arenach treningowych.
+
 ## Co dalej
 
-- **Drugi pomiar tuż przed lądowaniem.** To bezpośrednia odpowiedź na
-  pozostałe złe lądowania: jeśli to, nad czym dron schodzi, nie ma rozmiaru
-  celu, przerywa lądowanie. Trzeba to sprawdzić na nowych arenach, nie na
-  212–223, które już posłużyły do kontroli.
+- **Termowizja, ale z rozróżnieniem kolumn.** Gdyby obiekty i kolumny różniły
+  się temperaturą (inny materiał), termowizja mogłaby je odróżniać. W tej
+  symulacji to byłoby jednak dopisanie odpowiedzi.
+- **Drugi pomiar tuż przed lądowaniem.** Wersje z kamerą ToF i z laserem
+  zawiodły (patrz wyżej). Do sprawdzenia zostaje pomiar w momencie, gdy obiekt
+  jest jeszcze 25–35 mm przed dronem, a nie gdy już wypełnia kadr.
 
 - **Zoom przy bliskim spojrzeniu.** Wymaga nagrania lekcji od nowa przy
   węższym polu widzenia. Bramka rozmiaru już usuwa złe lądowania, więc zoom

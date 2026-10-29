@@ -518,3 +518,51 @@ def test_depth_camera_measures_through_camouflage():
         rotation_matrix=down,
     )
     assert np.allclose(t, 17.0, atol=0.1)
+
+
+def test_thermal_camera_and_rangefinder_measure_from_far():
+    """Paint is not in a thermal picture, and with the rangefinder it gives sizes from far."""
+    from wingloop.lab import arena
+    from wingloop.lab.scene import Camera, thermal
+    from wingloop.lab.watch import LRF_RANGE, TOF_RANGE, FlysEye
+
+    eye = FlysEye(items=())
+    heading = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])  # facing +y
+    assert eye.measure_far() is None  # nothing looked at yet
+    far = 150.0
+    assert TOF_RANGE < far < LRF_RANGE
+    seen = {}
+    for kind in ("sphere", "slab", "bar"):
+        pictures, sizes = [], []
+        for camo in (0.0, 1.0):
+            eye.set_items((arena.Item(kind, 0.0, far, camo=camo),))
+            eye.pose = (np.array([0.0, 0.0, 5.0]), heading)
+            pictures.append(
+                thermal(eye.world, eye.pose[0], Camera(32, 60.0), rotation_matrix=heading)
+            )
+            sizes.append(eye.measure_far(np.random.default_rng(0)))
+        assert np.array_equal(pictures[0], pictures[1]) and sizes[0] == sizes[1]
+        assert abs(sizes[0]["distance"] - far) < 15 and eye.measure() is None  # beyond the ToF
+        seen[kind] = sizes[0]
+    # The ball and the slab stand as tall, the pole much taller; the slab is the widest.
+    assert abs(seen["sphere"]["height"] - seen["slab"]["height"]) < 4
+    assert seen["bar"]["height"] > seen["sphere"]["height"] + 10
+    assert seen["slab"]["width"] > seen["sphere"]["width"] + 8
+    # Nothing in the beam's way: no distance, and no measure.
+    eye.set_items(())
+    eye.pose = (np.array([0.0, 0.0, 5.0]), heading)
+    assert not np.isfinite(eye.laser_range()) and eye.measure_far() is None
+
+
+def test_far_size_decides_what_is_worth_flying_to():
+    """Measured from far, the target's size makes a sighting worth a look; another size not."""
+    from wingloop.lab.navigate import Navigator, Sighting
+
+    nav = Navigator(None)
+    liked, disliked = Sighting(0.0, 0.1, 0.01, (0, 0)), Sighting(0.0, -0.1, 0.01, (0, 0))
+    assert nav._worth(liked) and not nav._worth(disliked)  # not measured: the brain decides
+    nav.far_bar = -0.2
+    liked.fits, disliked.fits = False, True
+    assert nav._worth(disliked) and not nav._worth(liked)
+    nav.far_veto = False
+    assert nav._worth(liked)  # another size: the brain decides again

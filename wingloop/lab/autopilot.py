@@ -255,6 +255,17 @@ TARGET_SIZES = {
 #: checked on arenas 212-223, which chose nothing, 85 and 4 against 78 and 16.
 SIZE_BAR = -0.05
 SIZE_PATIENCE = 2
+#: The same sizes as its thermal camera and laser rangefinder measure them
+#: from where it looks around (:meth:`~.watch.FlysEye.measure_far`, for
+#: :attr:`~.navigate.Navigator.far_sizes`): 5th-95th percentile and 2 mm
+#: either side, of 57 sightings of targets in practice arenas 6000-6039.
+#: Measured in missions, they did not find more targets, and are not used
+#: (docs/kamera_drona.md).
+FAR_SIZES = {
+    "sphere": {"height": (21.0, 27.0), "width": (12.0, 17.0), "top": False},
+    "slab": {"height": (21.0, 32.0), "width": (19.0, 32.0), "top": False},
+    "bar": {"height": (37.0, 45.0), "width": (7.0, 12.0), "top": False},
+}
 
 
 def close_looks(camo: bool = False) -> int:

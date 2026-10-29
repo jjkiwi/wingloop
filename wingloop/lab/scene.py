@@ -35,6 +35,9 @@ class Thing:
     #: instead of its own brightness -- at 1 it is painted like the floor
     #: beneath it, tile for tile.
     camo: float = 0.0
+    #: How much warmer than the floor it is, kelvin, to a thermal camera
+    #: (:func:`thermal`). Paint that hides it from the eye does not change it.
+    heat: float = 0.0
 
     def __post_init__(self):
         self.position = np.asarray(self.position, dtype=float)
@@ -202,6 +205,71 @@ def depth(
             hit = _box_hits(o, d, thing.position, thing.size)
         t = np.minimum(t, hit)
     return t
+
+
+def thermal(
+    world: World,
+    position,
+    camera: Camera | None = None,
+    *,
+    rotation_matrix,
+    clutter: float = 0.0,
+    sky: float = -10.0,
+) -> np.ndarray:
+    """What a thermal camera sees: kelvin above the floor's mean, (size, size).
+
+    Each solid is its own :attr:`Thing.heat` warmer than the floor; the floor
+    is uneven by ``clutter`` kelvin (a smooth pattern fixed to the world,
+    as sun and shade and damp leave a real one); the clear sky is cold. The
+    checker painted on the floor and on camouflaged objects is not in it.
+    """
+    camera = camera or Camera()
+    d = camera.rays() @ np.asarray(rotation_matrix).T
+    return thermal_along(world, position, d, clutter=clutter, sky=sky)
+
+
+def thermal_along(world: World, position, d, *, clutter: float = 0.0, sky: float = -10.0):
+    """:func:`thermal` along any world-frame directions ``d`` (..., 3)."""
+    o = np.asarray(position, dtype=float)
+    image = np.full(d.shape[:-1], sky)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        tg = (world.ground_height - o[2]) / d[..., 2]
+    ground = (tg > 0) & np.isfinite(tg)
+    reach = np.where(ground, tg, 0.0)
+    gx, gy = o[0] + reach * d[..., 0], o[1] + reach * d[..., 1]
+    image = np.where(ground, clutter * _patches(gx, gy), image)
+    depth = np.where(ground, tg, np.inf)
+    for thing in world.things:
+        if thing.kind == "sphere":
+            t = _sphere_hits(o, d, thing.position, thing.size)
+        elif thing.kind == "bar":
+            t = _bar_hits(o, d, thing.position, thing.size, thing.height)
+        else:
+            t = _box_hits(o, d, thing.position, thing.size)
+        closer = t < depth
+        image = np.where(closer, thing.heat, image)
+        depth = np.where(closer, t, depth)
+    return image
+
+
+def _patches(x, y):
+    """A smooth pattern of unit spread, fixed to the world: patches some 20-60 units across."""
+    out = np.zeros_like(x)
+    for kx, ky, phase in _PATCHES:
+        out = out + np.sin(kx * x + ky * y + phase)
+    return out * np.sqrt(2.0 / len(_PATCHES))
+
+
+_rng = np.random.default_rng(1)
+_PATCHES = [
+    (k * np.cos(a), k * np.sin(a), p)
+    for k, a, p in zip(
+        2 * np.pi / _rng.uniform(20.0, 60.0, 12),
+        _rng.uniform(0, 2 * np.pi, 12),
+        _rng.uniform(0, 2 * np.pi, 12),
+        strict=True,
+    )
+]
 
 
 def _floor(x, y, checker: float):

@@ -744,8 +744,9 @@ of 144 against 78, and 4 wrong landings against 16, in 50-53 s a mission
 against 53-54. Not none, then: three of the four were on a pole's mission,
 and in the two looked at the pole was measured right, 58-78 mm off, and on
 the way in the drone came down by a column instead (28 mm from it, 35-43 mm
-from the pole). Measuring again before it lands is the next thing to try. Measured from far -- 50-75 mm --
-the depth camera is not always on the object: the drone faces it only
+from the pole).
+
+Measured from far -- 50-75 mm -- the depth camera is not always on the object: the drone faces it only
 roughly, and measures the column behind it (55 mm tall, 3 wide), which is
 what costs the slabs at half camouflage. Trusting only near measures gives
 those targets back, and three wrong landings with them (`size_near`); going
@@ -754,6 +755,38 @@ Seeing by depth (`depth_sight`) made the drone call missions done too soon.
 Both are left off. Of four ways to cut the object out of the depth picture,
 the one used -- what joins the middle within 15 mm of its depth -- told
 targets from the rest best.
+
+**A thermal camera and a laser rangefinder, added and measured, left off.**
+Inspection drones carry the two together. The rangefinder
+(`FlysEye.laser_range`) is one 2-degree beam along the heading, 240 mm of
+reach (12 m), 1% noise; the thermal camera (`scene.thermal`) is 96x96 pixels
+over 60 degrees, 0.05 K of noise, with no paint in its picture. What it sees
+is an assumption the simulation cannot check, chosen in its favour: every
+solid, object or column, 0.6-1.4 times 1.5 K warmer than a floor uneven by
+0.3 K (`watch.IR_HEAT`, `IR_CLUTTER`). Together they measure from where the
+drone looks around, three times as far as the depth camera reaches
+(`FlysEye.measure_far`): a lone ball 23-24 mm tall from 50, 100 and 150 mm,
+painted or not. Where the drone lost its targets first (practice arenas
+6100-6111, full camouflage, 43 of 72 found): 22 of the 29 lost it never
+sighted, 5 it saw and never went to, 2 it measured the wrong size. So,
+targets found, wrong landings, mean mission, on the same arenas:
+
+| | full camouflage (72 targets) |
+| --- | --- |
+| as it is | **43, 0, 49 s** |
+| rejects put where the rangefinder finds them, narrow berths (`ranged_rejects`) | 46, 0, 68 s |
+| ... and sighting by heat (`warm_sight`) | 34, 0, 45 s |
+| ... and the size from far (`far_sizes`, `autopilot.FAR_SIZES`) | 39, 0, 43 s |
+| ... not trusting a far measure of another size (`far_veto=False`) | 38, 0, 50 s |
+
+The columns are warm too, and a pole looks like one in a thermal picture (8
+poles of 24 found where 15 were); half the objects stand within 30 mm of a
+column, and a ball 6 mm from one is one warm patch with it, measured too
+tall. The narrow berths give three targets back at 40% longer missions. Two
+checks before landing -- the depth camera from close, then the rangefinder
+against where the close look had put the target -- turned down true balls
+(from that close a ball fills the view, or the beam passes it to the column
+behind) and were taken out. The sensors stay, tested, off by default.
 
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the

@@ -388,6 +388,38 @@ class Flight:
 #: degrees, a reach of 80 mm -- 4 m at the drone's scale, as small ToF depth
 #: cameras have -- and 1% of noise on each distance.
 TOF_FOV, TOF_SIZE, TOF_RANGE, TOF_NOISE = 70.0, 24, 80.0, 0.01
+#: Its laser rangefinder: one beam along the heading, 2 degrees wide, a reach
+#: of 240 mm -- 12 m at the drone's scale, as small lidar rangefinders have
+#: -- and 1% of noise.
+LRF_BEAM, LRF_RANGE, LRF_NOISE = 2.0, 240.0, 0.01
+#: And its thermal camera: 96 x 96 pixels over 60 degrees (0.6 degrees a
+#: pixel, as small uncooled cameras have), 0.05 K of noise. What it sees is
+#: an assumption the simulation cannot check, so it is a setting: every
+#: solid -- object or landscape column -- is ``IR_HEAT`` kelvin warmer than
+#: the floor on average, each its own 0.6-1.4 times that (material, sun);
+#: the floor is uneven by ``IR_CLUTTER``. 0 heat: thermally invisible.
+IR_FOV, IR_SIZE, IR_NETD = 60.0, 96, 0.05
+IR_HEAT, IR_CLUTTER = 1.5, 0.3
+
+
+def _warm(things) -> list:
+    """Give each solid its warmth, the same every time for the same solid."""
+    for t in things:
+        x, y = float(t.position[0]), float(t.position[1])
+        u = (np.sin(12.9898 * x + 78.233 * y) * 43758.5453) % 1.0
+        t.heat = IR_HEAT * (0.6 + 0.8 * u)
+    return things
+
+
+def _level(R) -> np.ndarray:
+    """The heading of a body-to-world rotation, without its roll and pitch.
+
+    The rangefinder and the thermal camera sit on a gimbal, as a drone's
+    payload does: they look along the heading, level, however the drone leans.
+    """
+    h = np.arctan2(R[1][0], R[0][0])
+    c, s = np.cos(h), np.sin(h)
+    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
 
 
 class FlysEye:
@@ -405,7 +437,7 @@ class FlysEye:
         from .arena import eye_things
 
         self.background = list(things)
-        self.world = World(things + eye_things(items), ground_height=FLOOR)
+        self.world = World(_warm(things + eye_things(items)), ground_height=FLOOR)
         self.camera = Camera(size=64, fov=120.0)
         self.eye = FlyEye(dt=every_ms / 1000.0)
         self.every_ms = every_ms
@@ -424,7 +456,7 @@ class FlysEye:
         from .arena import eye_things
         from .scene import World
 
-        self.world = World(self.background + eye_things(items), ground_height=FLOOR)
+        self.world = World(_warm(self.background + eye_things(items)), ground_height=FLOOR)
         self.eye.reset()
 
     def look(self, body) -> None:
@@ -467,6 +499,24 @@ class FlysEye:
                 hit = _box_hits(o, d, thing.position, thing.size)
             t = np.minimum(t, hit)
         return seen & (t <= TOF_RANGE)
+
+    def _warm_sight(self, rng=None) -> np.ndarray:
+        """Which photoreceptors look at something warmer than the floor, by thermal camera."""
+        from .scene import thermal_along
+
+        out = np.zeros(len(self.eye.column_x), dtype=bool)
+        if self.pose is None:
+            return out
+        o, R = self.pose
+        half = IR_FOV / 2
+        az = np.degrees(self.eye.column_x * np.deg2rad(self.camera.fov) / 2)
+        el = np.degrees(self.eye.column_y * np.deg2rad(self.camera.fov) / 2)
+        seen = (np.abs(az) < half) & (np.abs(el) < half)
+        d = (np.asarray(R) @ self._sight).T
+        t = thermal_along(self.world, o, d, clutter=IR_CLUTTER)
+        rng = rng if rng is not None else np.random.default_rng()
+        t = t + IR_NETD * rng.standard_normal(t.shape)
+        return seen & (t > max(3 * IR_CLUTTER, 5 * IR_NETD))
 
     def measure(self, rng=None) -> dict | None:
         """The thing straight ahead, by the depth camera: how far, how tall, how wide.
@@ -516,6 +566,64 @@ class FlysEye:
             top=bool(mine[0].any()),
         )
 
+    def laser_range(self, rng=None) -> float:
+        """How far the rangefinder's beam goes along the heading, mm; inf beyond its reach."""
+        from .scene import Camera, depth
+
+        if self.pose is None:
+            return np.inf
+        o, R = self.pose
+        rng = rng if rng is not None else np.random.default_rng()
+        t = depth(self.world, o, Camera(size=3, fov=LRF_BEAM), rotation_matrix=_level(R))
+        t = float(t.min()) * (1.0 + LRF_NOISE * rng.standard_normal())
+        return t if t <= LRF_RANGE else np.inf
+
+    def measure_far(self, rng=None) -> dict | None:
+        """The thing ahead, by the thermal camera and the rangefinder together.
+
+        The rangefinder gives how far it is; the thermal camera, how many
+        degrees tall and wide it is -- paint is not in a thermal picture; and
+        the two make millimetres, from further than the depth camera reaches.
+        The thing is what is warm where the beam points, with whatever joins
+        it at about the same warmth. Like :meth:`measure`, with ``top`` if it
+        reaches the top of the thermal camera's view. None if the beam finds
+        nothing, or the thermal camera sees nothing warmer than the floor there.
+        """
+        from scipy import ndimage
+
+        from .scene import Camera, thermal
+
+        d = self.laser_range(rng)
+        if not np.isfinite(d):
+            return None
+        o, R = self.pose
+        rng = rng if rng is not None else np.random.default_rng()
+        level = _level(R)
+        cam = Camera(size=IR_SIZE, fov=IR_FOV)
+        image = thermal(self.world, o, cam, rotation_matrix=level, clutter=IR_CLUTTER)
+        image = image + IR_NETD * rng.standard_normal(image.shape)
+        n = IR_SIZE
+        mid = (n - 1) // 2
+        warm = image > max(3 * IR_CLUTTER, 5 * IR_NETD)
+        block = warm[mid - 1 : mid + 2, mid - 1 : mid + 2]
+        if not block.any():
+            return None
+        rows, cols = np.nonzero(block)
+        seed = (mid - 1 + rows[0], mid - 1 + cols[0])
+        like = warm & (np.abs(image - image[seed]) < max(0.15 * image[seed], 3 * IR_NETD))
+        labels, _ = ndimage.label(like)
+        mine = labels == labels[seed]
+        step = np.deg2rad(IR_FOV) / (n - 1)
+        r, c = np.nonzero(mine)
+        top = np.deg2rad(IR_FOV) / 2 - r.min() * step  # elevation of its top edge
+        across = (c.max() - c.min() + 1) * step
+        return dict(
+            distance=d,
+            height=float(o[2] - FLOOR + d * np.tan(top)),
+            width=float(2 * d * np.tan(across / 2)),
+            top=bool(r.min() == 0),
+        )
+
     def standing(
         self,
         threshold: float = 0.25,
@@ -524,6 +632,7 @@ class FlysEye:
         sky: float = 0.78,
         margin: float = 3.0,
         depth: bool = False,
+        warm: bool = False,
     ) -> tuple[float, float]:
         """What stands up out of the world: (fraction of the eye, bearing).
 
@@ -539,12 +648,16 @@ class FlysEye:
         ``depth``: and what the depth camera finds standing on the floor, in
         its narrower view and within its reach -- below the horizon too, where
         a camouflaged object is floor against floor (:data:`TOF_RANGE`).
+        ``warm``: and what the thermal camera sees warmer than the floor, in
+        its view, however far (:data:`IR_HEAT`).
         """
         eye = self.eye
         pr = eye.photoreceptors
         hot = (pr < threshold) | ((pr < sky) & (self.elevation > margin))
         if depth:
             hot |= self._solid()
+        if warm:
+            hot |= self._warm_sight()
         if within < 1.0:
             hot &= np.abs(eye.column_x - centre) < within
         if not hot.any():
