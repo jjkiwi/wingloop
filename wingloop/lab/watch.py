@@ -578,6 +578,18 @@ class FlysEye:
         t = float(t.min()) * (1.0 + LRF_NOISE * rng.standard_normal())
         return t if t <= LRF_RANGE else np.inf
 
+    def thermal_view(self, rng=None) -> np.ndarray:
+        """The thermal camera's picture from the last look: kelvin above the floor."""
+        from .scene import Camera, thermal
+
+        if self.pose is None:
+            return np.zeros((IR_SIZE, IR_SIZE))
+        o, R = self.pose
+        rng = rng if rng is not None else np.random.default_rng()
+        cam = Camera(size=IR_SIZE, fov=IR_FOV)
+        image = thermal(self.world, o, cam, rotation_matrix=_level(R), clutter=IR_CLUTTER)
+        return image + IR_NETD * rng.standard_normal(image.shape)
+
     def measure_far(self, rng=None) -> dict | None:
         """The thing ahead, by the thermal camera and the rangefinder together.
 
@@ -591,17 +603,11 @@ class FlysEye:
         """
         from scipy import ndimage
 
-        from .scene import Camera, thermal
-
         d = self.laser_range(rng)
         if not np.isfinite(d):
             return None
-        o, R = self.pose
-        rng = rng if rng is not None else np.random.default_rng()
-        level = _level(R)
-        cam = Camera(size=IR_SIZE, fov=IR_FOV)
-        image = thermal(self.world, o, cam, rotation_matrix=level, clutter=IR_CLUTTER)
-        image = image + IR_NETD * rng.standard_normal(image.shape)
+        o, _ = self.pose
+        image = self.thermal_view(rng)
         n = IR_SIZE
         mid = (n - 1) // 2
         warm = image > max(3 * IR_CLUTTER, 5 * IR_NETD)

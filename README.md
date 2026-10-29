@@ -117,7 +117,9 @@ two of each, spread around the start.
 
 The brain page gains a section for it: the arena from above with the fly's
 track, what it has learned, each object it judged on its last look and what
-it is flying to now. `flylab video --cel kula` records a whole mission;
+it is flying to now. `flylab video --cel kula` records a whole mission
+(with `--dron --termowizja`, the drone's thermal camera and laser
+rangefinder in a corner as well -- what they see; it does not fly by them);
 `flylab cel kula --bez-okna` flies it without a window and prints the result.
 
 Measured, nine missions -- three arenas, each kind the target once, two of

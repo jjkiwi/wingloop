@@ -231,6 +231,7 @@ def cmd_video(args) -> dict:
             drone=args.dron,
             fast=args.szybko,
             camo=args.kamuflaz,
+            thermal=args.termowizja,
         )
     else:
         from .watch import video
@@ -457,6 +458,11 @@ def main(argv=None) -> None:
                 "--szybko",
                 action="store_true",
                 help="fast mode: a model of the fly fitted to the physics, eye at 20 ms",
+            )
+            s.add_argument(
+                "--termowizja",
+                action="store_true",
+                help="show the drone's thermal camera and laser rangefinder too",
             )
         if name == "trening":
             s.add_argument("target", nargs="*", default=["kula"], help="kula, płytka, słupek")

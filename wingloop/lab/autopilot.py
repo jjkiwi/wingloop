@@ -1139,11 +1139,14 @@ def video(
     drone: bool = False,
     fast: bool = False,
     camo: float | None = None,
+    thermal: bool = False,
 ) -> Path:
     """Record a whole mission: the chase view, with the map and the fly's eye beside it.
 
     ``frame_ms`` of flight per frame: 10 for the fly (slow motion, it is
-    quick), 33 for the drone (about real time).
+    quick), 33 for the drone (about real time). ``thermal``: and the drone's
+    thermal camera, with its laser rangefinder's reading, bottom left -- what
+    they see; the drone does not fly by them (docs/kamera_drona.md).
     """
     import imageio.v2 as imageio
 
@@ -1176,10 +1179,11 @@ def video(
             view.show(pilot.flight)
             view.chase(cam, pilot.flight.state()["heading"], distance=CHASE[drone])
             renderer.update_scene(view.data, camera=cam)
-            writer.append_data(_frame(renderer.render(), pilot, frame_ms, fps))
+            frame = _frame(renderer.render(), pilot, frame_ms, fps, thermal)
+            writer.append_data(frame)
             if pilot.done:
                 for _ in range(fps):  # hold the last frame a second
-                    writer.append_data(_frame(renderer.render(), pilot, frame_ms, fps))
+                    writer.append_data(frame)
                 break
     finally:
         writer.close()
@@ -1199,7 +1203,9 @@ def _font(size: int):
     return ImageFont.load_default(size=size)
 
 
-def _frame(scene: np.ndarray, pilot: Autopilot, frame_ms: float, fps: int) -> np.ndarray:
+def _frame(
+    scene: np.ndarray, pilot: Autopilot, frame_ms: float, fps: int, thermal: bool = False
+) -> np.ndarray:
     """The 3-D view with the map, the fly's eye and the mission state on top."""
     from PIL import Image, ImageDraw
 
@@ -1237,7 +1243,43 @@ def _frame(scene: np.ndarray, pilot: Autopilot, frame_ms: float, fps: int) -> np
     draw.text(
         (img.width - side - 10, 24 + 2 * side), "oko muchy", fill=(255, 255, 255), font=font
     )
+    if thermal:
+        _thermal_panel(img, draw, pilot.eye, side, font, pilot.flight.t)
     return np.asarray(img)
+
+
+#: A thermal camera's palette, cold to hot: black, purple, red, orange, yellow, white.
+IRONBOW = np.array(
+    [[0, 0, 0], [70, 0, 120], [170, 20, 110], [230, 90, 20], [250, 190, 30], [255, 255, 230]]
+)
+
+
+def _thermal_panel(img, draw, fly_eye, side: int, font, t: float) -> None:
+    """The thermal camera's picture, bottom left, with the rangefinder's beam and reading."""
+    from PIL import Image
+
+    from .watch import IR_HEAT
+
+    rng = np.random.default_rng(int(t * 1000))
+    k = fly_eye.thermal_view(rng)
+    # The floor's middle to the warmest solid: sky and floor dark, solids bright.
+    x = np.clip((k + 1.0) / (2.4 * IR_HEAT + 1.0), 0.0, 1.0) * (len(IRONBOW) - 1)
+    rgb = np.stack(
+        [np.interp(x, np.arange(len(IRONBOW)), IRONBOW[:, c]) for c in range(3)], axis=-1
+    )
+    panel = Image.fromarray(rgb.astype(np.uint8)).resize((side, side), Image.BILINEAR)
+    x0, y0 = 10, img.height - side - 10
+    img.paste(panel, (x0, y0))
+    cx, cy, r = x0 + side // 2, y0 + side // 2, max(4, side // 30)
+    draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(80, 255, 80), width=2)
+    d = fly_eye.laser_range(rng)
+    reading = f"{d:.0f} mm ({d / 20:.1f} m)" if np.isfinite(d) else "poza zasięgiem"
+    step = int(font.size * 1.3)
+    label = f"dalmierz: {reading}"
+    wide = max(side, int(draw.textlength(label, font=font)) + 12)
+    draw.rectangle((x0, y0 - 2 * step - 6, x0 + wide, y0), fill=(20, 20, 20))
+    draw.text((x0 + 6, y0 - 2 * step - 4), "termowizja", fill=(255, 255, 255), font=font)
+    draw.text((x0 + 6, y0 - step - 2), label, fill=(80, 255, 80), font=font)
 
 
 def map_image(status: dict, size: int = 200, extent: float = 110.0) -> np.ndarray:
