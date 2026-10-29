@@ -178,6 +178,32 @@ def render(
     return image.astype(np.float32)
 
 
+def depth(
+    world: World, position, camera: Camera | None = None, *, rotation_matrix
+) -> np.ndarray:
+    """How far each of the camera's rays goes before it hits something: (size, size).
+
+    The geometry :func:`render` shades, without the shading: what an active
+    infrared depth camera (time of flight) measures. Paint does not change it,
+    so a camouflaged object is as plain here as any other. ``inf`` for sky.
+    """
+    camera = camera or Camera()
+    o = np.asarray(position, dtype=float)
+    d = camera.rays() @ np.asarray(rotation_matrix).T
+    with np.errstate(divide="ignore", invalid="ignore"):
+        tg = (world.ground_height - o[2]) / d[..., 2]
+    t = np.where((tg > 0) & np.isfinite(tg), tg, np.inf)
+    for thing in world.things:
+        if thing.kind == "sphere":
+            hit = _sphere_hits(o, d, thing.position, thing.size)
+        elif thing.kind == "bar":
+            hit = _bar_hits(o, d, thing.position, thing.size, thing.height)
+        else:
+            hit = _box_hits(o, d, thing.position, thing.size)
+        t = np.minimum(t, hit)
+    return t
+
+
 def _floor(x, y, checker: float):
     """The ground's checker tone at these world coordinates."""
     tile = (np.floor(x / checker) + np.floor(y / checker)) % 2

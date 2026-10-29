@@ -384,6 +384,12 @@ class Flight:
         return abs(s["pitch"]) < 60 and abs(s["roll"]) < 60 and np.isfinite(s["z"])
 
 
+#: The drone's active-infrared depth camera (time of flight): rays over 70
+#: degrees, a reach of 80 mm -- 4 m at the drone's scale, as small ToF depth
+#: cameras have -- and 1% of noise on each distance.
+TOF_FOV, TOF_SIZE, TOF_RANGE, TOF_NOISE = 70.0, 24, 80.0, 0.01
+
+
 class FlysEye:
     """The arena as the fly sees it, and its optic lobe looking at it."""
 
@@ -405,6 +411,7 @@ class FlysEye:
         self.every_ms = every_ms
         self.image = np.zeros((64, 64), dtype=np.float32)
         self.activity = None
+        self.pose = None  # where it looked from last: (position, body-to-world R)
         # Each photoreceptor's line of sight in the body frame, and its
         # elevation above the horizon as of the last look.
         half = np.deg2rad(self.camera.fov) / 2
@@ -432,9 +439,82 @@ class FlysEye:
         self.image = render(
             self.world, position, None, self.camera, rotation_matrix=R, checker=20.0
         )
+        self.pose = (np.asarray(position, dtype=float), np.asarray(R, dtype=float))
         self.activity = self.eye.step(self.image, frames=1)
         up = (np.asarray(R) @ self._sight)[2]
         self.elevation = np.degrees(np.arcsin(np.clip(up, -1.0, 1.0)))
+
+    def _solid(self) -> np.ndarray:
+        """Which photoreceptors look at something standing, by the depth camera."""
+        from .scene import _bar_hits, _box_hits, _sphere_hits
+
+        out = np.zeros(len(self.eye.column_x), dtype=bool)
+        if self.pose is None:
+            return out
+        o, R = self.pose
+        half = TOF_FOV / 2
+        az = np.degrees(self.eye.column_x * np.deg2rad(self.camera.fov) / 2)
+        el = np.degrees(self.eye.column_y * np.deg2rad(self.camera.fov) / 2)
+        seen = (np.abs(az) < half) & (np.abs(el) < half)
+        d = (np.asarray(R) @ self._sight).T  # world directions
+        t = np.full(len(d), np.inf)
+        for thing in self.world.things:
+            if thing.kind == "sphere":
+                hit = _sphere_hits(o, d, thing.position, thing.size)
+            elif thing.kind == "bar":
+                hit = _bar_hits(o, d, thing.position, thing.size, thing.height)
+            else:
+                hit = _box_hits(o, d, thing.position, thing.size)
+            t = np.minimum(t, hit)
+        return seen & (t <= TOF_RANGE)
+
+    def measure(self, rng=None) -> dict | None:
+        """The thing straight ahead, by the depth camera: how far, how tall, how wide.
+
+        Distances, mm; ``height`` above the floor, and ``top`` if it reaches
+        the top of the depth camera's view -- taller than it can tell. The
+        thing is what is solid -- above the floor -- nearest the middle of the
+        view, with whatever joins it at about the same distance. None if
+        nothing solid is within reach.
+        """
+        from scipy import ndimage
+
+        from .scene import Camera, depth
+
+        if self.pose is None:
+            return None
+        o, R = self.pose
+        tof = Camera(size=TOF_SIZE, fov=TOF_FOV)
+        t = depth(self.world, o, tof, rotation_matrix=R)
+        rng = rng if rng is not None else np.random.default_rng()
+        t = t * (1.0 + TOF_NOISE * rng.standard_normal(t.shape))
+        t = np.where(t <= TOF_RANGE, t, np.inf)
+        d = tof.rays() @ R.T
+        reach = np.where(np.isfinite(t), t, 0.0)
+        p = o + reach[..., None] * d
+        floor = self.world.ground_height
+        solid = np.isfinite(t) & (p[..., 2] > floor + 1.5)
+        if not solid.any():
+            return None
+        n = TOF_SIZE
+        rows, cols = np.nonzero(solid)
+        near = np.hypot(rows - (n - 1) / 2, cols - (n - 1) / 2)
+        if near.min() > n / 6:
+            return None  # nothing solid near the middle
+        seed = (rows[near.argmin()], cols[near.argmin()])
+        band = solid & (np.abs(t - t[seed]) < 15.0)
+        labels, _ = ndimage.label(band)
+        mine = labels == labels[seed]
+        pts = p[mine]
+        ahead = np.array([R[0, 0], R[1, 0]])
+        ahead /= np.linalg.norm(ahead) + 1e-9
+        side = pts[:, 0] * -ahead[1] + pts[:, 1] * ahead[0]
+        return dict(
+            distance=float(t[seed]),
+            height=float(pts[:, 2].max() - floor),
+            width=float(side.max() - side.min()),
+            top=bool(mine[0].any()),
+        )
 
     def standing(
         self,
@@ -443,6 +523,7 @@ class FlysEye:
         centre: float = 0.0,
         sky: float = 0.78,
         margin: float = 3.0,
+        depth: bool = False,
     ) -> tuple[float, float]:
         """What stands up out of the world: (fraction of the eye, bearing).
 
@@ -454,10 +535,16 @@ class FlysEye:
         floor's checker, an object is no longer dark, but what of it stands
         above the horizon still blots out the sky -- as does every landmark
         column.
+
+        ``depth``: and what the depth camera finds standing on the floor, in
+        its narrower view and within its reach -- below the horizon too, where
+        a camouflaged object is floor against floor (:data:`TOF_RANGE`).
         """
         eye = self.eye
         pr = eye.photoreceptors
         hot = (pr < threshold) | ((pr < sky) & (self.elevation > margin))
+        if depth:
+            hot |= self._solid()
         if within < 1.0:
             hot &= np.abs(eye.column_x - centre) < within
         if not hot.any():

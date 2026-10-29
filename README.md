@@ -687,6 +687,66 @@ around at 240 deg/s already; one empty look instead of two (`FLY_PACE`) took
 its missions on the same new arenas from 25.7 s to 22.8, 69 targets of 72
 found either way, 4 wrong landings against 5.
 
+**The drone's own camera: depth, not a sharper picture**
+(`docs/kamera_drona.md`, in Polish). The brain sees through a fly's eye --
+721 photoreceptors, 4 degrees apart, brightness only -- but a drone's camera
+need not be a fly's. What was weighed:
+
+- *More pixels, or a zoom.* The optic lobe takes 721 inputs, so more pixels
+  can only be spent by spreading them over less of the world -- a zoom for
+  the close look. Every lesson (900 close looks, 712 mission looks) was
+  flown at 120 degrees and would be flown again, and a finer grid of the
+  eye's middle (3x3, 5x5 instead of five regions) had told targets apart no
+  better: under camouflage a sharper picture is a sharper picture of the
+  floor's checks. Left for later.
+- *Colour.* The camouflage here is brightness only, so a colour camera would
+  undo it for nothing -- an artefact of the simulation, since real
+  camouflage matches colour too. Left out.
+- *Thermal infrared.* The simulation has no temperatures; any result would be
+  whatever temperatures were written in. Left out.
+- *A time-of-flight depth camera* (active infrared, the VL53L5CX / Arducam
+  ToF class): it measures how far each ray goes, so how tall and how wide
+  the thing in front is. Paint does not change that. Chosen.
+
+`scene.depth` casts the camera's rays against the same solids the picture
+is rendered from; `FlysEye.measure` is the depth camera -- 70 degrees, 24x24
+rays, 80 mm of reach (4 m at the drone's scale), 1% noise -- and returns the
+distance, height and width of what is solid nearest the middle of its view.
+At a close look in a camouflage mission the drone measures what it is
+looking at, turns down whatever is not its target's size however much the
+brain likes it, and lands on what is its target's size if the brain likes
+it by more than -0.05 (`Navigator.sizes`, `size_bar`). The sizes
+(`autopilot.TARGET_SIZES`) were learned from 271 measured close looks in
+practice missions (arenas 6000-6039): the ball 21-26 mm tall and 8-16 mm
+wide, the slab as tall and 22-34 mm wide, the pole 35-42 mm tall and 3-11 mm
+wide; the columns, taller than the camera sees, fit none. Judged on those
+looks, the brain alone would have landed on 25 non-targets for 62 targets,
+the brain and the size on 4 for 58.
+
+In missions on the new arenas 200-211, targets found, wrong landings, mean
+mission:
+
+| | full camouflage (72 targets) | half camouflage (72 targets) |
+| --- | --- | --- |
+| no depth camera | 33, 6, 49 s | 50, 4, 46 s |
+| turning down the wrong size | 29, 0, 42 s | 40, 0, 41 s |
+| ... and landing on the right size from -0.05 | 40, 0, 42 s | 41, 0, 40 s |
+| ... and two empty looks before it is done | **43, 0, 46 s** | **44, 0, 43 s** |
+| a far measure that does not fit is not trusted | 45, 3, 52 s | 48, 3, 50 s |
+| seeing by depth as well as by eye | 21, 0, 26 s | -- |
+
+The drone now flies the fourth row: 87 targets of 144 against 83, and no
+wrong landing in 72 missions against 10. Measured from far -- 50-75 mm --
+the depth camera is not always on the object: the drone faces it only
+roughly, and measures the column behind it (55 mm tall, 3 wide), which is
+what costs the slabs at half camouflage. Trusting only near measures gives
+those targets back, and three wrong landings with them (`size_near`); going
+closer to measure again found no more and made missions slower (60 s).
+Seeing by depth (`depth_sight`) made the drone call missions done too soon.
+Both are left off. Of four ways to cut the object out of the depth picture,
+the one used -- what joins the middle within 15 mm of its depth -- told
+targets from the rest best.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight

@@ -30,6 +30,7 @@ integration -- and looks from there before it calls the mission done.
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -347,6 +348,26 @@ class Navigator:
     #: peering harder made the ball worse: kept off. 0: look hovering still.
     peer: float = 0.0
     peer_time: float = 0.4
+    #: The size of what it is looking for, as its depth camera measures it
+    #: (:meth:`~.watch.FlysEye.measure`): ``{"height": (lo, hi), "width": (lo,
+    #: hi), "top": bool}``, mm. A close look at something measured another
+    #: size is turned down, however it looks; and something its size is
+    #: landed on if the close look likes it by ``size_bar`` -- which can be
+    #: below zero. None: no depth camera.
+    sizes: dict | None = None
+    #: And see by the depth camera what stands on the floor, as well as by
+    #: eye: a camouflaged object below the horizon is invisible to the eye.
+    depth_sight: bool = False
+    size_bar: float | None = None
+    #: A measure from further than this, mm, that is not its size does not
+    #: turn the object down: from far the drone faces it only roughly, and
+    #: the depth camera measures a column behind it or beside it. It looks
+    #: again from closer (``size_recheck``), or goes by the brain alone.
+    #: None: every measure counts.
+    size_near: float | None = None
+    size_recheck: bool = True
+    #: Every measure taken at a close look, and whether it fitted.
+    measured: list = field(default_factory=list)
     #: Judge a close look against the others of the mission rather than
     #: against zero: land when it is liked by more than ``relative`` above
     #: the middle (median) of the close looks it has turned down so far --
@@ -432,6 +453,7 @@ class Navigator:
         self._round_from = 0.0  # its heading when it set off round the object
         self._size = self._round_size = 0.0  # how big the target is in the eye: now, and then
         self.sideways = 0.0  # flying sideways, to the left: a roll read as a speed
+        self._depth_noise = np.random.default_rng(0)
         self.heading = 0.0
 
     def start(self, heading: float, home=(0.0, 0.0)) -> None:
@@ -477,6 +499,8 @@ class Navigator:
             self._turning = (heading_now - self._last_heading) / dt
         self._last_heading = heading_now
         see = fly_eye.standing if self.skyline else fly_eye.eye.dark
+        if self.depth_sight:
+            see = functools.partial(fly_eye.standing, depth=True)
         if self.phase in ("approach", "around"):
             # Only what is where the target should be counts as the target --
             # going round it, nearer still: the landscape wheels past behind.
@@ -679,6 +703,26 @@ class Navigator:
                 return 0.0, self.heading, self.height
             v = float(np.mean(self._views))
             self._target.valence = v
+        if self.sizes is not None and fly_eye is not None and not self.land_to_learn:
+            m = fly_eye.measure(self._depth_noise)
+            if m is not None:
+                fits = self._fits(m)
+                self.measured.append((m, fits))
+                far = self.size_near is not None and m["distance"] > self.size_near
+                if (
+                    not fits
+                    and far
+                    and self.size_recheck
+                    and not self._closer
+                    and self.looks == 1
+                ):
+                    self._closer, self._inspected, self._since = True, False, 0.0
+                    return 0.0, self.heading, self.height
+                if not fits and not far:
+                    # Not the size of what it looks for: turned down.
+                    self._needed = np.inf
+                elif fits and self.size_bar is not None:
+                    self._needed = min(self._needed, self.size_bar)
         unsure = self._needed - self.unsure < v <= self._needed
         if unsure and not self._closer and not self.land_to_learn and self.looks == 1:
             # Not sure, and still far: go closer and look again.
@@ -732,6 +776,13 @@ class Navigator:
             return 0.0, self.heading, self.height
         near = np.hypot(dx, dy) < 30
         return self.cruise_pitch * (0.5 if near else 1.0), self.heading, self.height
+
+    def _fits(self, m) -> bool:
+        """Is a depth camera's measure the size of what it is looking for?"""
+        size = self.sizes
+        lo, hi = size["height"]
+        wlo, whi = size["width"]
+        return lo <= m["height"] <= hi and wlo <= m["width"] <= whi and m["top"] == size["top"]
 
     def _round_to(self, heading_now) -> None:
         """Set off round the object it is facing, to look at it from another side."""

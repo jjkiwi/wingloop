@@ -479,3 +479,42 @@ def test_the_brain_page_is_served_with_live_state():
         assert -1 <= snap["bars"]["wing: rotation phase L-R"] <= 1
     finally:
         live.close()
+
+
+def test_depth_camera_measures_through_camouflage():
+    """The depth camera sees an object's size, whatever it is painted like."""
+    from wingloop.lab import arena
+    from wingloop.lab.autopilot import TARGET_SIZES
+    from wingloop.lab.navigate import Navigator
+    from wingloop.lab.scene import depth
+    from wingloop.lab.watch import FlysEye
+
+    eye = FlysEye(items=())
+    heading = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])  # facing +y
+    assert eye.measure() is None  # nothing looked at yet
+    nav = Navigator(None)
+    for kind in ("sphere", "slab", "bar"):
+        sizes = []
+        for camo in (0.0, 1.0):
+            eye.set_items((arena.Item(kind, 0.0, 50.0, camo=camo),))
+            eye.pose = (np.array([0.0, 0.0, 5.0]), heading)
+            sizes.append(eye.measure(np.random.default_rng(0)))
+        assert sizes[0] == sizes[1]
+        m = sizes[0]
+        assert 30 < m["distance"] < 50 and not m["top"]
+        # Each fits its own size, and no other's.
+        for other, size in TARGET_SIZES.items():
+            nav.sizes = size
+            assert nav._fits(m) == (other == kind), (kind, other, m)
+    # Straight down from 17 mm above the floor, the floor is 17 mm away.
+    down = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]])
+    eye.set_items(())
+    from wingloop.lab.scene import Camera
+
+    t = depth(
+        eye.world,
+        (0.0, 0.0, eye.world.ground_height + 17.0),
+        Camera(size=3, fov=1.0),
+        rotation_matrix=down,
+    )
+    assert np.allclose(t, 17.0, atol=0.1)

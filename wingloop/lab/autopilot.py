@@ -231,6 +231,29 @@ AROUND = 45.0
 #: seconds: 0 looks hovering still.
 CAMO_PEER = 0.0
 CAMO_PEER_TIME = 0.4
+#: The drone's depth camera (:meth:`~.watch.FlysEye.measure`, an active-IR
+#: time-of-flight camera) measures what it looks at closely, and in the
+#: camouflage world it lands only on something its target's size: paint
+#: hides an object from the eye, not its height and width. The sizes, mm,
+#: as measured on 271 close looks of missions in practice arenas 6000-6039
+#: (5th-95th percentile, outliers more than 10 mm off the median left out --
+#: a column behind the object, measured with it -- and 2 mm either side).
+#: The ball and the slab stand as tall, and the slab is twice as wide.
+TARGET_SIZES = {
+    "sphere": {"height": (21.0, 26.0), "width": (8.0, 16.0), "top": False},
+    "slab": {"height": (20.0, 25.0), "width": (22.0, 34.0), "top": False},
+    "bar": {"height": (35.0, 42.0), "width": (3.0, 11.0), "top": False},
+}
+#: And it lands on what is its target's size if the close look likes it by
+#: more than ``SIZE_BAR`` -- a little below zero: the size has ruled out the
+#: columns the brain likes, and at full camouflage the brain likes the
+#: targets only just. Turning down what is the wrong size makes a look
+#: cheap, and it gives up after two empty looks around rather than one
+#: (``SIZE_PATIENCE``). On the new arenas 200-211, at full and at half
+#: camouflage, 87 targets of 144 found and none landed on wrongly, against
+#: 83 and 10 without the depth camera (the README has the variants tried).
+SIZE_BAR = -0.05
+SIZE_PATIENCE = 2
 
 
 def close_looks(camo: bool = False) -> int:
@@ -1037,7 +1060,9 @@ def _pilot(
     look is as good as a practised one's.
 
     ``camo``: it also sees what breaks the skyline, and the landscape's
-    columns are things it can wrongly land on. ``pace``: the drone at its
+    columns are things it can wrongly land on; and the drone on a mission
+    measures what it looks at closely with its depth camera, and lands only
+    on what is its target's size (:data:`TARGET_SIZES`). ``pace``: the drone at its
     mission pace (:data:`~.dronebrain.PACE`, :data:`FLY_PACE`); False for the lessons, flown at
     the pace they were first flown at.
     """
@@ -1052,6 +1077,10 @@ def _pilot(
             expert.update(
                 looks=CAMO_LOOKS, around=AROUND, peer=CAMO_PEER, peer_time=CAMO_PEER_TIME
             )
+            if pace and len(targets) == 1:
+                (target,) = targets
+                size = TARGET_SIZES[kind_of(target)]
+                expert.update(sizes=size, size_bar=SIZE_BAR, patience=SIZE_PATIENCE)
     if not drone:
         if pace:
             expert.update(FLY_PACE)
