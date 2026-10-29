@@ -736,7 +736,15 @@ mission:
 | seeing by depth as well as by eye | 21, 0, 26 s | -- |
 
 The drone now flies the fourth row: 87 targets of 144 against 83, and no
-wrong landing in 72 missions against 10. Measured from far -- 50-75 mm --
+wrong landing in 72 missions against 10. The variants were chosen on those
+arenas, so it was checked once more on twelve that chose nothing (212-223):
+at full camouflage 42 targets of 72 and 3 wrong landings, against 31 and 5
+without the depth camera; at half, 43 and 1 against 47 and 11 -- 85 targets
+of 144 against 78, and 4 wrong landings against 16, in 50-53 s a mission
+against 53-54. Not none, then: three of the four were on a pole's mission,
+and in the two looked at the pole was measured right, 58-78 mm off, and on
+the way in the drone came down by a column instead (28 mm from it, 35-43 mm
+from the pole). Measuring again before it lands is the next thing to try. Measured from far -- 50-75 mm --
 the depth camera is not always on the object: the drone faces it only
 roughly, and measures the column behind it (55 mm tall, 3 wide), which is
 what costs the slabs at half camouflage. Trusting only near measures gives

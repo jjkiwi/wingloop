@@ -251,7 +251,8 @@ TARGET_SIZES = {
 #: cheap, and it gives up after two empty looks around rather than one
 #: (``SIZE_PATIENCE``). On the new arenas 200-211, at full and at half
 #: camouflage, 87 targets of 144 found and none landed on wrongly, against
-#: 83 and 10 without the depth camera (the README has the variants tried).
+#: 83 and 10 without the depth camera (the README has the variants tried);
+#: checked on arenas 212-223, which chose nothing, 85 and 4 against 78 and 16.
 SIZE_BAR = -0.05
 SIZE_PATIENCE = 2
 

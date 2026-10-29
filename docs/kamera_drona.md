@@ -152,9 +152,25 @@ Dlaczego tak:
 sprawdziłem jeszcze raz na arenach 212–223, których nie użyłem do żadnego
 wyboru (wynik poniżej).
 
-SPRAWDZENIE
+Areny 212–223, wybrany wariant kontra dron bez kamery głębi:
+
+| | Pełny kamuflaż | Połowiczny kamuflaż | Razem |
+| --- | --- | --- | --- |
+| bez kamery głębi | 31, 5, 54 s | 47, 11, 53 s | 78 ze 144, 16 złych lądowań |
+| z kamerą głębi | 42, 3, 53 s | 43, 1, 50 s | **85 ze 144, 4 złe lądowania** |
+
+Wynik się potwierdził: więcej celów i cztery razy mniej złych lądowań. Nie
+jest to jednak zero. Trzy z czterech złych lądowań to misje słupka. W dwóch,
+które obejrzałem, dron dobrze zmierzył słupek z odległości 58–78 mm, ale w
+drodze do niego kurs przejęła bliższa kolumna. Wylądował 28 mm od kolumny i
+35–43 mm od słupka.
 
 ## Co dalej
+
+- **Drugi pomiar tuż przed lądowaniem.** To bezpośrednia odpowiedź na
+  pozostałe złe lądowania: jeśli to, nad czym dron schodzi, nie ma rozmiaru
+  celu, przerywa lądowanie. Trzeba to sprawdzić na nowych arenach, nie na
+  212–223, które już posłużyły do kontroli.
 
 - **Zoom przy bliskim spojrzeniu.** Wymaga nagrania lekcji od nowa przy
   węższym polu widzenia. Bramka rozmiaru już usuwa złe lądowania, więc zoom
