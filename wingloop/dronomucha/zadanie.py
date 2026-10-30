@@ -35,6 +35,9 @@ class Zadanie:
     navigator's settings this task flies with instead of the drone's own
     (:class:`~wingloop.lab.navigate.Navigator`'s fields). ``ground_c``: the
     ground's temperature, C, for a thermal camera's screen (:mod:`.termo`).
+    ``mapa``: the task's search map (:class:`~.mapa.Mapa`'s settings) --
+    where its target is likely to be, and how far a look finds it -- for a
+    drone flying with one (:attr:`~.dodatki.Dodatki.mapa`).
     """
 
     name: str
@@ -51,6 +54,7 @@ class Zadanie:
     pattern: tuple = ()
     nawigacja: dict = field(default_factory=dict)
     ground_c: float = 0.0
+    mapa: dict = field(default_factory=dict)
     about: str = ""
 
 

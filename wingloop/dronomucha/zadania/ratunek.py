@@ -130,6 +130,8 @@ MORZE = dodaj(
         # passes under. It has arrived at 4.5%.
         nawigacja=dict(arrive_size=0.045),
         ground_c=12.0,
+        # Flat on the water a person is seen from less far than on snow.
+        mapa=dict(wykrycie=50.0),
         about="Rozbitek w kamizelce na wodzie; mylące: foki, dryfujące śmieci.",
     )
 )

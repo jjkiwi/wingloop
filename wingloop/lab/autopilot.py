@@ -274,14 +274,18 @@ def close_looks(camo: bool = False) -> int:
 
 
 class _Looker:
-    """A mushroom body that likes everything, and keeps the views of its close looks."""
+    """A mushroom body that likes everything, and keeps the views of its close looks
+    -- and, given ``senses`` and the eye, what the other sensors read at each."""
 
-    def __init__(self):
-        self.nav, self.views = None, []
+    def __init__(self, senses=None, eye=None):
+        self.nav, self.views, self.read = None, [], []
+        self.senses, self.eye = senses, eye
 
     def valence(self, f) -> float:
         if self.nav.phase == "approach":
             self.views.append(np.asarray(f, dtype=np.float32))
+            if self.senses is not None:
+                self.read.append(self.senses(self.eye))
         return 0.5
 
     def learn(self, f, dopamine) -> None:
@@ -295,7 +299,15 @@ def close_part(fly_eye, kinds, seed, j, samples, **kw):
 
 
 def flown_close_looks(
-    fly_eye, kinds, samples, seed=0, drone=False, progress=None, tries=20.0, camo=False
+    fly_eye,
+    kinds,
+    samples,
+    seed=0,
+    drone=False,
+    progress=None,
+    tries=20.0,
+    camo=False,
+    senses=None,
 ):
     """The close-look lesson flown, not replayed: (features, kinds).
 
@@ -319,12 +331,15 @@ def flown_close_looks(
     :data:`CAMO_LOOKS` looks from different sides a lesson -- taught on its
     first looks only, its later ones were judged far worse (a ball's second,
     AUC 0.46 against 0.81).
+
+    ``senses``: a function of the eye, what the drone's other sensors read at
+    each close look; then (features, kinds, readings) is returned.
     """
     from .navigate import Sighting
 
     rng = np.random.default_rng(seed)
     world = fly_eye.world
-    F, K = [], []
+    F, K, S = [], [], []
     i = 0
     while len(F) < samples:
         kind = kinds[i % len(kinds)]
@@ -347,7 +362,7 @@ def flown_close_looks(
             ox, oy = round(r * np.cos(b), 1), round(r * np.sin(b), 1)
             items.append(arena.Item(str(other), ox, oy, camo=painted(rng, camo)))
         fly_eye.set_items(tuple(items))
-        looker = _Looker()
+        looker = _Looker(senses, fly_eye)
         pilot = _pilot(
             items, looker, fly_eye, {}, {kind}, drone, fast=True, camo=camo, pace=False
         )
@@ -369,10 +384,13 @@ def flown_close_looks(
         new = looker.views[:looks]
         F += new
         K += [kind] * len(new)
+        S += looker.read[:looks]
         if progress and new and len(F) // 30 > (len(F) - len(new)) // 30:
             progress(f"  obejrzała z bliska {len(F)} z {samples}")
     fly_eye.world = world
     fly_eye.eye.reset()
+    if senses is not None:
+        return np.asarray(F)[:samples], np.asarray(K)[:samples], np.asarray(S)[:samples]
     return np.asarray(F)[:samples], np.asarray(K)[:samples]
 
 
@@ -789,7 +807,11 @@ class Autopilot:
         reached = self.reached()
         now = None
         if self.eye.activity is not None:
-            now = float(nav.mushroom_body.valence(self.eye.eye.fovea_shape(self.eye.activity)))
+            # A brain that does something when it judges -- asks someone,
+            # remembers -- can be looked at without it (``peek``).
+            mb = nav.mushroom_body
+            judge = getattr(mb, "peek", mb.valence)
+            now = float(judge(self.eye.eye.fovea_shape(self.eye.activity)))
         target = nav.target
         return {
             "who": self.who,

@@ -203,14 +203,23 @@ def klatka(seen, p, z: Zadanie, size, font, small) -> np.ndarray:
 
 
 def film_termo(
-    z: Zadanie, path, seed: int = 0, size=(1280, 720), progress=print, seconds=None
+    z: Zadanie,
+    path,
+    seed: int = 0,
+    size=(1280, 720),
+    progress=print,
+    seconds=None,
+    dodatki=None,
 ) -> Path:
-    """Record one search, the thermal camera full screen."""
+    """Record one search, the thermal camera full screen, with ``dodatki``."""
     import imageio.v2 as imageio
 
+    from .dodatki import MUCHA
+
+    dodatki = dodatki or MUCHA
     fly_eye = oko(z)
-    mb, valence = mozg(fly_eye, z, progress=progress)
-    p = pilot(fly_eye, mb, valence, z, obszar(z, seed))
+    mb, valence = mozg(fly_eye, z, progress=progress, dodatki=dodatki)
+    p = pilot(fly_eye, mb, valence, z, obszar(z, seed), dodatki)
     seconds = seconds or autopilot.MISSION_S[True]
     rays = promienie()
     noise = np.random.default_rng(seed)

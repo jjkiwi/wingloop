@@ -90,8 +90,14 @@ def tethered_training(
     hold: float = 0.12,
     lead=(120.0, 180.0),
     camo: bool = False,
+    senses=None,
 ):
     """Show the tethered fly each kind of object; return (features, kinds).
+
+    ``senses``: a function of the eye, called at the end of each view with
+    the eye's world and pose set to the view's -- what the drone's other
+    sensors read there (:mod:`wingloop.dronomucha.zmysly`); then (features,
+    kinds, readings) is returned.
 
     ``camo``: every object painted in the floor's checker by a random amount
     (:attr:`~.arena.Item.camo`); and ``kinds`` may include :data:`LANDMARK`,
@@ -129,7 +135,8 @@ def tethered_training(
     rng = np.random.default_rng(seed)
     background = list(fly_eye.background)
     dt = fly_eye.every_ms / 1000.0
-    feats, labels = [], []
+    feats, labels, read = [], [], []
+    home = fly_eye.world, fly_eye.pose
     for i in range(samples):
         kind = kinds[i % len(kinds)]
         d = rng.uniform(*distance)
@@ -177,8 +184,14 @@ def tethered_training(
                 fovea.append(fly_eye.eye.fovea_shape(activity))
         feats.append(np.mean(fovea, axis=0))
         labels.append(kind)
+        if senses is not None:
+            fly_eye.world, fly_eye.pose = world, (eye_pos, rotation(0.0, 0.0, h))
+            read.append(senses(fly_eye))
         if progress and (i + 1) % 10 == 0:
             progress(f"  obejrzała {i + 1} z {samples}")
+    if senses is not None:
+        fly_eye.world, fly_eye.pose = home
+        return np.asarray(feats), np.asarray(labels), np.asarray(read)
     return np.asarray(feats), np.asarray(labels)
 
 
@@ -442,6 +455,16 @@ class Navigator:
     #: around there too: a search pattern, as rescue services fly, for what
     #: is too small to be seen from any one place. Empty: none.
     pattern: tuple = ()
+    #: Or ask a planner where to look around next: ``planner(navigator,
+    #: here)`` -> a place, mm, or None when there is nowhere left worth
+    #: going; it takes the pattern's place (:mod:`wingloop.dronomucha.mapa`).
+    #: None: the pattern.
+    planner: object = None
+    #: A memory of objects rather than of places: ``memory(navigator, here,
+    #: heading)`` -> whether that direction points at something already been
+    #: to or turned down, wherever it has moved to since
+    #: (:mod:`wingloop.dronomucha.pamiec`). None: the places remembered.
+    memory: object = None
     visited: list = field(default_factory=list)
     lessons: list = field(default_factory=list)
     inspections: list = field(default_factory=list)  # (valence close up, landed on it)
@@ -514,6 +537,8 @@ class Navigator:
         from close by a wide one -- standing next to a visited object, most
         of what is around is that object.
         """
+        if self.memory is not None:
+            return self.memory(self, here, heading_deg)
         places = [(v, r, 25.0) for v, r in zip(self.visited, self._radii, strict=False)]
         places += [(v, *self._ranged.get(i, (30.0, 25.0))) for i, v in enumerate(self.rejected)]
         for v, r, least in places:
@@ -991,6 +1016,14 @@ class Navigator:
                 self._spot = spot
                 self._spots.append(spot)
                 self.phase = "home"
+            elif self.planner is not None:
+                spot = self.planner(self, here)
+                if spot is None:
+                    self.phase = "done"
+                else:
+                    self._spot = tuple(spot)
+                    self._spots.append(self._spot)
+                    self.phase = "home"
             elif self._leg < len(self.pattern):
                 hx, hy = self._home
                 dx, dy = self.pattern[self._leg]
