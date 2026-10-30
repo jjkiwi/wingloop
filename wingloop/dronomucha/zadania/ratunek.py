@@ -71,6 +71,7 @@ GORY = dodaj(
         clutter=0.5,
         span=(6.0, 20.0),
         pattern=kwadrat(30.0, 8),
+        ground_c=-5.0,
         about="Alpinista leżący na śniegu; mylące: nagrzane kamienie, kozice.",
     )
 )
@@ -128,6 +129,7 @@ MORZE = dodaj(
         # drone's arrival needs: at its nearest, 18 mm off, 5.7%; then it
         # passes under. It has arrived at 4.5%.
         nawigacja=dict(arrive_size=0.045),
+        ground_c=12.0,
         about="Rozbitek w kamizelce na wodzie; mylące: foki, dryfujące śmieci.",
     )
 )

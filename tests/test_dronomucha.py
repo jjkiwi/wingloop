@@ -77,3 +77,24 @@ def test_the_rescue_scene_is_drawn_with_models_that_move_with_their_items():
         assert view.model.hfield("dronomucha_gory").id >= 0
         arena.move_geoms(view.model, items, 2.0)
         assert np.allclose(view.model.body_pos[body][:2], items[0].at(2.0))
+
+
+def test_the_operators_thermal_screen_shows_a_person_warm_part_by_part():
+    """Full screen, a person's drawn model is warm part by part: jacket warmer than boots."""
+    from wingloop.dronomucha import termo
+    from wingloop.dronomucha.wyglad import CIEPLO, czlowiek_lezacy
+    from wingloop.lab.scene import World, thermal_along
+
+    parts = czlowiek_lezacy()
+    solids = termo.kule(parts, (0.0, 0.0, 0.0), 20.0)
+    boots = [t for t in solids if t.heat == 20.0 * CIEPLO[(0.2, 0.12, 0.08, 1)]]
+    assert boots and max(t.heat for t in solids) == 20.0 * CIEPLO[(0.86, 0.66, 0.52, 1)]
+    # Grouped, the picture is the one drawn without grouping.
+    o = np.array([-40.0, 0.0, 10.0])
+    rays = termo.promienie((64, 36))
+    G = termo.gimbal(np.eye(3), tilt=10.0)
+    d = rays @ G.T
+    world = World([], ground_height=-3.0)
+    plain = thermal_along(World(solids, ground_height=-3.0), o, d, clutter=0.3)
+    grouped = thermal_along(world, o, d, clutter=0.3, groups=[((0, 0, 0), 30.0, solids)])
+    assert np.array_equal(plain, grouped) and plain.max() > 15.0

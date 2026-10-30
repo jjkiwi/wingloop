@@ -94,6 +94,22 @@ wyników pomiarów.
   - `map`: tło i siatka mapy oraz podziałka w metrach.
 - **Film:** `film()` nagrywa w 1280×720, z cieniami, kamerą 24 mm za dronem
   i termowizją w trybie *white-hot* w rogu.
+- **Ekran operatora:** `film --widok termo` (`termo.film_termo()`) nagrywa obraz
+  z kamery termowizyjnej drona na cały ekran:
+  - kamera 640×360, pole widzenia 60°, na gimbalu pochylonym 15° w dół;
+  - lekkie rozmycie optyki i szum czujnika, automatyczne wzmocnienie;
+  - na obrazie: celownik z temperaturą w °C, odległość z dalmierza, kurs,
+    czas, skala temperatur, żółte ramki gorących punktów i mapa misji w rogu.
+
+  Postacie i zwierzęta są tu cieplne część po części, według `wyglad.CIEPLO`:
+  twarz najcieplejsza, kurtka ciepła, buty, kask i plecak zimne, śnieg na
+  kamieniu ma temperaturę podłoża. Temperatura podłoża w °C to pole
+  `ground_c` zadania. Ten obraz służy tylko do pokazania: dron mierzy i
+  decyduje na bryłach.
+
+```
+python -m wingloop.dronomucha film ratunek_gory --widok termo --plik gory_ir.mp4
+```
 
 ## Gniazda w laboratorium, z których korzysta
 

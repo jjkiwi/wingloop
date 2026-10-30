@@ -30,6 +30,12 @@ def main(argv=None) -> None:
     s.add_argument("--plik", default="dronomucha.mp4")
     s.add_argument("--seed", type=int, default=7000, help="which area")
     s.add_argument("--termowizja", choices=("kolor", "bw"), default="bw")
+    s.add_argument(
+        "--widok",
+        choices=("kamera", "termo"),
+        default="kamera",
+        help="the camera behind the drone, or its thermal camera full screen",
+    )
     args = p.parse_args(argv)
 
     from . import ZADANIA, film, lekcje, oko, szukaj, zadanie
@@ -52,7 +58,12 @@ def main(argv=None) -> None:
             with open(args.out, "w") as f:
                 json.dump(rows, f, indent=1)
     else:
-        print(f"film -> {film(z, args.plik, seed=args.seed, thermal=args.termowizja)}")
+        if args.widok == "termo":
+            from .termo import film_termo
+
+            print(f"film -> {film_termo(z, args.plik, seed=args.seed)}")
+        else:
+            print(f"film -> {film(z, args.plik, seed=args.seed, thermal=args.termowizja)}")
 
 
 if __name__ == "__main__":

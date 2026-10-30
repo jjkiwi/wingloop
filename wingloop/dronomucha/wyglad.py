@@ -345,3 +345,27 @@ def scena_morze() -> dict:
         fog=(250.0, 1300.0, "0.74 0.8 0.88 1"),
         map=dict(bg=(176, 206, 228), grid=(156, 190, 216), metre=20.0),
     )
+
+
+#: How warm each part looks to a thermal camera, as a share of its item's
+#: warmth (:mod:`.termo`), by the part's colour: the face warmest, a jacket
+#: warm, trousers less, boots, a helmet and a rucksack cold; a life jacket's
+#: foam keeps the warmth in; snow on a rock is as cold as the ground.
+CIEPLO = {
+    SKIN: 1.25,
+    (0.98, 0.78, 0.08, 1): 0.35,  # helmet
+    (0.2, 0.25, 0.3, 1): 0.25,  # rucksack
+    (0.1, 0.1, 0.1, 1): 0.6,  # gloves
+    (0.16, 0.18, 0.26, 1): 0.75,  # trousers
+    (0.2, 0.12, 0.08, 1): 0.25,  # boots
+    (0.98, 0.42, 0.04, 1): 0.6,  # life jacket
+    (0.25, 0.18, 0.12, 1): 0.9,  # wet hair
+    (0.12, 0.14, 0.2, 1): 0.8,  # sleeves in the water
+    (0.1, 0.12, 0.22, 1): 0.6,  # legs in the water
+    (0.82, 0.75, 0.62, 1): 1.2,  # a chamois' face
+    (0.08, 0.07, 0.06, 1): 0.3,  # horns, tail
+    (0.38, 0.36, 0.33, 1): 0.85,  # the rock's shaded side
+    (0.95, 0.96, 0.98, 1): 0.0,  # snow on it
+    (0.3, 0.28, 0.27, 1): 1.2,  # a seal's head
+    (0.12, 0.38, 0.82, 1): 0.6,  # a plastic crate
+}

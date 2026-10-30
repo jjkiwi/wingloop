@@ -33,7 +33,8 @@ class Zadanie:
     to look around from when it has nothing left to look at
     (:attr:`~wingloop.lab.navigate.Navigator.pattern`). ``nawigacja``: the
     navigator's settings this task flies with instead of the drone's own
-    (:class:`~wingloop.lab.navigate.Navigator`'s fields).
+    (:class:`~wingloop.lab.navigate.Navigator`'s fields). ``ground_c``: the
+    ground's temperature, C, for a thermal camera's screen (:mod:`.termo`).
     """
 
     name: str
@@ -49,6 +50,7 @@ class Zadanie:
     lessons: tuple = (90, 300)
     pattern: tuple = ()
     nawigacja: dict = field(default_factory=dict)
+    ground_c: float = 0.0
     about: str = ""
 
 

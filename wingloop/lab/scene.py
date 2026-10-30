@@ -233,8 +233,30 @@ def thermal(
     return thermal_along(world, position, d, clutter=clutter, sky=sky)
 
 
-def thermal_along(world: World, position, d, *, clutter: float = 0.0, sky: float = -10.0):
-    """:func:`thermal` along any world-frame directions ``d`` (..., 3)."""
+def hit(thing: Thing, o, d) -> np.ndarray:
+    """How far along each ray ``d`` from ``o`` it meets ``thing``; inf where it misses."""
+    if thing.kind == "sphere":
+        return _sphere_hits(o, d, thing.position, thing.size)
+    if thing.kind == "bar":
+        return _bar_hits(o, d, thing.position, thing.size, thing.height)
+    return _box_hits(o, d, thing.position, thing.size)
+
+
+def thermal_along(
+    world: World,
+    position,
+    d,
+    *,
+    clutter: float = 0.0,
+    sky: float = -10.0,
+    groups=(),
+):
+    """:func:`thermal` along any world-frame directions ``d`` (..., 3).
+
+    ``groups``: solids besides the world's, as (centre, radius, things):
+    each group is tried only on the rays that meet a ball of that radius
+    round its centre -- a model of many parts costs little where it is not.
+    """
     o = np.asarray(position, dtype=float)
     image = np.full(d.shape[:-1], sky)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -254,6 +276,17 @@ def thermal_along(world: World, position, d, *, clutter: float = 0.0, sky: float
         closer = t < depth
         image = np.where(closer, thing.heat, image)
         depth = np.where(closer, t, depth)
+    for centre, radius, things in groups:
+        near = np.isfinite(_sphere_hits(o, d, np.asarray(centre, dtype=float), radius))
+        if not near.any():
+            continue
+        sub, far, seen = d[near], depth[near], image[near]
+        for thing in things:
+            t = hit(thing, o, sub)
+            closer = t < far
+            seen = np.where(closer, thing.heat, seen)
+            far = np.where(closer, t, far)
+        image[near], depth[near] = seen, far
     return image
 
 
