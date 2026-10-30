@@ -1165,8 +1165,6 @@ def video(
     ``"kolor"`` in a thermal palette, ``"bw"`` black and white, warm white.
     ``moving`` and ``nir`` as for :func:`window`.
     """
-    import imageio.v2 as imageio
-
     from .watch import FlysEye
 
     if frame_ms is None:
@@ -1179,13 +1177,30 @@ def video(
         eye, targets, folder=folder, retrain=retrain, drone=drone, camo=hidden
     )
     eye.nir = nir
+    pilot = _pilot(items, mb, eye, valence, targets, drone, fast, hidden)
+    return record(path, pilot, drone, seconds, frame_ms, width, height, fps, thermal)
+
+
+def record(
+    path,
+    pilot: Autopilot,
+    drone: bool,
+    seconds: float,
+    frame_ms: float,
+    width: int = 960,
+    height: int = 540,
+    fps: int = 30,
+    thermal: str | None = None,
+) -> Path:
+    """Fly a mission that is ready to go, and record it (:func:`video`)."""
+    import imageio.v2 as imageio
     import mujoco
 
-    pilot = _pilot(items, mb, eye, valence, targets, drone, fast, hidden)
+    items = pilot.items
     view = _view(drone, True, items)
     renderer = mujoco.Renderer(view.model, height, width)
     cam = mujoco.MjvCamera()
-    looks = max(1, int(round(frame_ms / eye.every_ms)))
+    looks = max(1, int(round(frame_ms / pilot.eye.every_ms)))
     path = Path(path)
     writer = imageio.get_writer(path, fps=fps, codec="libx264", quality=7, macro_block_size=1)
     try:
@@ -1260,6 +1275,8 @@ def _frame(
     for k, line in enumerate(lines):
         draw.text((14, 10 + step * k), line, fill=(20, 20, 20), font=font)
     seen_by = "oko muchy" if pilot.eye.nir is None else "oko muchy: kamera NIR"
+    if pilot.eye.thermal:
+        seen_by = "oko muchy (IR)"
     draw.text((img.width - side - 10, 24 + 2 * side), seen_by, fill=(255, 255, 255), font=font)
     if thermal:
         _thermal_panel(img, draw, pilot.eye, side, font, pilot.flight.t, thermal == "bw")
@@ -1276,14 +1293,19 @@ def _thermal_panel(img, draw, fly_eye, side: int, font, t: float, bw: bool = Fal
     """The thermal camera's picture, bottom left, with the rangefinder's beam and reading."""
     from PIL import Image
 
-    from .watch import IR_HEAT
+    from . import watch
 
     rng = np.random.default_rng(int(t * 1000))
     k = fly_eye.thermal_view(rng)
-    # The floor's middle to the warmest solid: sky and floor dark, solids bright.
-    x = np.clip((k + 1.0) / (2.4 * IR_HEAT + 1.0), 0.0, 1.0)
+    # The floor's middle to the warmest solid: sky and floor dark, solids
+    # bright -- the gain set to the warmest thing in view when the eye itself
+    # looks through the thermal camera, as it does (:attr:`~.watch.FlysEye.thermal`).
+    warmest = 1.4 * watch.IR_HEAT
+    if fly_eye.thermal:
+        warmest = float(np.clip(k.max(), watch.THERMAL_SPAN_MIN, watch.THERMAL_SPAN))
+    x = np.clip((k + 1.0) / (1.7 * warmest + 1.0), 0.0, 1.0)
     if bw:  # "white hot", as thermal cameras show it in black and white
-        x = np.clip((k + 0.3) / (1.4 * IR_HEAT + 0.3), 0.0, 1.0)
+        x = np.clip((k + 0.3) / (warmest + 0.3), 0.0, 1.0)
         rgb = np.repeat(255 * x[..., None], 3, axis=-1)
     else:
         x = x * (len(IRONBOW) - 1)

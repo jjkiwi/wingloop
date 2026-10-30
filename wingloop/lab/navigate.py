@@ -438,6 +438,10 @@ class Navigator:
     #: the eye from home; measured, the drone ended a mission with 37 s to go
     #: and a ball in a 106-degree gap it had never seen. 0: never.
     explore: float = 0.0
+    #: And then fly to each of these places in turn, mm from home, and look
+    #: around there too: a search pattern, as rescue services fly, for what
+    #: is too small to be seen from any one place. Empty: none.
+    pattern: tuple = ()
     visited: list = field(default_factory=list)
     lessons: list = field(default_factory=list)
     inspections: list = field(default_factory=list)  # (valence close up, landed on it)
@@ -476,6 +480,7 @@ class Navigator:
         self._needed = 0.0  # what a close look must like to land
         self._home = (0.0, 0.0)
         self._spot = None  # where it looks around from, if not home
+        self._leg = 0  # the next place of the search pattern
         self._spots = []  # the places it has gone back to, to look again
         self._views = []  # valences of the close looks at this target so far
         self._judged = []  # close looks turned down: [where from, heading, valence, gone back]
@@ -985,6 +990,13 @@ class Navigator:
             elif self.explore and (spot := self._gap_to_explore()):
                 self._spot = spot
                 self._spots.append(spot)
+                self.phase = "home"
+            elif self._leg < len(self.pattern):
+                hx, hy = self._home
+                dx, dy = self.pattern[self._leg]
+                self._leg += 1
+                self._spot = (hx + dx, hy + dy)
+                self._spots.append(self._spot)
                 self.phase = "home"
             else:
                 self.phase = "done"

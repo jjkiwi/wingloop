@@ -136,6 +136,16 @@ def move_geoms(model, items, t: float) -> None:
             model.geom_pos[model.geom(f"flylab_item{i}").id][:2] = it.at(t)
 
 
+def shape_of(kind: str) -> str:
+    """The solid a kind is drawn as: ``sphere``, ``box`` or ``bar`` (a standing cylinder)."""
+    return KINDS[kind].get("shape", {"bar": "bar", "slab": "box"}.get(kind, "sphere"))
+
+
+def _placed(it) -> tuple[float, float, float]:
+    """Where an item's middle is: its kind can fix the height (lying on the ground, afloat)."""
+    return it.x, it.y, KINDS[it.kind].get("z", it.z)
+
+
 def add_to_mjcf(world: ET.Element, items) -> None:
     """Draw the items in the MuJoCo scene (no collisions: they are scenery)."""
     for i, it in enumerate(items):
@@ -147,75 +157,52 @@ def add_to_mjcf(world: ET.Element, items) -> None:
             common.update(
                 rgba=" ".join(f"{c:.3f}" for c in tint) + " 1", material="flylab_floor"
             )
-        if it.kind == "sphere":
+        x, y, z = _placed(it)
+        shape = shape_of(it.kind)
+        if shape == "sphere":
             ET.SubElement(
-                world,
-                "geom",
-                type="sphere",
-                size=f"{it.size}",
-                pos=f"{it.x} {it.y} {it.z}",
-                **common,
+                world, "geom", type="sphere", size=f"{it.size}", pos=f"{x} {y} {z}", **common
             )
-        elif it.kind == "slab":
+        elif shape == "box":
             sx, sy, sz = it.size
             ET.SubElement(
-                world,
-                "geom",
-                type="box",
-                size=f"{sx} {sy} {sz}",
-                pos=f"{it.x} {it.y} {it.z}",
-                **common,
+                world, "geom", type="box", size=f"{sx} {sy} {sz}", pos=f"{x} {y} {z}", **common
             )
         else:
+            h = KINDS[it.kind].get("height", BAR_HEIGHT)
             ET.SubElement(
                 world,
                 "geom",
                 type="cylinder",
-                size=f"{it.size} {BAR_HEIGHT / 2}",
-                pos=f"{it.x} {it.y} {FLOOR + BAR_HEIGHT / 2}",
+                size=f"{it.size} {h / 2}",
+                pos=f"{x} {y} {FLOOR + h / 2}",
                 **common,
             )
 
 
 def eye_things(items) -> list:
-    """The same items as :class:`~wingloop.lab.scene.Thing` for the eye's renderer."""
+    """The same items as :class:`~wingloop.lab.scene.Thing` for the eye's renderer.
+
+    A kind with a ``heat`` range, kelvin above the ground, is that much warmer
+    to a thermal camera, each item its own share of the range.
+    """
     from .scene import Thing
 
     out = []
     for it in items:
-        bright = luminance(it.rgb)
-        if it.kind == "bar":
-            out.append(
-                Thing(
-                    "bar",
-                    [it.x, it.y, FLOOR],
-                    it.size,
-                    height=BAR_HEIGHT,
-                    brightness=bright,
-                    label=it.name,
-                    camo=it.camo,
-                )
-            )
-        elif it.kind == "slab":
-            out.append(
-                Thing(
-                    "box",
-                    [it.x, it.y, it.z],
-                    np.asarray(it.size),
-                    brightness=bright,
-                    label=it.name,
-                    camo=it.camo,
-                )
-            )
+        x, y, z = _placed(it)
+        common = dict(brightness=luminance(it.rgb), label=it.name, camo=it.camo)
+        shape = shape_of(it.kind)
+        if shape == "bar":
+            h = KINDS[it.kind].get("height", BAR_HEIGHT)
+            thing = Thing("bar", [x, y, FLOOR], it.size, height=h, **common)
+        elif shape == "box":
+            thing = Thing("box", [x, y, z], np.asarray(it.size), **common)
         else:
-            out.append(
-                Thing(
-                    it.kind,
-                    [it.x, it.y, it.z],
-                    it.size,
-                    brightness=bright,
-                    label=it.name,
-                    camo=it.camo,
-                )
-            )
+            thing = Thing("sphere", [x, y, z], it.size, **common)
+        if "heat" in KINDS[it.kind]:
+            lo, hi = KINDS[it.kind]["heat"]
+            u = (np.sin(12.9898 * it.x + 78.233 * it.y) * 43758.5453) % 1.0
+            thing.heat = float(lo + (hi - lo) * u)
+        out.append(thing)
     return out

@@ -68,6 +68,15 @@ COLUMNS = [
     (330, -60, "0.7 0.3 0.7"),
 ]
 
+#: How the world looks: the floor's two checker colours, the sky's gradient,
+#: and whether the landscape's columns stand in it. The drone's jobs
+#: (:mod:`wingloop.dronomucha`) change it -- snow, the sea.
+SCENERY = {
+    "floor": ("0.42 0.55 0.32", "0.55 0.68 0.42"),
+    "sky": ("0.55 0.75 0.95", "0.95 0.97 1"),
+    "columns": True,
+}
+
 
 def _decorate(source: Path, destination: Path, pretty: bool = False, items=()) -> Path:
     """Add a sky, a chequered floor, light and columns to the hinged fly.
@@ -92,8 +101,8 @@ def add_scenery(root: ET.Element, pretty: bool = False, items=()) -> None:
         name="flylab_sky",
         type="skybox",
         builtin="gradient",
-        rgb1="0.55 0.75 0.95",
-        rgb2="0.95 0.97 1",
+        rgb1=SCENERY["sky"][0],
+        rgb2=SCENERY["sky"][1],
         width="256",
         height="256",
     )
@@ -103,8 +112,8 @@ def add_scenery(root: ET.Element, pretty: bool = False, items=()) -> None:
         name="flylab_floor",
         type="2d",
         builtin="checker",
-        rgb1="0.42 0.55 0.32",
-        rgb2="0.55 0.68 0.42",
+        rgb1=SCENERY["floor"][0],
+        rgb2=SCENERY["floor"][1],
         width="256",
         height="256",
     )
@@ -138,7 +147,7 @@ def add_scenery(root: ET.Element, pretty: bool = False, items=()) -> None:
         contype="0",
         conaffinity="0",
     )
-    for i, (x, y, rgb) in enumerate(COLUMNS):
+    for i, (x, y, rgb) in enumerate(COLUMNS if SCENERY["columns"] else ()):
         ET.SubElement(
             world,
             "geom",
@@ -408,11 +417,26 @@ IR_HEAT, IR_CLUTTER = 1.5, 0.3
 #: infrared only so well (1: as well; 0: not at all, the object shows its
 #: own colour). That is the slider, how good the paint is; this its default.
 NIR_MATCH = 0.5
+#: Seen through the thermal camera instead (:attr:`FlysEye.thermal`), "black
+#: hot", as thermal cameras can show it: the floor light grey, the cold sky
+#: white, and what is this many kelvin warmer than the floor black -- dark,
+#: as the fly's eye looks for what is dark.
+THERMAL_SPAN = 30.0
+#: And it sets its gain to the scene, as thermal cameras do: the span is
+#: the warmest thing in view, but no less than this (the floor's own
+#: unevenness is not to fill the picture) and no more than the above.
+THERMAL_SPAN_MIN = 30.0
 
 
 def _warm(things) -> list:
-    """Give each solid its warmth, the same every time for the same solid."""
+    """Give each solid its warmth, the same every time for the same solid.
+
+    Those whose kind says how warm they are (``heat``, :func:`~.arena.eye_things`)
+    keep it.
+    """
     for t in things:
+        if t.heat:
+            continue
         x, y = float(t.position[0]), float(t.position[1])
         u = (np.sin(12.9898 * x + 78.233 * y) * 43758.5453) % 1.0
         t.heat = IR_HEAT * (0.6 + 0.8 * u)
@@ -438,7 +462,7 @@ class FlysEye:
         from .vision import FlyEye
 
         things = []
-        for x, y, rgb in COLUMNS:
+        for x, y, rgb in COLUMNS if SCENERY["columns"] else ():
             r, g, b = (float(v) for v in rgb.split())
             luminance = 0.3 * r + 0.55 * g + 0.15 * b
             things.append(Thing("bar", [x, y, FLOOR], 3.0, height=60.0, brightness=luminance))
@@ -455,6 +479,8 @@ class FlysEye:
         #: Look through the near-infrared camera instead: how well camouflage
         #: paint matches the floor in it, 0-1 (:data:`NIR_MATCH`). None: visible.
         self.nir: float | None = None
+        #: Look through the thermal camera instead (:data:`THERMAL_SPAN`).
+        self.thermal = False
         self._moving = self._moving_things(items)
         # Each photoreceptor's line of sight in the body frame, and its
         # elevation above the horizon as of the last look.
@@ -490,17 +516,23 @@ class FlysEye:
 
     def look_from(self, position, R) -> None:
         """Render the view from a position and orientation, and step the optic lobe."""
-        from .scene import render
+        from .scene import render, thermal_along
 
-        self.image = render(
-            self.world,
-            position,
-            None,
-            self.camera,
-            rotation_matrix=R,
-            checker=20.0,
-            match=1.0 if self.nir is None else self.nir,
-        )
+        if self.thermal:
+            d = self.camera.rays() @ np.asarray(R).T
+            k = thermal_along(self.world, position, d, clutter=IR_CLUTTER, sky=-THERMAL_SPAN)
+            span = float(np.clip(k.max(), THERMAL_SPAN_MIN, THERMAL_SPAN))
+            self.image = np.clip(0.8 - 0.78 * k / span, 0.02, 0.95).astype(np.float32)
+        else:
+            self.image = render(
+                self.world,
+                position,
+                None,
+                self.camera,
+                rotation_matrix=R,
+                checker=20.0,
+                match=1.0 if self.nir is None else self.nir,
+            )
         self.pose = (np.asarray(position, dtype=float), np.asarray(R, dtype=float))
         self.activity = self.eye.step(self.image, frames=1)
         up = (np.asarray(R) @ self._sight)[2]

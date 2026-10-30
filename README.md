@@ -820,6 +820,19 @@ for slabs it came down again and again by a ball travelling beside one.
 Lessons with moving objects, and a memory of objects rather than places,
 are what it would take.
 
+**Dronomucha: the drone put to work, kept apart from the lab**
+(`wingloop/dronomucha`, `docs/dronomucha.md`, in Polish). The lab is
+where the fly and its drone are built and measured; `wingloop.dronomucha`
+is where the drone is given jobs, and it can change freely without
+touching the lab. A job (`Zadanie`) is a description -- what is in its
+world, what it looks for, what its eye sees through, how its world looks
+-- registered in `dronomucha/zadania`; the drone, eye, brain and navigator
+are the lab's, and `dronomucha/swiat.py` is the one place a job reaches into
+the lab, putting it back after. The first jobs are search and rescue
+(`ratunek_gory`, `ratunek_morze`; `docs/ratownictwo.md`): a person on snow or
+in the sea, found by heat, among warm rocks and chamois or seals and
+debris. `python -m wingloop.dronomucha lista | lekcje | szukaj | film`.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
