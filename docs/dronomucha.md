@@ -18,6 +18,7 @@ Projekt ma dwie części:
 | `swiat.py` | jedyne miejsce, które sięga do laboratorium: na czas zadania ustawia jego świat, potem zawsze przywraca laboratorium |
 | `mozg.py` | lekcje zadania (nagrywane raz, trzymane w `data/`) i mózg nauczony na nich |
 | `misja.py` | obszar poszukiwań, dron gotowy do lotu, przeszukiwanie i film |
+| `wyglad.py` | jak zadania wyglądają dla oglądającego: tekstury śniegu i wody, góry na horyzoncie, modele postaci, styl mapy |
 | `cli.py` | polecenie `dronomucha` |
 
 Dron, oko, mózg i nawigator pochodzą z laboratorium i są wspólne dla
@@ -69,6 +70,30 @@ Opis rodzaju obiektu ma pola: `pl` (nazwa), `shape` (`sphere`, `box` albo
 (`eye="termowizja"` albo `"widzialne"`), wygląd podłogi i nieba (`scenery`),
 nierówność temperatury podłoża (`clutter`) i zakres termowizji (`span`).
 Skala jest jak w arenie, 1:50: 1 mm to 5 cm.
+
+## Wygląd filmów
+
+Wygląd jest tylko dla oglądającego. Oko i czujniki drona widzą bryłę rodzaju
+(pudełko, kulę lub walec) o tych samych wymiarach, więc wygląd nie zmienia
+wyników pomiarów.
+
+- **Model obiektu:** pole `parts` w opisie rodzaju, czyli lista części
+  (`type`: `sphere`, `capsule`, `ellipsoid`, `box`, `cylinder`; `size`;
+  `pos` albo `fromto` względem środka; opcjonalnie `euler` w stopniach, `rgba`).
+  Gotowe modele są w `wyglad.py`: `czlowiek_lezacy`, `rozbitek`, `kozica`,
+  `kamien`, `foka`, `smieci`, `iglica` (skalna iglica zamiast kolumny).
+- **Scena:** pole `scenery` zadania (`watch.SCENERY`):
+  - `floor_texture`: obraz podłogi; `wyglad.snieg()` i `wyglad.woda()` są
+    generowane z ustalonych ziaren;
+  - `floor_repeat`, `floor_reflectance`: ile razy tekstura się powtarza i
+    jak bardzo podłoga odbija światło;
+  - `column_parts`: wygląd kolumn krajobrazu;
+  - `fog`: (początek, koniec, kolor) w jednostkach areny;
+  - `decor`: funkcja dokładająca dekoracje, np. `wyglad.gory_w_tle` z mapy
+    wysokości;
+  - `map`: tło i siatka mapy oraz podziałka w metrach.
+- **Film:** `film()` nagrywa w 1280×720, z cieniami, kamerą 24 mm za dronem
+  i termowizją w trybie *white-hot* w rogu.
 
 ## Gniazda w laboratorium, z których korzysta
 

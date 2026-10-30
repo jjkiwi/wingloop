@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from wingloop.lab.arena import FLOOR
 
+from .. import wyglad
 from ..zadanie import Zadanie, dodaj, kwadrat
 
 GORY = dodaj(
@@ -38,6 +39,7 @@ GORY = dodaj(
                 z=FLOOR + 3.0,
                 heat=(15.0, 30.0),
                 rgb=(0.85, 0.2, 0.08),
+                parts=wyglad.czlowiek_lezacy(),
             ),
             # A dark rock: as cold as the air in shade, 30 K warmer in the sun.
             "kamien": dict(
@@ -47,6 +49,7 @@ GORY = dodaj(
                 z=FLOOR + 4.0,
                 heat=(0.0, 30.0),
                 rgb=(0.25, 0.24, 0.22),
+                parts=wyglad.kamien(),
             ),
             # Standing, in its winter coat: 3-13 C at the fur.
             "kozica": dict(
@@ -56,12 +59,13 @@ GORY = dodaj(
                 z=FLOOR + 7.0,
                 heat=(8.0, 18.0),
                 rgb=(0.42, 0.3, 0.18),
+                parts=wyglad.kozica(),
             ),
         },
         scenery=dict(
             floor=("0.93 0.94 0.97", "0.86 0.88 0.93"),
-            sky=("0.5 0.65 0.85", "0.9 0.94 1"),
             columns=True,  # rock spires
+            **wyglad.scena_gory(),
         ),
         column_heat=2.0,
         clutter=0.5,
@@ -88,6 +92,7 @@ MORZE = dodaj(
                 z=FLOOR + 1.0,
                 heat=(8.0, 18.0),
                 rgb=(0.95, 0.45, 0.05),
+                parts=wyglad.rozbitek(),
             ),
             # A seal, 1.4 m, wet fur: a few kelvin over the water, more basking.
             "foka": dict(
@@ -97,6 +102,7 @@ MORZE = dodaj(
                 z=FLOOR + 1.0,
                 heat=(1.0, 8.0),
                 rgb=(0.35, 0.35, 0.38),
+                parts=wyglad.foka(),
             ),
             # Something afloat, a metre across, warmed a little by the sun.
             "smieci": dict(
@@ -106,12 +112,13 @@ MORZE = dodaj(
                 z=FLOOR + 0.5,
                 heat=(0.0, 4.0),
                 rgb=(0.85, 0.85, 0.8),
+                parts=wyglad.smieci(),
             ),
         },
         scenery=dict(
             floor=("0.1 0.27 0.42", "0.13 0.32 0.48"),
-            sky=("0.45 0.6 0.8", "0.88 0.92 0.98"),
             columns=False,
+            **wyglad.scena_morze(),
         ),
         column_heat=0.0,
         clutter=0.3,

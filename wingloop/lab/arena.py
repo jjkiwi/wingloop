@@ -133,7 +133,10 @@ def move_geoms(model, items, t: float) -> None:
     """Put the moving items of a MuJoCo scene (:func:`add_to_mjcf`) where they are at ``t``."""
     for i, it in enumerate(items):
         if it.speed:
-            model.geom_pos[model.geom(f"flylab_item{i}").id][:2] = it.at(t)
+            try:
+                model.body_pos[model.body(f"flylab_item{i}").id][:2] = it.at(t)
+            except KeyError:  # drawn as one geom, not a body of parts
+                model.geom_pos[model.geom(f"flylab_item{i}").id][:2] = it.at(t)
 
 
 def shape_of(kind: str) -> str:
@@ -146,9 +149,39 @@ def _placed(it) -> tuple[float, float, float]:
     return it.x, it.y, KINDS[it.kind].get("z", it.z)
 
 
+def add_parts(world: ET.Element, name: str, pos, parts) -> ET.Element:
+    """A body of drawn parts at ``pos``: what a kind looks like to the person watching.
+
+    Each part is a dict -- ``type`` (any MuJoCo geom type), ``size``,
+    ``pos`` or ``fromto`` relative to the body, optionally ``euler``
+    (degrees), ``rgba``, ``material``. Drawing only: no collisions, and the
+    eye and the sensors see the kind's own solid (:func:`eye_things`).
+    """
+    body = ET.SubElement(world, "body", name=name, pos=" ".join(f"{v:g}" for v in pos))
+    for j, part in enumerate(parts):
+        attrs = dict(name=f"{name}_{j}", type=part["type"], contype="0", conaffinity="0")
+        for key in ("size", "pos", "fromto", "euler", "rgba"):
+            if key in part:
+                v = part[key]
+                if not isinstance(v, str):
+                    v = " ".join(f"{c:g}" for c in np.ravel(v))
+                attrs[key] = v
+        if "material" in part:
+            attrs["material"] = part["material"]
+        ET.SubElement(body, "geom", **attrs)
+    return body
+
+
 def add_to_mjcf(world: ET.Element, items) -> None:
-    """Draw the items in the MuJoCo scene (no collisions: they are scenery)."""
+    """Draw the items in the MuJoCo scene (no collisions: they are scenery).
+
+    A kind with ``parts`` (:func:`add_parts`) is drawn as them, a body that
+    moves as the item does (:func:`move_geoms`).
+    """
     for i, it in enumerate(items):
+        if "parts" in KINDS[it.kind] and not it.camo:
+            add_parts(world, f"flylab_item{i}", _placed(it), KINDS[it.kind]["parts"])
+            continue
         rgba = " ".join(f"{c:.3f}" for c in it.rgb) + " 1"
         common = dict(name=f"flylab_item{i}", rgba=rgba, contype="0", conaffinity="0")
         if it.camo:

@@ -70,7 +70,16 @@ COLUMNS = [
 
 #: How the world looks: the floor's two checker colours, the sky's gradient,
 #: and whether the landscape's columns stand in it. The drone's jobs
-#: (:mod:`wingloop.dronomucha`) change it -- snow, the sea.
+#: (:mod:`wingloop.dronomucha`) change it -- snow, the sea -- and may also
+#: give: ``floor_texture`` (a picture file for the floor, instead of the
+#: checker), ``floor_repeat`` and ``floor_reflectance``; ``column_parts``
+#: (each column drawn as parts, :func:`~.arena.add_parts`, from its foot);
+#: ``fog`` ((start, end, "r g b a"), arena units); ``decor`` (a function of
+#: the MJCF root that adds to it -- mountains on the horizon, say); ``map``
+#: (the mission map's look, :func:`~.autopilot.map_image`). All of it is for
+#: the person watching: the eye renders its own world (:class:`FlysEye`).
+#: The scene's size for the near and far planes when the scenery is dressed, mm.
+EXTENT = 100.0
 SCENERY = {
     "floor": ("0.42 0.55 0.32", "0.55 0.68 0.42"),
     "sky": ("0.55 0.75 0.95", "0.95 0.97 1"),
@@ -106,24 +115,29 @@ def add_scenery(root: ET.Element, pretty: bool = False, items=()) -> None:
         width="256",
         height="256",
     )
-    ET.SubElement(
-        asset,
-        "texture",
-        name="flylab_floor",
-        type="2d",
-        builtin="checker",
-        rgb1=SCENERY["floor"][0],
-        rgb2=SCENERY["floor"][1],
-        width="256",
-        height="256",
-    )
+    if SCENERY.get("floor_texture"):
+        ET.SubElement(
+            asset, "texture", name="flylab_floor", type="2d", file=str(SCENERY["floor_texture"])
+        )
+    else:
+        ET.SubElement(
+            asset,
+            "texture",
+            name="flylab_floor",
+            type="2d",
+            builtin="checker",
+            rgb1=SCENERY["floor"][0],
+            rgb2=SCENERY["floor"][1],
+            width="256",
+            height="256",
+        )
     ET.SubElement(
         asset,
         "material",
         name="flylab_floor",
         texture="flylab_floor",
-        texrepeat="60 60",
-        reflectance="0",
+        texrepeat=SCENERY.get("floor_repeat", "60 60"),
+        reflectance=str(SCENERY.get("floor_reflectance", 0)),
     )
     world = root.find("worldbody")
     ET.SubElement(
@@ -148,6 +162,11 @@ def add_scenery(root: ET.Element, pretty: bool = False, items=()) -> None:
         conaffinity="0",
     )
     for i, (x, y, rgb) in enumerate(COLUMNS if SCENERY["columns"] else ()):
+        if SCENERY.get("column_parts"):
+            from .arena import add_parts
+
+            add_parts(world, f"flylab_column{i}", (x, y, FLOOR), SCENERY["column_parts"])
+            continue
         ET.SubElement(
             world,
             "geom",
@@ -171,6 +190,26 @@ def add_scenery(root: ET.Element, pretty: bool = False, items=()) -> None:
         if element is None:
             element = ET.SubElement(visual, tag)
         element.attrib.update(attrs)
+    if SCENERY.get("fog") or SCENERY.get("decor"):
+        # MuJoCo takes the near and far planes and the fog as fractions of
+        # the scene's size: mountains on the horizon would make it so big
+        # that the drone, a few mm from the camera, fell inside the near
+        # plane. So the scene's size is set, and the fog given in its units.
+        stat = root.find("statistic")
+        if stat is None:
+            stat = ET.SubElement(root, "statistic")
+        stat.attrib.update(extent=f"{EXTENT:g}", center="0 0 0")
+    if SCENERY.get("fog"):
+        start, end, rgba = SCENERY["fog"]
+        visual.find("map").attrib.update(
+            fogstart=f"{start / EXTENT:g}", fogend=f"{end / EXTENT:g}"
+        )
+        colours = visual.find("rgba")
+        if colours is None:
+            colours = ET.SubElement(visual, "rgba")
+        colours.attrib.update(fog=rgba, haze=rgba)
+    if SCENERY.get("decor"):
+        SCENERY["decor"](root)
     from .arena import add_to_mjcf
 
     add_to_mjcf(world, items)

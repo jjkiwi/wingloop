@@ -61,3 +61,19 @@ def test_the_rescue_lessons_ship():
         (F, K), (CF, CK) = dronomucha.lekcje(None, z, progress=None)
         assert len(K) == z.lessons[0] and len(CK) == z.lessons[1]
         assert set(K) == set(z.kinds) and F.shape[1] == CF.shape[1]
+
+
+def test_the_rescue_scene_is_drawn_with_models_that_move_with_their_items():
+    """The 3-D view of a job: models of parts, mountains, snow; a moving item's model moves."""
+    pytest.importorskip("mujoco")
+    from wingloop.lab.dronebrain import DroneView
+
+    z = dronomucha.zadanie("ratunek_gory")
+    with dronomucha.swiat(z):
+        items = dronomucha.obszar(z, 3, moving=10.0)
+        view = DroneView(items=items)
+        body = view.model.body("flylab_item0").id
+        assert view.model.body_geomnum[body] == len(z.kinds[items[0].kind]["parts"])
+        assert view.model.hfield("dronomucha_gory").id >= 0
+        arena.move_geoms(view.model, items, 2.0)
+        assert np.allclose(view.model.body_pos[body][:2], items[0].at(2.0))

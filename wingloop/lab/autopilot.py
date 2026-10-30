@@ -821,6 +821,9 @@ class Autopilot:
             ],
             "fly": dict(x=round(s["x"], 1), y=round(s["y"], 1), heading=round(s["heading"], 1)),
             "trail": self.trail[-600:],
+            "pattern": [
+                [round(nav._home[0] + x, 1), round(nav._home[1] + y, 1)] for x, y in nav.pattern
+            ],
             "visited": [[round(float(a), 1), round(float(b), 1)] for a, b in nav.visited],
             "reached": [POLISH[it.kind] for it in reached],
             "lessons": [
@@ -1191,8 +1194,12 @@ def record(
     height: int = 540,
     fps: int = 30,
     thermal: str | None = None,
+    distance: float | None = None,
 ) -> Path:
-    """Fly a mission that is ready to go, and record it (:func:`video`)."""
+    """Fly a mission that is ready to go, and record it (:func:`video`).
+
+    ``distance``: the chase camera's, arena units (:data:`CHASE` if None).
+    """
     import imageio.v2 as imageio
     import mujoco
 
@@ -1211,7 +1218,7 @@ def record(
                 break
             arena.move_geoms(view.model, items, pilot.flight.t)
             view.show(pilot.flight)
-            view.chase(cam, pilot.flight.state()["heading"], distance=CHASE[drone])
+            view.chase(cam, pilot.flight.state()["heading"], distance=distance or CHASE[drone])
             renderer.update_scene(view.data, camera=cam)
             frame = _frame(renderer.render(), pilot, frame_ms, fps, thermal)
             writer.append_data(frame)
@@ -1277,7 +1284,13 @@ def _frame(
     seen_by = "oko muchy" if pilot.eye.nir is None else "oko muchy: kamera NIR"
     if pilot.eye.thermal:
         seen_by = "oko muchy (IR)"
-    draw.text((img.width - side - 10, 24 + 2 * side), seen_by, fill=(255, 255, 255), font=font)
+    label = (img.width - side - 10, 24 + 2 * side)
+    wide = draw.textlength(seen_by, font=font)
+    draw.rectangle(
+        (label[0] - 4, label[1] - 2, label[0] + wide + 6, label[1] + font.size + 8),
+        fill=(20, 20, 20),
+    )
+    draw.text(label, seen_by, fill=(255, 255, 255), font=font)
     if thermal:
         _thermal_panel(img, draw, pilot.eye, side, font, pilot.flight.t, thermal == "bw")
     return np.asarray(img)
@@ -1328,15 +1341,49 @@ def _thermal_panel(img, draw, fly_eye, side: int, font, t: float, bw: bool = Fal
 
 
 def map_image(status: dict, size: int = 200, extent: float = 110.0) -> np.ndarray:
-    """A top-down map of the mission, as an RGB array."""
+    """A top-down map of the mission, as an RGB array.
+
+    Its look can come from the scenery (``SCENERY["map"]``,
+    :data:`~.watch.SCENERY`): ``bg``, the ground's colour; ``grid``, a
+    grid's colour; ``metre``, arena units to a metre, for a scale bar. A
+    search pattern, if the navigator flies one, is drawn dashed.
+    """
     from PIL import Image, ImageDraw
 
-    img = Image.new("RGB", (size, size), (250, 250, 247))
+    from .watch import SCENERY
+
+    style = SCENERY.get("map", {})
+    img = Image.new("RGB", (size, size), tuple(style.get("bg", (250, 250, 247))))
     d = ImageDraw.Draw(img)
 
     def px(x, y):
         return (size / 2 + x / extent * size / 2, size / 2 - y / extent * size / 2)
 
+    if "grid" in style:
+        for g in np.arange(-100.0, 101.0, 25.0):
+            d.line((*px(g, -extent), *px(g, extent)), fill=tuple(style["grid"]))
+            d.line((*px(-extent, g), *px(extent, g)), fill=tuple(style["grid"]))
+    legs = [(0.0, 0.0), *status.get("pattern", [])]
+    for (ax, ay), (bx, by) in zip(legs, legs[1:], strict=False):
+        for k in range(0, 10, 2):  # dashed
+            f0, f1 = k / 10, (k + 1) / 10
+            d.line(
+                (
+                    *px(ax + (bx - ax) * f0, ay + (by - ay) * f0),
+                    *px(ax + (bx - ax) * f1, ay + (by - ay) * f1),
+                ),
+                fill=(120, 120, 135),
+                width=1,
+            )
+    if "metre" in style:
+        m = style["metre"]
+        span = 2 if 2 * m / extent * size / 2 < size / 3 else 1
+        x0, y0 = 8, size - 10
+        x1 = x0 + span * m / extent * size / 2
+        d.line((x0, y0, x1, y0), fill=(30, 30, 30), width=2)
+        d.line((x0, y0 - 3, x0, y0 + 3), fill=(30, 30, 30), width=2)
+        d.line((x1, y0 - 3, x1, y0 + 3), fill=(30, 30, 30), width=2)
+        d.text((x0, y0 - 14), f"{span} m", fill=(30, 30, 30))
     d.rectangle((0, 0, size - 1, size - 1), outline=(195, 194, 183))
     colours = {k: tuple(int(255 * c * 1.6) for c in v["rgb"]) for k, v in arena.KINDS.items()}
     for it in status["items"]:

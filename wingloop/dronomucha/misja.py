@@ -66,13 +66,23 @@ def szukaj(z: Zadanie, seeds, progress=print, fly_eye=None, moving: float = 0.0)
     return rows
 
 
-def film(z: Zadanie, path, seed: int = 0, thermal: str | None = "bw", progress=print):
-    """Record one search, with the thermal camera's picture in the corner."""
+def film(
+    z: Zadanie,
+    path,
+    seed: int = 0,
+    thermal: str | None = "bw",
+    progress=print,
+    size=(1280, 720),
+):
+    """Record one search, with the thermal camera's picture in the corner, ``size`` pixels."""
     fly_eye = oko(z)
     mb, valence = mozg(fly_eye, z, progress=progress)
     p = pilot(fly_eye, mb, valence, z, obszar(z, seed))
     with swiat(z):
-        out = autopilot.record(path, p, True, autopilot.MISSION_S[True], 33.0, thermal=thermal)
+        seconds = autopilot.MISSION_S[True]
+        out = autopilot.record(
+            path, p, True, seconds, 33.0, *size, thermal=thermal, distance=24.0
+        )
         if progress:
             progress(p.summary())
     return out
