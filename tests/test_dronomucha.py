@@ -137,7 +137,7 @@ def test_the_search_map_sends_the_drone_where_it_has_not_looked():
     from wingloop.dronomucha.mapa import Mapa
 
     m = Mapa()
-    assert np.isclose(m.poa0.sum(), 1.0)
+    assert np.isclose(m.zostalo(), 1.0)
 
     class Nav:
         _home = (0.0, 0.0)
@@ -196,3 +196,29 @@ def test_the_drone_asks_the_operator_only_when_it_is_not_sure():
     Nav.phase = "scan"
     brain.v = 0.01
     assert op.valence(None) == 0.01 and len(op.pytania) == 1
+
+
+def test_an_order_in_words_names_the_job_and_its_add_ons():
+    """Polish words pick the job and the add-ons; an order it cannot place is refused."""
+    from wingloop.dronomucha.rozkaz import rozkaz
+
+    z, d, understood = rozkaz("Szukaj rozbitka na morzu, pytaj mnie, gdy nie jesteś pewien")
+    assert z.name == "ratunek_morze" and d.operator == {} and understood == ["operator"]
+    z, d, _ = rozkaz("Znajdź turystę w górach, użyj wszystkiego")
+    assert z.name == "ratunek_gory" and d.zmysly and d.kora and d.pamiec
+    with pytest.raises(ValueError):
+        rozkaz("Leć na Księżyc")
+
+
+def test_where_a_drifting_target_was_looked_for_fills_again():
+    """For a target that moves, a place looked at and found empty is worth looking at again."""
+    from wingloop.dronomucha.mapa import Mapa
+
+    sweep = [dict(phase="scan", x=40.0, y=0.0, heading=h, t=0.0) for h in range(0, 360, 5)]
+    later = [dict(phase="scan", x=-40.0, y=0.0, heading=0.0, t=20.0)]
+    still, drift = Mapa(ruch=0.0), Mapa(ruch=10.0)
+    for m in (still, drift):
+        m.zapisz(sweep)
+        m.zapisz(sweep + later)
+    east = still.x > 40
+    assert drift.poa()[east].sum() > 1.3 * still.poa()[east].sum()

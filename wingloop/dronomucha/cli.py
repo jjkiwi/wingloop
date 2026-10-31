@@ -7,8 +7,8 @@ dronomucha film ZADANIE --plik X.mp4     record one search
 dronomucha rozkaz "Szukaj rozbitka na morzu, pytaj mnie"   an order in words
 
 The functions people add to the fly's brain (docs/hybryda.md), for szukaj
-and film: --zestaw mucha|hybryda, or each on its own: --zmysly N, --kora W,
---mapa, --pamiec, --operator.
+and film: --zestaw mucha|hybryda|hybryda_z_operatorem, or each on its own:
+--zmysly N, --kora W, --mapa, --pamiec, --operator.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ def main(argv=None) -> None:
     s.add_argument("--obszary", type=int, default=1, help="how many areas")
     for s in (sub.choices["szukaj"], sub.choices["film"]):
         g = s.add_argument_group("dodatki do mózgu muchy")
-        g.add_argument("--zestaw", default="mucha", help="mucha | hybryda")
+        g.add_argument("--zestaw", default="mucha", help="a named set: mucha, hybryda, ...")
         g.add_argument("--zmysly", type=int, default=None, help="senses in the calyx, how much")
         g.add_argument("--kora", type=float, default=None, help="the cortex's say")
         g.add_argument("--mapa", action="store_true", help="search by a map of probability")

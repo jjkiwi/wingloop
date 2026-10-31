@@ -833,6 +833,22 @@ the lab, putting it back after. The first jobs are search and rescue
 in the sea, found by heat, among warm rocks and chamois or seals and
 debris. `python -m wingloop.dronomucha lista | lekcje | szukaj | film`.
 
+**The fly's brain with functions people added** (`docs/hybryda.md`, in
+Polish). The core stays the fly's; around it, each switched on or off and
+flown against the fly alone on the same 12 search areas: the thermal
+camera's kelvin and the rangefinder's distance and size, on a gimbal,
+coded as lines into the mushroom body's calyx, where the fly's own
+dopamine rule learns what they mean; a cortex of gradient-boosted trees as
+a second opinion; a search map of probabilities (Koopman's search theory)
+that spreads as targets drift; a memory of objects tracked by the gimbal
+instead of places; and an operator asked when a close look is near the
+line. At sea the fly alone found 9 castaways of 24; with its senses, 19;
+with senses and cortex, 23, and with everything, 23-24 -- without a false
+alarm. In the mountains, 20 found with 2 false alarms became 21-22 with
+none; with everything moving at 10 mm/s, 7 found with 19 false alarms
+became 12-13 with 4-6, and drifting at sea, 9 with 10 became 21-24 with
+1-4. `python -m wingloop.dronomucha szukaj ratunek_morze --zestaw hybryda`.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight

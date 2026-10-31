@@ -25,7 +25,7 @@ that, on the same search areas (docs/hybryda.md):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -47,5 +47,14 @@ class Dodatki:
 #: The fly's brain alone.
 MUCHA = Dodatki()
 
+#: Everything that flies without a person: the senses in the calyx at four
+#: times their lines, the cortex at 0.3 -- the best measured on the lessons
+#: (docs/hybryda.md) -- the search map and the memory of objects.
+HYBRYDA = Dodatki(zmysly=4, kora=0.3, mapa={}, pamiec=True)
+
 #: Named sets, for the command line.
-ZESTAWY: dict[str, Dodatki] = {"mucha": MUCHA}
+ZESTAWY: dict[str, Dodatki] = {
+    "mucha": MUCHA,
+    "hybryda": HYBRYDA,
+    "hybryda_z_operatorem": replace(HYBRYDA, operator={}),
+}

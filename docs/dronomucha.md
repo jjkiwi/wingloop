@@ -18,6 +18,7 @@ Projekt ma dwie części:
 | `swiat.py` | jedyne miejsce, które sięga do laboratorium: na czas zadania ustawia jego świat, potem zawsze przywraca laboratorium |
 | `mozg.py` | lekcje zadania (nagrywane raz, trzymane w `data/`) i mózg nauczony na nich |
 | `misja.py` | obszar poszukiwań, dron gotowy do lotu, przeszukiwanie i film |
+| `dodatki.py`, `zmysly.py`, `hybryda.py`, `mapa.py`, `pamiec.py`, `operator.py`, `rozkaz.py` | funkcje dodane do mózgu muchy przez człowieka, każda do włączenia osobno (docs/hybryda.md) |
 | `wyglad.py` | jak zadania wyglądają dla oglądającego: tekstury śniegu i wody, góry na horyzoncie, modele postaci, styl mapy |
 | `cli.py` | polecenie `dronomucha` |
 
@@ -122,4 +123,7 @@ niczego poza nimi:
   `watch.THERMAL_SPAN`, `THERMAL_SPAN_MIN`) albo przez kamerę NIR (`FlysEye.nir`),
 - wygląd sceny (`watch.SCENERY`),
 - ruchome obiekty (`arena.mission(moving=)`),
-- nagrywanie gotowej misji (`autopilot.record`).
+- nagrywanie gotowej misji (`autopilot.record`),
+- lekcje z odczytami czujników (`senses=`), planer i pamięć nawigatora
+  (`Navigator.planner`, `Navigator.memory`) oraz podgląd oceny bez skutków
+  ubocznych (`peek`) -- dla dodatków z docs/hybryda.md.
