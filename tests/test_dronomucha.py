@@ -253,3 +253,15 @@ def test_the_light_eye_is_a_cheap_thermal_sensor_held_between_its_frames():
     assert 0.003 < size < 0.2 and abs(bearing) < 0.1 and POLE_OKA == 10_000.0
     lo, hi = z.kinds["rozbitek"]["heat"]
     assert lo - 1 < r[0] < hi + 1 and 10.0 < r[1] < 30.0
+
+
+def test_both_platforms_search_a_square_kilometre_by_the_same_arithmetic():
+    """A pixel from 60 m, km² a flight; a 32-pixel array cannot see a person from there."""
+    from wingloop.dronomucha.platformy import KAMERY, QUAD, SAMOLOT, najwyzej, pokrycie
+
+    cam = KAMERY["t256s"]
+    assert np.isclose(cam.piksel(60.0) * 256, 2 * 60.0 * np.tan(np.deg2rad(28.0)))
+    plane, quad = pokrycie(SAMOLOT, cam, 60.0), pokrycie(QUAD, cam, 60.0)
+    assert plane["widac"] and plane["km2"] > 1.0 > quad["km2"]
+    assert not pokrycie(SAMOLOT, KAMERY["mlx90640_55"], 60.0)["widac"]
+    assert najwyzej(KAMERY["mlx90640_55"]) < 20.0 < 100.0 < najwyzej(cam)

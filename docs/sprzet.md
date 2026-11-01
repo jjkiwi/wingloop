@@ -1,5 +1,12 @@
 # Sprzęt: lekki dron z części, możliwie tanio i bez marnowania
 
+> **Uwaga.** Ta lista była dobierana do skali dotychczasowej symulacji (1:50):
+> dron niecały metr nad ziemią, zasięg kilku metrów. Do prawdziwych
+> poszukiwań w górach (1 km², 30–120 m wysokości) obowiązuje
+> `docs/platformy.md`: kamera 256×192 zamiast MLX90640, dalmierz na
+> 40–180 m i dwie platformy, quadrocopter i samolot. Lista części do
+> załatwienia jest w `checklista_dronomucha.docx`.
+
 Wersja lekka (`docs/lekka.md`) nie potrzebuje oka muchy (flyvis) ani karty
 graficznej. Mózg muchy ocenia pięć liczb z dwóch tanich czujników. Na
 pokładzie wystarczy więc najmniejszy Raspberry Pi. Zasada doboru:
