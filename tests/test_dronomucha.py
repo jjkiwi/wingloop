@@ -222,3 +222,34 @@ def test_where_a_drifting_target_was_looked_for_fills_again():
         m.zapisz(sweep + later)
     east = still.x > 40
     assert drift.poa()[east].sum() > 1.3 * still.poa()[east].sum()
+
+
+def test_the_light_eye_is_a_cheap_thermal_sensor_held_between_its_frames():
+    """No optic lobe: 32 x 24 pixels at 8 frames a second, a warm person dark in them."""
+    from wingloop.dronomucha.lekka import MLX90640, POLE_OKA
+    from wingloop.dronomucha.zmysly import odczyt
+    from wingloop.lab.scene import rotation
+
+    z = dronomucha.zadanie("ratunek_morze")
+    eye = dronomucha.oko(z, "mlx90640")
+    assert eye.eye.column_x.size == 32 * 24 and eye.eye.fovea_shape(None).size == 0
+    with dronomucha.swiat(z):
+        eye.set_items((arena.Item("rozbitek", 30.0, 0.0),))
+        here = np.array([0.0, 0.0, 5.0])
+        eye.look_from(here, rotation(0, 0, 0))
+        first = eye.image.copy()
+        eye.look_from(here, rotation(0, 0, 0.3))  # 20 ms later: the same picture
+        assert np.array_equal(first, eye.image)
+        for _ in range(int(1000 / MLX90640.hz / eye.every_ms)):
+            eye.look_from(here, rotation(0, 0, 0.3))
+        assert not np.array_equal(first, eye.image)
+        # Turned back, it still shows the picture taken turned 17 degrees away.
+        eye.look_from(here, rotation(0, 0, 0))
+        assert np.isclose(eye.eye.dark(0.25)[1] * 55.0, -17.2, atol=4.0)
+        for _ in range(int(1000 / MLX90640.hz / eye.every_ms)):
+            eye.look_from(here, rotation(0, 0, 0))
+        size, bearing = eye.eye.dark(0.25)
+        r = odczyt(eye, np.random.default_rng(0))
+    assert 0.003 < size < 0.2 and abs(bearing) < 0.1 and POLE_OKA == 10_000.0
+    lo, hi = z.kinds["rozbitek"]["heat"]
+    assert lo - 1 < r[0] < hi + 1 and 10.0 < r[1] < 30.0

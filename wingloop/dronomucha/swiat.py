@@ -49,8 +49,16 @@ def swiat(z: Zadanie):
         watch.IR_HEAT, watch.IR_CLUTTER, watch.THERMAL_SPAN_MIN, watch.THERMAL_SPAN = thermal
 
 
-def oko(z: Zadanie):
-    """The drone's eye for a task, looking through what the task says."""
+def oko(z: Zadanie, rodzaj: str = "mucha"):
+    """The drone's eye for a task, looking through what the task says.
+
+    ``rodzaj``: the fly's eye (``"mucha"``), or a cheap thermal sensor in
+    its place (``"mlx90640"``, ``"lepton"``: :mod:`.lekka`).
+    """
+    if rodzaj != "mucha":
+        from .lekka import CZUJNIKI, lekkie_oko
+
+        return lekkie_oko(z, CZUJNIKI[rodzaj])
     with swiat(z):
         e = watch.FlysEye(every_ms=autopilot.EYE_MS[True])
     e.thermal = z.eye == "termowizja"

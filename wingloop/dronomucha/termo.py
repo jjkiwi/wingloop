@@ -217,7 +217,7 @@ def film_termo(
     from .dodatki import MUCHA
 
     dodatki = dodatki or MUCHA
-    fly_eye = oko(z)
+    fly_eye = oko(z, dodatki.oko)
     mb, valence = mozg(fly_eye, z, progress=progress, dodatki=dodatki)
     p = pilot(fly_eye, mb, valence, z, obszar(z, seed), dodatki)
     seconds = seconds or autopilot.MISSION_S[True]

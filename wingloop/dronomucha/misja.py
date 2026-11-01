@@ -24,6 +24,9 @@ def pilot(fly_eye, mb, valence, z: Zadanie, items, dodatki: Dodatki = MUCHA):
     p.nav.pattern = tuple(z.pattern)
     for name, value in z.nawigacja.items():
         setattr(p.nav, name, value)
+    czujnik = getattr(fly_eye, "czujnik", None)
+    if czujnik is not None:  # the light drone: no faster than its sensor's pictures
+        p.nav.scan_rate = min(p.nav.scan_rate, czujnik.skan)
     if dodatki.mapa is not None:
         from .mapa import Mapa
 
@@ -62,7 +65,7 @@ def szukaj(
     -- a false alarm -- ``first``: when it found the first target, s, and
     ``t``: how long the search took, s.
     """
-    fly_eye = fly_eye or oko(z)
+    fly_eye = fly_eye or oko(z, dodatki.oko)
     mb, valence = mozg(fly_eye, z, progress=progress, dodatki=dodatki)
     rows = []
     for seed in seeds:
@@ -110,7 +113,7 @@ def film(
     dodatki: Dodatki = MUCHA,
 ):
     """Record one search, with the thermal camera's picture in the corner, ``size`` pixels."""
-    fly_eye = oko(z)
+    fly_eye = oko(z, dodatki.oko)
     mb, valence = mozg(fly_eye, z, progress=progress, dodatki=dodatki)
     p = pilot(fly_eye, mb, valence, z, obszar(z, seed), dodatki)
     with swiat(z):

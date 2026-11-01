@@ -69,7 +69,6 @@ def odczyt(fly_eye, rng=None) -> np.ndarray:
     from scipy import ndimage
 
     from wingloop.lab.arena import FLOOR
-    from wingloop.lab.watch import IR_FOV
 
     out = np.full(len(POLA), np.nan)
     aim = celownik(fly_eye, rng)
@@ -80,37 +79,53 @@ def odczyt(fly_eye, rng=None) -> np.ndarray:
     out[0] = peak
     if peak < CIEPLE or not np.isfinite(d):
         return out
-    step = IR_FOV / (image.shape[0] - 1)
+    _, rows_el, step = _kamera(fly_eye)
     labels, _ = ndimage.label(image > max(CIEPLE, 0.5 * peak))
     rows, across = np.nonzero(labels == labels[r, c])
-    top = np.deg2rad(IR_FOV / 2 - rows.min() * step)
-    flat = d * np.cos(np.deg2rad(IR_FOV / 2 - r * step))
+    top = np.deg2rad(rows_el[rows.min()])
+    flat = d * np.cos(np.deg2rad(rows_el[r]))
     wide = np.deg2rad((across.max() - across.min() + 1) * step)
     o = fly_eye.pose[0]
     out[1:] = d, o[2] - FLOOR + flat * np.tan(top), 2 * flat * np.tan(wide / 2), rows.min() == 0
     return out
 
 
+def _kamera(fly_eye):
+    """The thermal camera the senses read: (its rays, the body level, (rows, columns, 3);
+    each row's elevation, degrees; degrees a column). The eye's own, if it is a
+    thermal sensor (:class:`~.lekka.LekkieOko`), else the gimbal's
+    (:data:`~wingloop.lab.watch.IR_SIZE`, :data:`~wingloop.lab.watch.IR_FOV`)."""
+    from wingloop.lab.scene import Camera
+    from wingloop.lab.watch import IR_FOV, IR_SIZE
+
+    rays = getattr(fly_eye, "promienie_termo", None)
+    if rays is not None:
+        mid = rays.shape[1] // 2
+        rows_el = np.degrees(np.arcsin(np.clip(rays[:, mid, 2], -1.0, 1.0)))
+        return rays, rows_el, fly_eye.czujnik.fov[0] / rays.shape[1]
+    step = IR_FOV / (IR_SIZE - 1)
+    return Camera(size=IR_SIZE, fov=IR_FOV).rays(), IR_FOV / 2 - np.arange(IR_SIZE) * step, step
+
+
 def celownik(fly_eye, rng=None):
     """The gimbal on what the eye looks at: (thermal picture, its warmest pixel in the
     band, the ray to it, how far the rangefinder's beam goes along it -- inf if
     it is not :data:`CIEPLE` K warm or out of reach), or None if the eye has not looked."""
-    from wingloop.lab.scene import Camera
-    from wingloop.lab.watch import IR_FOV, IR_SIZE, _level
+    from wingloop.lab.watch import _level
 
     if fly_eye is None or fly_eye.pose is None:
         return None
     rng = rng if rng is not None else np.random.default_rng()
     image = fly_eye.thermal_view(rng)
-    step = IR_FOV / (IR_SIZE - 1)
-    mid = (IR_SIZE - 1) // 2
+    rays, _, step = _kamera(fly_eye)
+    mid = (image.shape[1] - 1) // 2
     band = max(1, int(round(PASMO / step)))
     cols = slice(mid - band, mid + band + 1)
     strip = image[:, cols]
     r, c = np.unravel_index(int(np.argmax(strip)), strip.shape)
     c += cols.start
     o, R = fly_eye.pose
-    ray = Camera(size=IR_SIZE, fov=IR_FOV).rays()[r, c] @ _level(R).T
+    ray = rays[r, c] @ _level(R).T
     d = _beam(fly_eye.world, o, ray) if image[r, c] >= CIEPLE else np.inf
     return image, (r, c), ray, d
 

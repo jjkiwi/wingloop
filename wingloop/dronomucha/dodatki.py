@@ -20,7 +20,11 @@ that, on the same search areas (docs/hybryda.md):
     moving or not (:mod:`.pamiec`);
 ``operator``
     ask a person when it is not sure (:mod:`.operator`'s settings); None:
-    decide alone.
+    decide alone;
+``oko``
+    what the drone looks through: ``"mucha"``, the fly's eye (flyvis), or a
+    cheap thermal sensor in its place -- ``"mlx90640"`` or ``"lepton"``
+    (:mod:`.lekka`): the light drone, its brain judging its senses alone.
 """
 
 from __future__ import annotations
@@ -37,11 +41,12 @@ class Dodatki:
     mapa: dict | None = None
     pamiec: bool = False
     operator: dict | None = None
+    oko: str = "mucha"
 
     @property
     def mozg(self) -> bool:
         """Does the brain itself change -- senses or a cortex?"""
-        return bool(self.zmysly or self.kora)
+        return bool(self.zmysly or self.kora or self.oko != "mucha")
 
 
 #: The fly's brain alone.
@@ -58,3 +63,9 @@ ZESTAWY: dict[str, Dodatki] = {
     "hybryda": HYBRYDA,
     "hybryda_z_operatorem": replace(HYBRYDA, operator={}),
 }
+
+#: The light drone: no fly's eye, an MLX90640 in its place, the fly's
+#: mushroom body judging the senses alone; the map and the memory of objects.
+LEKKA = Dodatki(zmysly=4, mapa={}, pamiec=True, oko="mlx90640")
+ZESTAWY["lekka"] = LEKKA
+ZESTAWY["lekka_lepton"] = replace(LEKKA, oko="lepton")

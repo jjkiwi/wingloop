@@ -16,7 +16,15 @@ from .zadanie import Zadanie
 DATA = Path(__file__).with_name("data")
 
 
-def lekcje(fly_eye, z: Zadanie, fresh: bool = False, progress=print, folder=DATA, zmysly=False):
+def lekcje(
+    fly_eye,
+    z: Zadanie,
+    fresh: bool = False,
+    progress=print,
+    folder=DATA,
+    zmysly=False,
+    oko: str = "mucha",
+):
     """A task's lessons: ((features, kinds), (close-look features, kinds)).
 
     The tethered look at each kind, turning as the drone turns, and close
@@ -28,13 +36,16 @@ def lekcje(fly_eye, z: Zadanie, fresh: bool = False, progress=print, folder=DATA
     ``zmysly``: with what the other sensors read at each view
     (:mod:`.zmysly`): ((features, kinds, readings), (the same, close)) -- the
     same views, flown again with the sensors on, kept in a file of their own.
+    ``oko``: flown by the light drone, looking through that sensor instead of
+    the fly's eye (:mod:`.lekka`): its lessons, in a file of their own.
     """
     from wingloop.lab.dronebrain import SCAN_RATE
     from wingloop.lab.navigate import tethered_training
 
     from .zmysly import Zmysly
 
-    path = Path(folder) / f"{z.name}_lekcje{'_zmysly' if zmysly else ''}.npz"
+    name = z.name + "_lekcje" + ("_zmysly" if zmysly else "")
+    path = Path(folder) / f"{name}{'' if oko == 'mucha' else '_' + oko}.npz"
     tethered, close = z.lessons
     senses = dict(senses=Zmysly()) if zmysly else {}
     if path.exists() and not fresh:
@@ -82,7 +93,9 @@ def mozg(fly_eye, z: Zadanie, fresh: bool = False, progress=print, dodatki=None)
     if dodatki is not None and dodatki.mozg:
         from .hybryda import naucz
 
-        far, near = lekcje(fly_eye, z, fresh=fresh, progress=progress, zmysly=True)
+        far, near = lekcje(
+            fly_eye, z, fresh=fresh, progress=progress, zmysly=True, oko=dodatki.oko
+        )
         with swiat(z):
             brain, valence = naucz(far, near, z.target, dodatki.zmysly, dodatki.kora)
         brain.eye = fly_eye

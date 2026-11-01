@@ -849,6 +849,21 @@ none; with everything moving at 10 mm/s, 7 found with 19 false alarms
 became 12-13 with 4-6, and drifting at sea, 9 with 10 became 21-24 with
 1-4. `python -m wingloop.dronomucha szukaj ratunek_morze --zestaw hybryda`.
 
+**The light drone: the fly's brain without the fly's eye** (`docs/lekka.md`,
+hardware in `docs/sprzet.md`, in Polish). The drone's senses -- five
+numbers from the thermal camera and the rangefinder -- tell a person from
+the rest as well as the fly's eye's 325 features, and the fly's mushroom
+body learns them alone. So the light drone drops the optic lobe and looks
+through a cheap 32 x 24 thermopile array (MLX90640, 110 degrees, 8 frames a
+second): in a still world it finds as many as the full hybrid (21 of 24 in
+the mountains, 22 at sea), its brain takes well under a millisecond, and it
+runs on a Raspberry Pi. Simulating the cheap sensor before buying it found
+two faults of mounting: tilted 10 degrees down it found 6 of 24 (a person
+lying ahead left the bottom of the view coming in), and it must look round
+no faster than 15 degrees a picture. A Lepton 3.5, several times dearer, did
+worse (18 and 21): the wide view matters more than the pixels.
+`python -m wingloop.dronomucha szukaj ratunek_morze --zestaw lekka`.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
