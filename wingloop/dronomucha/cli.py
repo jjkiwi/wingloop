@@ -5,6 +5,7 @@ dronomucha lekcje ZADANIE                teach it a job (once; kept on disk)
 dronomucha szukaj ZADANIE [--obszary N]  search N areas, and the tally
 dronomucha film ZADANIE --plik X.mp4     record one search
 dronomucha rozkaz "Szukaj rozbitka na morzu, pytaj mnie"   an order in words
+dronomucha teren szukaj|film --platforma samolot|quad --kamera t256s   real scale
 
 The functions people add to the fly's brain (docs/hybryda.md), for szukaj
 and film: --zestaw mucha|hybryda|hybryda_z_operatorem, or each on its own:
@@ -45,6 +46,14 @@ def main(argv=None) -> None:
     s.add_argument("tekst")
     s.add_argument("--seed", type=int, default=7000, help="the first search area")
     s.add_argument("--obszary", type=int, default=1, help="how many areas")
+    s = sub.add_parser("teren", help="a search at real scale: a Tatra valley, 1 km²")
+    s.add_argument("co", choices=("szukaj", "film"))
+    s.add_argument("--platforma", choices=("samolot", "quad"), default="samolot")
+    s.add_argument("--kamera", default="t256s", help="t256s, p2pro, 384, lepton35, mlx90640_55")
+    s.add_argument("--wysokosc", type=float, default=None, help="m above the ground")
+    s.add_argument("--seed", type=int, default=0, help="the first search area")
+    s.add_argument("--obszary", type=int, default=1, help="how many areas")
+    s.add_argument("--plik", default="teren.mp4")
     for s in (sub.choices["szukaj"], sub.choices["film"]):
         g = s.add_argument_group("dodatki do mózgu muchy")
         g.add_argument("--zestaw", default="mucha", help="a named set: mucha, hybryda, ...")
@@ -62,6 +71,9 @@ def main(argv=None) -> None:
         for name, z in sorted(ZADANIA.items()):
             others = ", ".join(v["pl"] for k, v in z.kinds.items() if k != z.target)
             print(f"{name:16s} {z.pl}: szuka {z.kinds[z.target]['pl']}, mylące: {others}")
+        return
+    if args.command == "teren":
+        _teren(args)
         return
     if args.command == "rozkaz":
         from .rozkaz import rozkaz
@@ -97,6 +109,37 @@ def main(argv=None) -> None:
         else:
             out = film(z, args.plik, seed=args.seed, thermal=args.termowizja, dodatki=dodatki)
             print(f"film -> {out}")
+
+
+def _teren(args) -> None:
+    """A search, or a film of one, at real scale (:mod:`.teren`)."""
+    from .platformy import KAMERY, PLATFORMY
+    from .teren import film, lekcje, lot, obiekty, teren, wykrywanie
+
+    if args.kamera not in KAMERY:
+        raise SystemExit(f"Nie znam kamery {args.kamera!r}. Znane: {', '.join(KAMERY)}")
+    plat, cam = PLATFORMY[args.platforma], KAMERY[args.kamera]
+    t = teren.dolina()
+    pg = teren.Pogoda()
+    gt = t.temperatura(pg)
+    f, p, _ = lekcje.lekcje(args.kamera, cam)
+    mozg = wykrywanie.naucz(f, p)
+    if args.co == "film":
+        objs = obiekty.uloz(t, pg, seed=args.seed)
+        out = film.film(
+            args.plik, plat, cam, t, gt, objs, mozg, agl=args.wysokosc, seed=args.seed
+        )
+        print(f"film -> {out}")
+        return
+    for seed in range(args.seed, args.seed + args.obszary):
+        objs = obiekty.uloz(t, pg, seed=seed)
+        w = lot.szukaj(plat, cam, t, gt, objs, mozg, agl=args.wysokosc, seed=seed)
+        r = lot.ocen(w, objs)
+        print(
+            f"obszar {seed}: znalezieni {r['znalezieni']}/{r['ludzie']}, "
+            f"fałszywe alarmy {r['falszywe']}, do sprawdzenia {r['do_sprawdzenia']}, "
+            f"przeszukane {100 * r['pokrycie']:.0f}%, lot {r['czas'] / 60:.1f} min"
+        )
 
 
 def _dodatki(args):

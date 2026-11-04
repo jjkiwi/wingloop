@@ -864,6 +864,20 @@ no faster than 15 degrees a picture. A Lepton 3.5, several times dearer, did
 worse (18 and 21): the wide view matters more than the pixels.
 `python -m wingloop.dronomucha szukaj ratunek_morze --zestaw lekka`.
 
+**A search at real scale** (`docs/teren.md`, in Polish). A square kilometre
+of a Tatra-like valley -- a glacial trough, a cirque with a tarn, ridges,
+snow, rock, scree and dwarf pine, sunlit rock as warm as a jacket -- searched
+by a foam plane and a quadcopter from 40-100 m with a thermal camera looking
+down; people in four poses, chamois, foxes and boulders as parts, each warm
+in its own way; every pixel the mix of what lies in it. The plane searches
+the whole square kilometre on one battery, the quadcopter 14-18% (starting
+by the trail, where half the lost lie). A 256x192 camera from 60 m found 9
+of 17 people on 10 searches with 11 false alarms; looking again from lower
+down removed 87% of the false alarms; a 32x24 MLX90640 found none. Films:
+the plane from behind, with the camera's view and the rangefinder's beam
+drawn in; one pass full screen through the thermal camera.
+`python -m wingloop.dronomucha teren szukaj --platforma samolot --kamera t256s`.
+
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the
 fly with its wing joints left in is posed from it every frame. Forward flight
