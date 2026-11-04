@@ -87,14 +87,23 @@ TF02-Pro 13,5 m, TF03-100 50 m, TF03-180 100 m.
 
 ## Lot
 
-- **Pasy:** obie platformy latają pasami północ–południe, czyli wzdłuż doliny
-  i w większości wzdłuż poziomic. Odstęp to 70% szerokości kadru.
+- **Pasy samolotu biegną wzdłuż poziomic** (`lot.poziomice`). Na jednym pasie
+  ziemia pod samolotem ma stałą wysokość, więc samolot nie musi się wznosić ani
+  opadać razem ze zboczem. Poziomice pochodzą z terenu wygładzonego na 40 m,
+  bo samolot nie zmieści ciaśniejszych zakrętów. Ich wysokości są dobrane tak,
+  żeby w poziomie pasy leżały co 70% szerokości kadru. Odstęp w pionie wynika
+  z nachylenia, liczonego osobno dla każdego pasma wysokości (mediana): na dnie
+  doliny poziomice są co kilka metrów, na ścianach co kilkadziesiąt.
+- **Pasy quadrocoptera** biegną z północy na południe, co 70% szerokości kadru,
+  najpierw przy szlaku. Po poziomicach quad wypada tak samo (patrz niżej),
+  a pasy wzdłuż szlaku zaczynają od miejsc, gdzie ludzie giną najczęściej.
 - **Wysokość nad terenem:** obie patrzą na mapę terenu wzdłuż swojej drogi,
   jak terrain following w ArduPilocie, i wznoszą się z wyprzedzeniem
   (samolot patrzy 800 m do przodu, wznosi się i opada z prędkością 5 m/s).
   Samolot nie schodzi niżej niż 25 m nad ziemię.
-- **Kolejność pasów:** samolot przeskakuje pasy, żeby zmieścić zakręt
-  (promień około 33 m przy przechyle 35°). Quadrocopter zaczyna od pasów
+- **Kolejność pasów:** samolot leci do najbliższego końca nieprzeleconego
+  pasu, ale nie bliżej niż dwa promienie skrętu (promień około 33 m przy
+  przechyle 35°), chyba że inny wybór byłby znacznie dłuższy. Quadrocopter zaczyna od pasów
   najbliżej szlaku, bo tam ludzie giną najczęściej, a wszystkich na jednym
   akumulatorze nie przeleci.
 - **Zdjęcia:** jedno na sekundę. Każda plama, którą lubi mózg, to kandydat.
@@ -116,7 +125,9 @@ szuka przez 10,4. Zawsze zostaje zapas na powrót.
 
 | platforma, kamera, wysokość | znalezieni | fałszywe alarmy | przeszukane | 1. znalezisko (mediana) |
 | --- | --- | --- | --- | --- |
-| samolot, T256s, 60 m | **9 / 17** | 11 | 99% | 8,1 min |
+| samolot, T256s, 60 m, **po poziomicach** | **12 / 17** | 20 | 92% | 5,0 min |
+| samolot, 384×288, 100 m, **po poziomicach** | 10 / 17 | **2** | 98% | 1,8 min |
+| samolot, T256s, 60 m | 9 / 17 | 11 | 99% | 8,1 min |
 | samolot, T256s, 60 m, **bez potwierdzania** | 12 / 17 | **88** | 100% | 7,4 min |
 | samolot, T256s, 100 m | 7 / 17 | 2 | 99% | 5,8 min |
 | samolot, 384×288, 100 m | 8 / 17 | **1** | 99% | 14,4 min |
@@ -127,6 +138,20 @@ szuka przez 10,4. Zawsze zostaje zapas na powrót.
 | quad, 384×288, 60 m | 7 / 17 | **0** | 16% | 1,7 min |
 | quad, Lepton 3.5, 40 m | 7 / 17 | 5 | 16% | 1,9 min |
 | quad, MLX90640 55°, 20 m | 2 / 17 | 1 | 10% | 3,6 min |
+| quad, T256s, 60 m, po poziomicach | 7 / 17 | 2 | 17% | 4,6 min |
+
+Wiersze samolotu bez dopisku „po poziomicach” to loty pasami północ–południe,
+czyli poprzednia wersja.
+
+**Pasy po poziomicach: jak samolot trzyma wysokość** (wysokość nad ziemią
+nad przeszukiwanym obszarem, mediana z 10 lotów):
+
+| samolot | zadana | mediana | 95% czasu poniżej |
+| --- | --- | --- | --- |
+| T256s, pasy północ–południe | 60 m | 85 m | około 185 m |
+| T256s, po poziomicach | 60 m | **60 m** | **101 m** |
+| 384×288, pasy północ–południe | 100 m | 123 m | – |
+| 384×288, po poziomicach | 100 m | **100 m** | 155 m |
 
 **Wnioski**
 
@@ -137,7 +162,17 @@ szuka przez 10,4. Zawsze zostaje zapas na powrót.
    przeszukuje, quad potwierdza z bliska i sprawdza okolice szlaku.
 2. **MLX90640 z wysokości nie widzi ludzi:** 0 z 17. Z 20 m quad znalazł 2,
    ale przeszukał tylko 10% obszaru.
-3. **Kamera 256×192 na 60 m znajduje najwięcej (9 z 17).** Kamera 384×288 ze
+3. **Pasy po poziomicach to dla samolotu największy zysk: z 9 do 12 z 17
+   znalezionych** (T256s, 60 m) i z 8 do 10 (384×288, 100 m). Samolot leci
+   tam, gdzie powinien, czyli mediana 60 m zamiast 85 m, a człowiek ma w kadrze
+   więcej pikseli. Pierwsze znalezisko przychodzi szybciej. Koszt: niżej
+   widać więcej ciepłych plam, więc kandydatów jest około 18 zamiast 12 na lot.
+   Potwierdzanie zjada czas, pasy kończą się w 80% lotu i zostaje 8%
+   nieprzeszukane (92% zamiast 99%). Fałszywych alarmów jest 20 zamiast 11.
+   384×288 ze 100 m po poziomicach to najlepszy kompromis: 10 z 17, tylko
+   2 fałszywe alarmy na 10 lotów i 98% obszaru.
+   Wcześniej, na pasach północ–południe: **kamera 256×192 na 60 m znajdowała
+   najwięcej (9 z 17).** Kamera 384×288 ze
    100 m znajduje prawie tyle samo (8) i daje tylko 1 fałszywy alarm na 10
    lotów. Lepton ma za mało pikseli: liczba znalezionych podobna, ale 17
    fałszywych alarmów.
@@ -146,9 +181,11 @@ szuka przez 10,4. Zawsze zostaje zapas na powrót.
    zdążył obejrzeć przed końcem baterii. Prawdziwa akcja wysłałaby tych
    kandydatów operatorowi, zamiast ich odrzucać. To następny krok.
 5. **Gdzie gubimy ludzi:**
-   - **Wysokość:** w stromym terenie samolot leci wyżej, niż chce (mediana
-     około 85 m przy zadanych 60 m, chwilami ponad 180 m nad kotłem), bo nie
-     zdąży się wznieść ani opaść jak zbocze.
+   - **Wysokość** (na pasach północ–południe): w stromym terenie samolot
+     leciał wyżej, niż chciał (mediana około 85 m przy zadanych 60 m,
+     chwilami ponad 180 m nad kotłem), bo nie nadążał wznosić się ani opadać
+     razem ze zboczem. Pasy po poziomicach to usuwają. Wyżej leci już tylko
+     na przejściach między pasami.
    - **Stojący człowiek** z góry to głowa i ramiona, około 0,2 m², często bez
      plamy.
    - **Lisy i kozice** z daleka bywają brane za ludzi.
@@ -172,8 +209,8 @@ szuka przez 10,4. Zawsze zostaje zapas na powrót.
 - Operator zamiast odrzucania: kandydaci odrzuceni z bliska albo
   nieobejrzani idą do człowieka z obrazem (`operator.py` już to umie w
   arenie).
-- Pasy po poziomicach dla samolotu w stromym terenie, żeby trzymał
-  wysokość.
+- Szybsze potwierdzanie po poziomicach (np. kilku kandydatów obok siebie
+  jednym przelotem), żeby nie tracić 8% obszaru.
 - Kamera pochylona do przodu przy potwierdzaniu, bo stojący człowiek widać
   z boku, a nie z góry.
 - Prawdziwy NMT z GUGiK zamiast doliny z procedury.

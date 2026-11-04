@@ -1,7 +1,10 @@
 """The two platforms flying a search of a square kilometre, and coming lower to look again.
 
-Both fly lanes north-south, along the valley and so mostly along the
-slopes' contours, spaced so the camera's strips touch; both hold a height
+The plane flies lanes along the contours (:func:`poziomice`): the ground
+below a lane stays at one height, so it holds its height over it without
+climbing and coming down as a lane across a steep slope makes it. The
+quadcopter flies lanes north-south (:func:`pasy`), those nearest the trail
+first. The lanes lie so the camera's strips touch; both hold a height
 above the ground ahead of them (they look ahead along their way on the
 terrain map, as ArduPilot's terrain following does, and climb no faster
 than they can); both take a picture a second and judge every warm spot in
@@ -13,9 +16,8 @@ to look again from lower down:
   (where people are lost most) -- it cannot fly them all on one battery;
 - the **plane** cannot stop: it flies over it at :data:`NIZEJ`
   ``["samolot"]`` m, looking four times a second while it is close, and
-  comes round again if it missed; it flies every other lane or more, so
-  that it can turn into the next (it turns no tighter than its bank
-  allows).
+  comes round again if it missed; it goes on to a lane it can turn into
+  (it turns no tighter than its bank allows).
 
 What the closer look likes is reported -- where, for the team; what it does
 not is not looked at again; what it had no time to look at again is
@@ -85,19 +87,24 @@ class Lot:
         self.v = 0.0 if platforma.zawis else platforma.predkosc
         self.agl = agl
 
-    def wysokosc_potrzebna(self, agl: float, ile: float, ku: float) -> float:
+    def wysokosc_potrzebna(self, agl: float, ile: float, ku: float, droga=None) -> float:
         """How high it must be now to keep ``agl`` m over the ground for the next ``ile`` m
-        of its way (bearing ``ku``, radians), climbing no faster than it can: the
-        highest ground ahead, less what it can climb before it gets there."""
-        d = np.linspace(0, ile, 32)
-        xs = self.x + d * np.cos(ku)
-        ys = self.y + d * np.sin(ku)
+        of its way (bearing ``ku``, radians -- or along ``droga``, the points it will
+        fly through), climbing no faster than it can: the highest ground ahead, less
+        what it can climb before it gets there."""
+        if droga is None:
+            d = np.linspace(0, ile, 32)
+            xs = self.x + d * np.cos(ku)
+            ys = self.y + d * np.sin(ku)
+        else:
+            xs, ys, d = _po_drodze((self.x, self.y), droga, ile)
         climb = WZNOSZENIE[self.p.nazwa] * d / max(self.v, 1.0)
         return float(np.max(self.t.wysokosc(xs, ys) + agl - climb))
 
-    def krok(self, dt: float, cel, agl: float, stop: bool = False) -> float:
+    def krok(self, dt: float, cel, agl: float, stop: bool = False, droga=None) -> float:
         """Fly ``dt`` s toward ``cel`` (x, y) at ``agl`` m above the ground; return the distance
-        left. ``stop``: a quadcopter slows to a hover on it."""
+        left. ``stop``: a quadcopter slows to a hover on it. ``droga``: the points it
+        flies through after ``cel`` -- it holds its height along them, not along a line."""
         dx, dy = cel[0] - self.x, cel[1] - self.y
         dist = float(np.hypot(dx, dy))
         want = np.arctan2(dy, dx)
@@ -115,7 +122,10 @@ class Lot:
             ahead = PRZED["samolot"]
         # Along its way to where it is going, not along its nose: turning at a
         # lane's end it points at the valley's wall, and climbed for it.
-        z_want = self.wysokosc_potrzebna(agl, min(ahead, max(dist, 5.0)), want)
+        if droga is None:
+            z_want = self.wysokosc_potrzebna(agl, min(ahead, max(dist, 5.0)), want)
+        else:
+            z_want = self.wysokosc_potrzebna(agl, ahead, want, [cel, *droga])
         if self.p.zawis and z_want - self.z > 5.0:
             target_v = min(target_v, 2.0)  # a quadcopter slows to climb
         if self.p.zawis:
@@ -161,6 +171,95 @@ def pasy(platforma: Platforma, kamera: Kamera, agl: float, szlak_x: float = 60.0
     return lanes
 
 
+def _po_drodze(start, droga, ile: float, co: float = 25.0):
+    """Points every ``co`` m along the way from ``start`` through ``droga``, for ``ile`` m:
+    (x, y, distance along the way)."""
+    pts = np.vstack([np.asarray(start, float)[None, :2], np.asarray(droga, float)[:, :2]])
+    seg = np.hypot(*np.diff(pts, axis=0).T)
+    along = np.concatenate([[0.0], np.cumsum(seg)])
+    d = np.arange(0.0, min(ile, along[-1]) + 1e-6, co)
+    return np.interp(d, along, pts[:, 0]), np.interp(d, along, pts[:, 1]), d
+
+
+def poziomice(
+    platforma: Platforma, kamera: Kamera, agl: float, teren, start=None, co: float = 40.0
+) -> list:
+    """Lanes along the contours, in the order flown: each a list of points (x, y).
+
+    On a lane the ground below stays at one height, so the plane holds its height
+    over it without climbing and coming down as a lane across the slopes makes it.
+    The contours are of the ground smoothed over 40 m -- a plane turns no tighter
+    than its bank lets it, and wiggles smaller than that it cannot fly. Their
+    heights are chosen so the lanes lie :data:`~..platformy.UZYTECZNY_PAS` of the
+    camera's strip apart *on the ground*: how far apart two contours lie is the
+    height between them over the slope's steepness, and that is measured band by
+    band of height (its median) -- gentle on the valley's floor, so contours a few
+    metres apart there; steep on the walls, so tens of metres. Lanes shorter than
+    80 m are left out. Their order: from ``start`` (the base) to the nearest end
+    of a lane not yet flown, either way along it -- but not one closer than the
+    plane can turn into (two turning radii), unless it is far shorter.
+    """
+    import contourpy
+    from scipy.ndimage import gaussian_filter
+
+    from ..platformy import UZYTECZNY_PAS
+
+    spacing = kamera.pas(agl) * UZYTECZNY_PAS
+    zs = gaussian_filter(np.asarray(teren.z, float), 40.0 / teren.krok)
+    a = -teren.polowa + teren.krok * np.arange(teren.n)
+    m = (a >= -POLE - 10) & (a <= POLE + 10)
+    zc, ac = zs[np.ix_(m, m)], a[m]
+    gy, gx = np.gradient(zc, teren.krok)
+    steep = np.hypot(gx, gy)
+    band = 10.0
+    edges = np.arange(zc.min(), zc.max() + band, band)
+    grad = []
+    for e0, e1 in zip(edges[:-1], edges[1:], strict=True):
+        inside = (zc >= e0) & (zc < e1)
+        grad.append(np.median(steep[inside]) if inside.sum() > 20 else 0.3)
+    across = np.concatenate([[0.0], np.cumsum(band / np.clip(grad, 0.03, None))])
+    levels = np.interp(np.arange(spacing / 2, across[-1], spacing), across, edges)
+    gen = contourpy.contour_generator(ac, ac, zc)
+    lanes = []
+    for level in levels:
+        for line in gen.lines(level):
+            seg = np.hypot(*np.diff(line, axis=0).T)
+            along = np.concatenate([[0.0], np.cumsum(seg)])
+            if along[-1] < 80.0:
+                continue
+            d = np.linspace(0.0, along[-1], max(2, int(np.ceil(along[-1] / co)) + 1))
+            lanes.append(
+                np.stack(
+                    [np.interp(d, along, line[:, 0]), np.interp(d, along, line[:, 1])], axis=1
+                )
+            )
+    radius = platforma.predkosc**2 / (G * np.tan(np.deg2rad(35.0)))
+    here = np.asarray(start if start is not None else teren.baza, float)
+    order, left = [], list(range(len(lanes)))
+    while left:
+        best, cost, flip = None, np.inf, False
+        for i in left:
+            for rev, end in ((False, lanes[i][0]), (True, lanes[i][-1])):
+                d = float(np.hypot(*(end - here)))
+                c = d + (4 * radius if d < 2 * radius else 0.0)
+                if c < cost:
+                    best, cost, flip = i, c, rev
+        lane = lanes[best][::-1] if flip else lanes[best]
+        order.append([tuple(p) for p in lane])
+        here = lane[-1]
+        left.remove(best)
+    return order
+
+
+def trasa_lotu(platforma: Platforma, kamera: Kamera, agl: float, teren, trasa=None):
+    """(which, the lanes): the plane flies the contours, the quadcopter north-south lanes,
+    unless ``trasa`` ("pasy", "poziomice") says otherwise."""
+    trasa = trasa or ("pasy" if platforma.zawis else "poziomice")
+    if trasa == "poziomice":
+        return trasa, poziomice(platforma, kamera, agl, teren)
+    return trasa, pasy(platforma, kamera, agl)
+
+
 def _w_kadrze(rogi, gx, gy) -> np.ndarray:
     """Which points (gx, gy) lie inside a picture's footprint on the ground: a convex
     quadrilateral, either way round -- every edge has them on the same side."""
@@ -185,14 +284,19 @@ def szukaj(
     seed: int = 0,
     klatka=None,
     krok=None,
+    trasa: str | None = None,
 ) -> Wynik:
     """Fly one search of the area; ``klatka(lot, widok, plamy, faza)`` sees every picture,
-    ``krok(t, lot, faza, cel, kandydaci)`` every step -- and ends it by returning True."""
+    ``krok(t, lot, faza, cel, kandydaci)`` every step -- and ends it by returning True.
+    ``trasa``: "pasy" (north-south, :func:`pasy`) or "poziomice" (along the contours,
+    :func:`poziomice`); by default the plane flies the contours, the quadcopter lanes."""
     rng = np.random.default_rng(seed)
     agl = agl or platforma.wysokosc
     low = NIZEJ[platforma.nazwa]
     lot = Lot(platforma, teren, teren.baza, agl)
-    lanes = [p for lane in pasy(platforma, kamera, agl) for p in lane]
+    trasa, route = trasa_lotu(platforma, kamera, agl, teren, trasa)
+    lanes = [p for lane in route for p in lane]
+    lane_of = [i for i, lane in enumerate(route) for _ in lane]
     cells = np.arange(-POLE + 5, POLE, 10.0)
     gx, gy = np.meshgrid(cells, cells)
     seen = np.zeros(gx.shape, bool)
@@ -225,8 +329,20 @@ def szukaj(
                 else:
                     phase = "powrot"
                 continue
-            if lot.krok(dt, lanes[wp], agl) < (8.0 if platforma.zawis else 30.0):
+            nxt = wp + 1 < len(lanes) and lane_of[wp + 1] == lane_of[wp]
+            first = wp == 0 or lane_of[wp - 1] != lane_of[wp]
+            ahead = (
+                [lanes[i] for i in range(wp + 1, min(wp + 30, len(lanes)))]
+                if trasa == "poziomice"
+                else None
+            )
+            if lot.krok(dt, lanes[wp], agl, droga=ahead) < (8.0 if platforma.zawis else 30.0):
                 wp += 1
+            elif nxt and not first:
+                # Along a lane, a point it has gone by is not turned back for.
+                a_, b_ = np.asarray(lanes[wp]), np.asarray(lanes[wp + 1])
+                if np.hypot(lot.x - b_[0], lot.y - b_[1]) < np.hypot(*(b_ - a_)):
+                    wp += 1
             if t >= next_shot and lot.nad_ziemia > 0.5 * agl:
                 next_shot = t + 1.0
                 v, spots = look("pasy")

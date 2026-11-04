@@ -265,8 +265,8 @@ def _mapa(t: T.Teren, wynik_slad, lanes, kandydaci, rogi, size: int, obiekty):
 
     a, b = px(-LOT.POLE, LOT.POLE), px(LOT.POLE, -LOT.POLE)
     d.rectangle((*a, *b), outline=(0, 200, 255), width=2)
-    for (x0, y0), (x1, y1) in lanes:
-        d.line((*px(x0, y0), *px(x1, y1)), fill=(255, 255, 255), width=1)
+    for lane in lanes:
+        d.line([px(x, y) for x, y in lane], fill=(255, 255, 255), width=1)
     if len(wynik_slad) > 1:
         d.line([px(s[1], s[2]) for s in wynik_slad[::5]], fill=(255, 60, 30), width=2)
     if rogi is not None:
@@ -307,12 +307,16 @@ def film(
     """Record a search from behind the platform: ``przyspieszenie`` times real time on the
     lanes, ``zwolnij`` times while it looks again; until ``do`` seconds or the end."""
     import imageio.v2 as imageio
+
+    os.environ.setdefault("MUJOCO_GL", "osmesa")
+    if os.environ["MUJOCO_GL"] in ("osmesa", "egl"):
+        # PyOpenGL picks its platform when first imported, which may be before mujoco is.
+        os.environ.setdefault("PYOPENGL_PLATFORM", os.environ["MUJOCO_GL"])
     import mujoco
     from PIL import Image, ImageDraw
 
     from wingloop.lab.autopilot import _font
 
-    os.environ.setdefault("MUJOCO_GL", "osmesa")
     model = mujoco.MjModel.from_xml_string(scena(teren, obiekty, platforma))
     data = mujoco.MjData(model)
     renderer = mujoco.Renderer(model, size[1], size[0], max_geom=6000)
@@ -322,7 +326,7 @@ def film(
     writer = imageio.get_writer(
         str(path), fps=fps, codec="libx264", quality=8, macro_block_size=1
     )
-    lanes = LOT.pasy(platforma, kamera, agl or platforma.wysokosc)
+    which, lanes = LOT.trasa_lotu(platforma, kamera, agl or platforma.wysokosc, teren)
     state = dict(view=None, spots=[], clock=0.0, trail=[], frames=0, az=None)
     rng = np.random.default_rng(seed)
 
@@ -410,7 +414,9 @@ def film(
         m = m.resize((side, side))
         frame.paste(m, (W_ - side - 16, 16))
         names = {
-            "pasy": "przeszukiwanie pasami",
+            "pasy": "przeszukiwanie wzdłuż poziomic"
+            if which == "poziomice"
+            else "przeszukiwanie pasami",
             "potwierdz": "zniża się, by obejrzeć z bliska",
             "wroc": "wraca na pas",
             "powrot": "powrót do bazy",
@@ -419,7 +425,7 @@ def film(
         lrf = f"{dist:5.1f} m" if dist is not None else f"poza zasięgiem ({reach:.0f} m)"
         battery = max(0.0, 100 * (1 - t / (platforma.lot_min * 60)))
         lines = [
-            f"{platforma.pl}  ·  t = {t // 60:02.0f}:{t % 60:02.0f}  ·  ×{speed:.0f}",
+            f"{platforma.pl}  ·  t = {int(t) // 60:02d}:{int(t) % 60:02d}  ·  ×{speed:.0f}",
             names.get(faza, faza),
             f"nad ziemią {lot.nad_ziemia:5.1f} m   dalmierz {lrf}",
             f"prędkość {lot.v:4.1f} m/s   bateria {battery:3.0f}%   zgłoszeni: {found}",

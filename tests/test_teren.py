@@ -76,3 +76,24 @@ def test_the_plane_holds_its_height_and_never_goes_below_its_floor(dolina):
         lot.krok(0.2, (0.0, -480.0), 60.0)
         heights.append(lot.nad_ziemia)
     assert min(heights[100:]) >= LOT.NAJNIZEJ["samolot"] - 0.5 and np.median(heights[100:]) > 40
+
+
+def test_the_plane_flies_the_contours_and_the_ground_below_stays_level(dolina):
+    """Along a contour lane the ground under the plane rises and falls far less than along a
+    north-south lane; the lanes lie over the whole square."""
+    t, _, _ = dolina
+    plane, cam = PLATFORMY["samolot"], KAMERY["t256s"]
+
+    def spread(lanes):
+        out = []
+        for lane in lanes:
+            p = np.asarray(lane)
+            x, y, _ = LOT._po_drodze(p[0], p[1:], 1e9, co=10.0)
+            out.append(np.ptp(t.wysokosc(x, y)) / max(np.hypot(*np.diff(p, axis=0).T).sum(), 1))
+        return np.median(out)
+
+    contours = LOT.poziomice(plane, cam, 60.0, t)
+    assert spread(contours) < 0.25 * spread(LOT.pasy(plane, cam, 60.0))
+    pts = np.concatenate([np.asarray(lane) for lane in contours])
+    assert pts[:, 0].min() < -450 and pts[:, 0].max() > 450
+    assert pts[:, 1].min() < -450 and pts[:, 1].max() > 450
