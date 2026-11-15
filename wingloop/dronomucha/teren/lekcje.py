@@ -5,9 +5,10 @@ search: from 12-110 m up -- the heights it searches from and comes down to
 -- over people, chamois, foxes and sun-warmed boulders, and over bare
 ground. Each warm spot found (:func:`~.wykrywanie.plamy`)
 is a lesson, labelled by what really lies there -- a person, or not -- as
-the dopamine of a real find would label it. The search areas are the same
-valley's on other days' placings (seeds from :data:`ZIARNO`); a search is
-flown on seeds below it.
+the dopamine of a real find would label it. The lessons are flown in other
+valleys than the one searched (:data:`DOLINY`), on other days
+(:func:`pogoda_lekcji`: frost to a mild day, clear to overcast): what the
+brain is then tried on, it has not seen.
 """
 
 from __future__ import annotations
@@ -24,33 +25,69 @@ from . import wykrywanie as W
 
 #: Lessons are flown over areas from this seed on; searches below it.
 ZIARNO = 1000
+#: The valleys the lessons are flown in (:func:`~.teren.dolina`'s seeds): not the one
+#: searched, which is 0.
+DOLINY = (1, 2, 3)
+#: Raised whenever the ground, the objects, the camera or the measures change what a
+#: lesson holds: kept lessons of another version are flown again.
+WERSJA = 3
 DATA = Path(__file__).resolve().parent.parent / "data"
 
 
+def pogoda_lekcji(rng) -> T.Pogoda:
+    """A day for a lesson: between a hard frost and a mild day, the sun low or half-way up,
+    clear or overcast. The brain is to know a person on any of them."""
+    return T.Pogoda(
+        powietrze=float(rng.uniform(-12.0, 12.0)),
+        slonce_az=float(rng.uniform(100.0, 260.0)),
+        slonce_el=float(rng.uniform(8.0, 50.0)),
+        chmury=float(rng.uniform(0.0, 0.9)),
+    )
+
+
 def nagraj(
-    kamera: Kamera, ujecia: int = 1500, wysokosci=(12.0, 110.0), seed: int = 0, teren=None
+    kamera: Kamera, ujecia: int = 1500, wysokosci=(12.0, 110.0), seed: int = 0, doliny=DOLINY
 ):
-    """(measures, is it a person, what it was) of every warm spot in ``ujecia`` pictures."""
+    """(measures, is it a person, what it was) of every warm spot in ``ujecia`` pictures.
+
+    Every twenty pictures another placing of people, animals and boulders,
+    in the next of the valleys ``doliny``, on another day
+    (:func:`pogoda_lekcji`). Three pictures in four are taken over an
+    object -- a person, a chamois, a fox or a boulder, each as often -- the
+    rest anywhere; two in five from 12-40 m, the heights of a closer look,
+    the rest from up to 110 m.
+    """
     rng = np.random.default_rng(seed + ZIARNO)
-    t = teren or T.dolina()
-    pg = T.Pogoda()
-    gt = t.temperatura(pg)
+    valleys = [T.dolina(seed=s) for s in doliny]
     feats, people, kinds = [], [], []
-    area = None
+    t = pg = gt = area = None
     for i in range(ujecia):
         if i % 20 == 0:
+            t = valleys[(i // 20) % len(valleys)]
+            pg = pogoda_lekcji(rng)
+            gt = t.temperatura(pg, seed=i)
             area = O.uloz(t, pg, seed=ZIARNO + seed * 1000 + i)
         if rng.uniform() < 0.75:
-            o = area[rng.integers(len(area))]
-            if rng.uniform() < 0.5:
-                o = [a for a in area if a.czlowiek][0]
+            # Over one of a kind, each kind as often: by their numbers three
+            # pictures in four would be of boulders and one in fifty of a fox
+            # -- and a fox is what a person is taken for.
+            kind = ("czlowiek", "kozica", "lis", "glaz")[rng.integers(4)]
+            some = [a for a in area if a.rodzaj.startswith(kind)]
+            o = some[rng.integers(len(some))]
             x, y = o.x + rng.uniform(-15, 15), o.y + rng.uniform(-15, 15)
         else:
             x, y = rng.uniform(-500, 500, 2)
-        h = rng.uniform(*wysokosci)
+        # Two pictures in five from as low as it comes to look again: that
+        # look is what a report rests on.
+        low = min(wysokosci[0] + 28.0, wysokosci[1])
+        h = (
+            rng.uniform(wysokosci[0], low)
+            if rng.uniform() < 0.4
+            else rng.uniform(low, wysokosci[1])
+        )
         z = float(t.wysokosc(x, y)) + h
         widok = K.zdjecie(t, gt, area, kamera, (x, y, z), rng.uniform(-np.pi, np.pi), rng=rng)
-        for p in W.plamy(widok):
+        for p in W.plamy(widok, powietrze=pg.powietrze):
             best, dist = None, np.inf
             for o in area:
                 d = np.hypot(p.gdzie[0] - o.x, p.gdzie[1] - o.y)
@@ -63,12 +100,30 @@ def nagraj(
     return np.array(feats), np.array(people), np.array(kinds)
 
 
-def lekcje(kamera_nazwa: str, kamera: Kamera, ujecia: int = 1500, fresh=False, teren=None):
-    """A camera's lessons, flown once and kept in ``data/teren_<camera>.npz``."""
+def _klucz(kamera: Kamera, ujecia: int, doliny=DOLINY) -> str:
+    """What a kept file of lessons was flown with: another, and it is flown again."""
+    what = (WERSJA, kamera.px, kamera.fov, kamera.netd, W.PROG, W.BLOK, tuple(doliny), ujecia)
+    return "|".join(str(v) for v in what)
+
+
+def lekcje(
+    kamera_nazwa: str,
+    kamera: Kamera,
+    ujecia: int = 1500,
+    fresh=False,
+    progress=print,
+    doliny=DOLINY,
+):
+    """A camera's lessons, flown once and kept in ``data/teren_<camera>.npz`` -- and flown
+    again when what they were flown with has changed since (:data:`WERSJA`)."""
     path = DATA / f"teren_{kamera_nazwa}.npz"
+    key = _klucz(kamera, ujecia, doliny)
     if path.exists() and not fresh:
         with np.load(path) as d:
-            return d["cechy"], d["ludzie"], d["rodzaje"]
-    f, p, k = nagraj(kamera, ujecia, teren=teren)
-    np.savez_compressed(path, cechy=f, ludzie=p, rodzaje=k)
+            if "klucz" in d and str(d["klucz"]) == key:
+                return d["cechy"], d["ludzie"], d["rodzaje"]
+        if progress:
+            progress(f"Lekcje {path.name} są z innej wersji symulacji: nagrywam od nowa.")
+    f, p, k = nagraj(kamera, ujecia, doliny=doliny)
+    np.savez_compressed(path, cechy=f, ludzie=p, rodzaje=k, klucz=key)
     return f, p, k

@@ -265,3 +265,36 @@ def test_both_platforms_search_a_square_kilometre_by_the_same_arithmetic():
     assert plane["widac"] and plane["km2"] > 1.0 > quad["km2"]
     assert not pokrycie(SAMOLOT, KAMERY["mlx90640_55"], 60.0)["widac"]
     assert najwyzej(KAMERY["mlx90640_55"]) < 20.0 < 100.0 < najwyzej(cam)
+
+
+def test_a_look_for_a_screen_does_not_change_what_the_hybrid_brain_judges_or_learns():
+    """Filming a search must not change it: a peek reads the senses with noise of its own
+    and is not the view the brain would learn from."""
+    from wingloop.dronomucha.hybryda import Hybryda, wejscie
+    from wingloop.dronomucha.zmysly import POLA
+
+    class Senses:
+        def __init__(self, value):
+            self.value, self.calls = value, 0
+
+        def __call__(self, eye):
+            self.calls += 1
+            return np.full(len(POLA), self.value)
+
+    class Body:
+        learned = None
+
+        def valence(self, x):
+            return float(np.sum(x))
+
+        def learn(self, x, dopamine):
+            self.learned = np.array(x)
+
+    judged, peeked = Senses(5.0), Senses(20.0)
+    brain = Hybryda(Body(), gain=1, zmysly=judged, podglad=peeked)
+    f = np.zeros(3)
+    v = brain.valence(f)
+    assert brain.peek(f) != v  # it read the other sensors' noise ...
+    assert (judged.calls, peeked.calls) == (1, 1) and len(brain.oceny) == 1
+    brain.learn(f, 1.0)  # ... and what is learned is the view judged, not the one peeked at
+    assert np.allclose(brain.mb.learned, wejscie(f, np.full(len(POLA), 5.0), 1)[0])

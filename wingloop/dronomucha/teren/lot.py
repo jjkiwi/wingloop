@@ -4,139 +4,268 @@ The plane flies lanes along the contours (:func:`poziomice`): the ground
 below a lane stays at one height, so it holds its height over it without
 climbing and coming down as a lane across a steep slope makes it. The
 quadcopter flies lanes north-south (:func:`pasy`), those nearest the trail
-first. The lanes lie so the camera's strips touch; both hold a height
-above the ground ahead of them (they look ahead along their way on the
-terrain map, as ArduPilot's terrain following does, and climb no faster
-than they can); both take a picture a second and judge every warm spot in
-it (:mod:`.wykrywanie`). What the brain likes is a candidate, and they go
-to look again from lower down:
+first. The lanes lie so the camera's strips touch. Both take a picture a
+second and judge every warm spot in it (:mod:`.wykrywanie`). What the
+brain likes in two of the pictures a place is in (:data:`RAZY`) is a
+candidate, and they go to look again from lower down:
 
 - the **quadcopter** flies to it, comes down to :data:`NIZEJ` ``["quad"]`` m,
   hovers and looks three times; it flies the lanes nearest the trail first
   (where people are lost most) -- it cannot fly them all on one battery;
-- the **plane** cannot stop: it flies over it at :data:`NIZEJ`
-  ``["samolot"]`` m, looking four times a second while it is close, and
-  comes round again if it missed; it goes on to a lane it can turn into
-  (it turns no tighter than its bank allows).
+- the **plane** cannot stop: it flies over it along its contour
+  (:meth:`~.teren.Teren.poziomica`), at :data:`NIZEJ` ``["samolot"]`` m,
+  looking four times a second while it is in the picture -- along the
+  contour, because that is the way it can come down to 35 m beside a
+  slope and fly on; once more from the other end if it saw nothing.
 
 What the closer look likes is reported -- where, for the team; what it does
-not is not looked at again; what it had no time to look at again is
-reported as to be checked, for the operator. The lanes end at four fifths of
-the flight; it goes on looking again at what it found until 92%.
-Kinematics only: a body that flies where it is pointed, as fast as it
-can, turning and climbing no faster than it can -- no wind, no physics.
+not is not looked at again; what it could not look at from close -- no
+time, or no way down to it -- stays a candidate, reported as to be checked,
+for the operator. The lanes end at four fifths of the flight; it goes on
+looking again at what it found until 92%, and turns for home whatever it
+is doing while its battery still gets it there.
+
+**Height.** Each holds its height over the ground of the way it will fly:
+the plane works out that way -- turning as tightly as it can toward where
+it is going, then along its lane -- and climbs ahead of the ground, as
+ArduPilot's terrain following does; where it could not keep even its least
+height (:data:`NAJNIZEJ`) climbing as fast as it can, it circles away from
+the slope and climbs first. Nothing lifts it over a slope it flew at: one
+that meets the ground has crashed (:attr:`Lot.rozbity`), and the search
+ends there. Kinematics only: a body that flies where it is pointed, as
+fast as it can, turning and climbing no faster than it can -- no wind, no
+physics.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..platformy import Kamera, Platforma
+from ..platformy import PIKSELE_NA_CZLOWIEKA, Kamera, Platforma
 from . import kamera as K
 from . import wykrywanie as W
 
-#: How low it comes to look again, m above the ground.
+#: How low it comes to look again, m above the ground, and how much higher than that a
+#: look still counts as one from close.
 NIZEJ = {"quad": 15.0, "samolot": 35.0}
+LUZ = {"quad": 3.0, "samolot": 8.0}
 #: How fast each climbs and comes down, m/s.
 WZNOSZENIE = {"quad": 3.0, "samolot": 5.0}
 OPADANIE = {"quad": 2.5, "samolot": 5.0}
 #: How far along its way each looks at the ground ahead to hold its height, m, and the
-#: least height over the ground it is let down to, m.
+#: least height over the ground it is to keep, m.
 PRZED = {"quad": 60.0, "samolot": 800.0}
 NAJNIZEJ = {"quad": 5.0, "samolot": 25.0}
+#: How far past the end of the way it knows the plane keeps its least height: room to turn.
+ZAWROT = 150.0
+#: Within this of a point of its way it has reached it, m; the plane turns no tighter
+#: than about 33 m, so a point it must reach (a lane's first, home) is given more.
+BLISKO = {"quad": 8.0, "samolot": 30.0}
+DOLOT = {"quad": 8.0, "samolot": 45.0}
+#: Home is flown to with this many times the time the straight way takes left.
+ZAPAS = 1.5
+#: How long it tries to get over one candidate, s.
+PROBA = 120.0
+#: In how many pictures from the lane the brain must like a spot before it is a
+#: candidate: every place is in three or four pictures as it flies over, and what
+#: the brain likes in one of them only is the picture's noise more often than a person.
+RAZY = 2
 #: The area searched: this many metres each way of its middle.
 POLE = 500.0
 G = 9.81
+PRZECHYL = 35.0
+#: A pixel no bigger than this on the ground, m, can find a person: ground seen with a
+#: bigger one is not searched (:data:`~..platformy.PIKSELE_NA_CZLOWIEKA`).
+PIKSEL = 0.5 / (PIKSELE_NA_CZLOWIEKA / 2)
 
 
-@dataclass
+@dataclass(eq=False)
 class Kandydat:
-    """A warm spot the brain liked: where, how much, and what became of it."""
+    """A warm spot the brain liked: where, how much, and what became of it.
+
+    ``stan``: ``"czeka"`` (not judged from close: to be looked at, or, once
+    ``proba`` is set, tried and not managed -- for the operator),
+    ``"potwierdzony"``, ``"odrzucony"``. ``oceny``: what the brain thought at
+    each closer look, ``wysokosci``: from how high each was, m. ``razy``: in how
+    many pictures from the lane the brain liked it.
+    """
 
     gdzie: np.ndarray
     ocena: float
     t: float
-    stan: str = "czeka"  # "czeka", "potwierdzony", "odrzucony"
+    stan: str = "czeka"
     oceny: list = field(default_factory=list)
-    przeloty: int = 0
+    wysokosci: list = field(default_factory=list)
+    proba: bool = False
+    razy: int = 1
 
 
 @dataclass
 class Wynik:
-    """A search: the path (t, x, y, z, height above ground, phase), every candidate, how
-    much of the area was seen, the pictures taken."""
+    """A search: the path (t, x, y, z, height above ground, phase), every candidate, which
+    of the area's cells were searched, the pictures taken, how long it flew, s;
+    where it crashed (t, x, y) or None, how long it flew below its least
+    height, s, and whether it got home before its battery ended."""
 
     slad: list
     kandydaci: list
     pokrycie: np.ndarray
     zdjecia: int
     czas: float
+    rozbicie: tuple | None = None
+    za_nisko: float = 0.0
+    wrocil: bool = True
+
+
+def _wrap(a: float) -> float:
+    return (a + math.pi) % (2 * math.pi) - math.pi
 
 
 class Lot:
-    """A platform in the air: where it is, which way it heads, how fast it goes."""
+    """A platform in the air: where it is, which way it heads, how fast it goes.
 
-    def __init__(self, platforma: Platforma, teren, start, agl: float):
+    ``rozbity``: it met the ground. ``za_nisko``: seconds flown below its least
+    height (:data:`NAJNIZEJ`) since it first climbed above it. ``krazy``: the
+    plane is circling to climb (+1 left, -1 right), 0 otherwise.
+    """
+
+    def __init__(self, platforma: Platforma, teren, start, agl: float, kurs: float = 0.0):
         self.p, self.t = platforma, teren
         x, y = start
         self.x, self.y = float(x), float(y)
         self.z = float(teren.wysokosc(x, y)) + 2.0
-        self.kurs = 0.0
+        self.kurs = float(kurs)
         self.v = 0.0 if platforma.zawis else platforma.predkosc
         self.agl = agl
+        self.wystartowal = False
+        self.rozbity = False
+        self.za_nisko = 0.0
+        self.krazy = 0
 
-    def wysokosc_potrzebna(self, agl: float, ile: float, ku: float, droga=None) -> float:
+    @property
+    def skret(self) -> float:
+        """How fast the plane turns, rad/s, banked :data:`PRZECHYL` degrees."""
+        return G * math.tan(math.radians(PRZECHYL)) / max(self.v, 1.0)
+
+    def tor(self, cel, droga=None, ile: float | None = None):
+        """The way the plane will fly, from where it is: (x, y, metres along it, known).
+
+        Turning as tightly as it can toward ``cel``, on through ``droga``
+        (the points after it), then straight on for :data:`ZAWROT` m -- past
+        the end of what it knows (``known`` False) it has only to have room
+        to turn. A point every second of flight, for ``ile`` m.
+        """
+        pts = [cel, *(droga if droga is not None else ())]
+        ile = PRZED[self.p.nazwa] if ile is None else ile
+        step = max(self.v, 1.0)
+        rate = self.skret
+        x, y, k = self.x, self.y, self.kurs
+        near2 = BLISKO[self.p.nazwa] ** 2
+        xs, ys, known = [x], [y], [True]
+        i, past = 0, 0.0
+        for _ in range(int(ile / step)):
+            while i < len(pts) and (pts[i][0] - x) ** 2 + (pts[i][1] - y) ** 2 < near2:
+                i += 1
+            if i < len(pts):
+                turn = _wrap(math.atan2(pts[i][1] - y, pts[i][0] - x) - k)
+                k += max(-rate, min(rate, turn))
+            else:
+                past += step
+                if past > ZAWROT:
+                    break
+            x += step * math.cos(k)
+            y += step * math.sin(k)
+            xs.append(x)
+            ys.append(y)
+            known.append(i < len(pts))
+        d = step * np.arange(len(xs))
+        return np.array(xs), np.array(ys), d, np.array(known, bool)
+
+    def wysokosc_potrzebna(self, agl: float, ile: float, ku: float) -> float:
         """How high it must be now to keep ``agl`` m over the ground for the next ``ile`` m
-        of its way (bearing ``ku``, radians -- or along ``droga``, the points it will
-        fly through), climbing no faster than it can: the highest ground ahead, less
-        what it can climb before it gets there."""
-        if droga is None:
-            d = np.linspace(0, ile, 32)
-            xs = self.x + d * np.cos(ku)
-            ys = self.y + d * np.sin(ku)
-        else:
-            xs, ys, d = _po_drodze((self.x, self.y), droga, ile)
+        straight along the bearing ``ku`` (radians), climbing no faster than it
+        can: the highest ground ahead, less what it can climb before it gets there."""
+        d = np.linspace(0, ile, 32)
+        xs = self.x + d * np.cos(ku)
+        ys = self.y + d * np.sin(ku)
         climb = WZNOSZENIE[self.p.nazwa] * d / max(self.v, 1.0)
         return float(np.max(self.t.wysokosc(xs, ys) + agl - climb))
 
-    def krok(self, dt: float, cel, agl: float, stop: bool = False, droga=None) -> float:
+    def krok(
+        self, dt: float, cel, agl: float, stop: bool = False, droga=None, szuka: bool = False
+    ) -> float:
         """Fly ``dt`` s toward ``cel`` (x, y) at ``agl`` m above the ground; return the distance
         left. ``stop``: a quadcopter slows to a hover on it. ``droga``: the points it
-        flies through after ``cel`` -- it holds its height along them, not along a line."""
+        flies through after ``cel`` -- the plane holds its height along them.
+        ``szuka``: it is searching -- a quadcopter slows where the ground falls away
+        faster than it can come down, to stay at its height over it."""
+        if self.rozbity:
+            return float(np.hypot(cel[0] - self.x, cel[1] - self.y))
+        name = self.p.nazwa
+        up, down, floor = WZNOSZENIE[name], OPADANIE[name], NAJNIZEJ[name]
         dx, dy = cel[0] - self.x, cel[1] - self.y
         dist = float(np.hypot(dx, dy))
-        want = np.arctan2(dy, dx)
-        turn = (want - self.kurs + np.pi) % (2 * np.pi) - np.pi
+        want = math.atan2(dy, dx)
+        turn = _wrap(want - self.kurs)
+        here = float(self.t.wysokosc(self.x, self.y))
         if self.p.zawis:
-            self.kurs += np.clip(turn, -np.pi / 2 * dt, np.pi / 2 * dt)
+            self.kurs += float(np.clip(turn, -np.pi / 2 * dt, np.pi / 2 * dt))
             target_v = self.p.predkosc if not stop else min(self.p.predkosc, 0.8 * dist)
             if abs(turn) > np.pi / 3:
                 target_v = min(target_v, 1.0)
             ahead = 5.0 if stop and dist < 10.0 else PRZED["quad"]
-        else:
-            rate = G * np.tan(np.deg2rad(35.0)) / self.v
-            self.kurs += np.clip(turn, -rate * dt, rate * dt)
-            target_v = self.v
-            ahead = PRZED["samolot"]
-        # Along its way to where it is going, not along its nose: turning at a
-        # lane's end it points at the valley's wall, and climbed for it.
-        if droga is None:
             z_want = self.wysokosc_potrzebna(agl, min(ahead, max(dist, 5.0)), want)
+            if z_want - self.z > 5.0 or (szuka and self.z - z_want > max(5.0, 0.25 * agl)):
+                # A quadcopter slows to climb -- and, searching, to come down
+                # where the ground falls away faster than it can: from twice
+                # its height it finds nothing.
+                target_v = min(target_v, 2.0)
+            if self.z < here + floor:
+                target_v = 0.0  # and under its least height stops, and climbs
+            self.v += float(np.clip(target_v - self.v, -3.0 * dt, 3.0 * dt))
         else:
-            z_want = self.wysokosc_potrzebna(agl, ahead, want, [cel, *droga])
-        if self.p.zawis and z_want - self.z > 5.0:
-            target_v = min(target_v, 2.0)  # a quadcopter slows to climb
-        if self.p.zawis:
-            self.v += np.clip(target_v - self.v, -3.0 * dt, 3.0 * dt)
-        self.x += self.v * np.cos(self.kurs) * dt
-        self.y += self.v * np.sin(self.kurs) * dt
-        up, down = WZNOSZENIE[self.p.nazwa], OPADANIE[self.p.nazwa]
-        self.z += np.clip(z_want - self.z, -down * dt, up * dt)
-        here = float(self.t.wysokosc(self.x, self.y))
-        # It does not fly into the ground: a pilot, or the autopilot's floor, pulls it up.
-        self.z = max(self.z, here + NAJNIZEJ[self.p.nazwa])
+            xs, ys, d, known = self.tor(cel, droga)
+            ground = self.t.wysokosc(xs, ys) - up * d / self.v
+            least = float(np.max(ground)) + floor
+            z_want = max(float(np.max(ground[known])) + agl, least)
+            if not self.wystartowal:
+                z_want = max(z_want, here + floor)  # thrown: straight up to its least height
+            elif self.krazy:
+                if self.z >= least + 5.0:
+                    self.krazy = 0
+            elif self.z < least - 2.0:
+                # It cannot keep its least height on this way however it climbs:
+                # it circles, on the side where the ground is lower, and climbs.
+                r = self.v / self.skret
+                sides = [
+                    float(
+                        self.t.wysokosc(
+                            self.x - s * r * math.sin(self.kurs),
+                            self.y + s * r * math.cos(self.kurs),
+                        )
+                    )
+                    for s in (1, -1)
+                ]
+                self.krazy = 1 if sides[0] <= sides[1] else -1
+            rate = self.skret * dt
+            if self.krazy:
+                self.kurs += self.krazy * rate
+                z_want = self.z + up
+            else:
+                self.kurs += max(-rate, min(rate, turn))
+        self.x += self.v * math.cos(self.kurs) * dt
+        self.y += self.v * math.sin(self.kurs) * dt
+        self.z += float(np.clip(z_want - self.z, -down * dt, up * dt))
+        over = self.nad_ziemia
+        if not self.wystartowal:
+            self.wystartowal = over >= floor - 0.5
+        elif over < 0.5:
+            self.rozbity = True  # nothing lifts it over a slope it flew at
+        elif over < floor - 0.5:
+            self.za_nisko += dt
         return float(np.hypot(cel[0] - self.x, cel[1] - self.y))
 
     @property
@@ -144,8 +273,11 @@ class Lot:
         return self.z - float(self.t.wysokosc(self.x, self.y))
 
 
-def pasy(platforma: Platforma, kamera: Kamera, agl: float, szlak_x: float = 60.0) -> list:
-    """The lanes' ends, in the order flown: [(x, y from), (x, y to)], ... ."""
+def pasy(
+    platforma: Platforma, kamera: Kamera, agl: float, szlak_x: float = 60.0, start=None
+) -> list:
+    """The lanes' ends, in the order flown: [(x, y from), (x, y to)], ... -- the first from
+    its end nearer ``start`` (x, y): the way to its far end would be flown twice."""
     from ..platformy import UZYTECZNY_PAS
 
     spacing = kamera.pas(agl) * UZYTECZNY_PAS
@@ -154,18 +286,18 @@ def pasy(platforma: Platforma, kamera: Kamera, agl: float, szlak_x: float = 60.0
     if platforma.zawis:
         order = list(np.argsort(np.abs(xs - szlak_x), kind="stable"))
     else:
-        radius = platforma.predkosc**2 / (G * np.tan(np.deg2rad(35.0)))
+        radius = platforma.predkosc**2 / (G * np.tan(np.deg2rad(PRZECHYL)))
         k = max(1, int(np.ceil(2 * radius / spacing)))
         order, done = [], set()
-        for start in range(k + 1):
-            for i in range(start, n, k + 1):
+        for offset in range(k + 1):
+            for i in range(offset, n, k + 1):
                 if i not in done:
                     order.append(i)
                     done.add(i)
     lanes = []
     for j, i in enumerate(order):
         ends = [(-POLE - 20.0), (POLE + 20.0)]
-        if j % 2:
+        if (j % 2 == 1) != (start is not None and start[1] > 0):
             ends.reverse()
         lanes.append([(xs[i], ends[0]), (xs[i], ends[1])])
     return lanes
@@ -200,12 +332,11 @@ def poziomice(
     plane can turn into (two turning radii), unless it is far shorter.
     """
     import contourpy
-    from scipy.ndimage import gaussian_filter
 
     from ..platformy import UZYTECZNY_PAS
 
     spacing = kamera.pas(agl) * UZYTECZNY_PAS
-    zs = gaussian_filter(np.asarray(teren.z, float), 40.0 / teren.krok)
+    zs = teren.gladki(40.0)[0]
     a = -teren.polowa + teren.krok * np.arange(teren.n)
     m = (a >= -POLE - 10) & (a <= POLE + 10)
     zc, ac = zs[np.ix_(m, m)], a[m]
@@ -233,7 +364,7 @@ def poziomice(
                     [np.interp(d, along, line[:, 0]), np.interp(d, along, line[:, 1])], axis=1
                 )
             )
-    radius = platforma.predkosc**2 / (G * np.tan(np.deg2rad(35.0)))
+    radius = platforma.predkosc**2 / (G * np.tan(np.deg2rad(PRZECHYL)))
     here = np.asarray(start if start is not None else teren.baza, float)
     order, left = [], list(range(len(lanes)))
     while left:
@@ -257,7 +388,7 @@ def trasa_lotu(platforma: Platforma, kamera: Kamera, agl: float, teren, trasa=No
     trasa = trasa or ("pasy" if platforma.zawis else "poziomice")
     if trasa == "poziomice":
         return trasa, poziomice(platforma, kamera, agl, teren)
-    return trasa, pasy(platforma, kamera, agl)
+    return trasa, pasy(platforma, kamera, agl, start=teren.baza)
 
 
 def _w_kadrze(rogi, gx, gy) -> np.ndarray:
@@ -269,6 +400,67 @@ def _w_kadrze(rogi, gx, gy) -> np.ndarray:
         sides.append((x1 - x0) * (gy - y0) - (y1 - y0) * (gx - x0))
     sides = np.stack(sides)
     return (sides >= 0).all(axis=0) | (sides <= 0).all(axis=0)
+
+
+def przeszukane(widok, seen: np.ndarray, komorka: float = 10.0) -> None:
+    """Mark the cells of the area (``komorka`` m, ``seen``) this picture searched: those a
+    pixel fell in that was small enough on the ground to find a person
+    (:data:`PIKSEL`). A slope seen from 180 m up is in the picture, and not searched."""
+    good = widok.gsd[::4, ::4] <= PIKSEL
+    pts = widok.ziemia[::4, ::4][good]
+    ix = np.floor((pts[:, 0] + POLE) / komorka).astype(int)
+    iy = np.floor((pts[:, 1] + POLE) / komorka).astype(int)
+    ok = (ix >= 0) & (iy >= 0) & (ix < seen.shape[1]) & (iy < seen.shape[0])
+    seen[iy[ok], ix[ok]] = True
+
+
+class _Trasa:
+    """A way through points, flown: which point it is flying to, lane by lane."""
+
+    def __init__(self, lanes: list):
+        self.pts = [p for lane in lanes for p in lane]
+        self.pas = [i for i, lane in enumerate(lanes) for _ in lane]
+        self.i = 0
+
+    @property
+    def koniec(self) -> bool:
+        return self.i >= len(self.pts)
+
+    def krok(self, lot: Lot, dt: float, agl: float, wzdluz: bool, szuka: bool = False) -> None:
+        """One step toward the point it is flying to, and on to the next once there.
+
+        A lane's first point must be reached (:data:`DOLOT`); one along a
+        lane it has gone by is not turned back for. ``wzdluz``: the plane
+        holds its height along the points to come.
+        """
+        i, name = self.i, lot.p.nazwa
+        first = i == 0 or self.pas[i - 1] != self.pas[i]
+        more = i + 1 < len(self.pts) and self.pas[i + 1] == self.pas[i]
+        ahead = self.pts[i + 1 : i + 30] if wzdluz else None
+        left = lot.krok(dt, self.pts[i], agl, droga=ahead, szuka=szuka)
+        if left < (DOLOT[name] if first else BLISKO[name]):
+            self.i += 1
+        elif more and not first:
+            a, b = self.pts[i], self.pts[i + 1]
+            if math.hypot(lot.x - b[0], lot.y - b[1]) < math.hypot(b[0] - a[0], b[1] - a[1]):
+                self.i += 1
+
+
+def _przelot(teren, lot: Lot, gdzie, przed: float = 100.0, za: float = 60.0) -> list:
+    """The plane's way over a candidate: along its contour, from the end nearer the plane
+    -- ``przed`` m to come down on before it, ``za`` m after; where the ground is
+    too level to have a contour, straight on over it."""
+    co = 20.0
+    line = teren.poziomica(float(gdzie[0]), float(gdzie[1]), ile=przed, co=co)
+    if line is None:
+        ku = math.atan2(gdzie[1] - lot.y, gdzie[0] - lot.x)
+        d = np.arange(-przed, przed + 1.0, co)
+        line = np.stack([gdzie[0] + d * math.cos(ku), gdzie[1] + d * math.sin(ku)], axis=1)
+    ends = [math.hypot(lot.x - e[0], lot.y - e[1]) for e in (line[0], line[-1])]
+    if ends[1] < ends[0]:
+        line = line[::-1]
+    middle = len(line) // 2
+    return [tuple(p) for p in line[: middle + int(round(za / co)) + 1]]
 
 
 def szukaj(
@@ -285,29 +477,40 @@ def szukaj(
     klatka=None,
     krok=None,
     trasa: str | None = None,
+    powietrze: float = -2.0,
 ) -> Wynik:
     """Fly one search of the area; ``klatka(lot, widok, plamy, faza)`` sees every picture,
     ``krok(t, lot, faza, cel, kandydaci)`` every step -- and ends it by returning True.
     ``trasa``: "pasy" (north-south, :func:`pasy`) or "poziomice" (along the contours,
-    :func:`poziomice`); by default the plane flies the contours, the quadcopter lanes."""
+    :func:`poziomice`); by default the plane flies the contours, the quadcopter lanes.
+    ``powietrze``: the air's temperature that day, C -- the drone's thermometer."""
     rng = np.random.default_rng(seed)
+    name = platforma.nazwa
     agl = agl or platforma.wysokosc
-    low = NIZEJ[platforma.nazwa]
-    lot = Lot(platforma, teren, teren.baza, agl)
-    trasa, route = trasa_lotu(platforma, kamera, agl, teren, trasa)
-    lanes = [p for lane in route for p in lane]
-    lane_of = [i for i, lane in enumerate(route) for _ in lane]
-    cells = np.arange(-POLE + 5, POLE, 10.0)
-    gx, gy = np.meshgrid(cells, cells)
-    seen = np.zeros(gx.shape, bool)
+    low = NIZEJ[name]
+    trasa, lanes = trasa_lotu(platforma, kamera, agl, teren, trasa)
+    route = _Trasa(lanes)
+    first = route.pts[0]
+    # Thrown, or taken off, toward where it is going.
+    lot = Lot(
+        platforma,
+        teren,
+        teren.baza,
+        agl,
+        kurs=math.atan2(first[1] - teren.baza[1], first[0] - teren.baza[0]),
+    )
+    seen = np.zeros((int(2 * POLE / 10), int(2 * POLE / 10)), bool)
     candidates: list[Kandydat] = []
+    traces: list[Kandydat] = []  # liked in one picture so far: not yet candidates
     path, shots = [], 0
     limit = platforma.zapas() * 60.0
     # The lanes end at ``limit``; what is still to be looked at again, until ``late``.
     late = 0.92 * platforma.lot_min * 60.0
     merge = 8.0 if platforma.zawis else 15.0
-    t, next_shot, wp = 0.0, 0.0, 0
+    t, next_shot = 0.0, 0.0
     phase, target, resume = "pasy", None, None
+    over, since, tries = None, 0.0, 0  # the plane's way over a candidate; this try's start
+    home = False
 
     def look(where_from_phase):
         nonlocal shots
@@ -315,105 +518,138 @@ def szukaj(
         v = K.zdjecie(
             teren, ground_temp, obiekty, kamera, (lot.x, lot.y, lot.z), lot.kurs, rng=rng
         )
-        spots = W.plamy(v)
+        spots = W.plamy(v, powietrze=powietrze)
         if klatka is not None:
             klatka(lot, v, spots, where_from_phase)
         return v, spots
 
-    while t < limit + 900.0:
+    def waiting():
+        return [c for c in candidates if c.stan == "czeka" and not c.proba]
+
+    def take(c):
+        """Go and look at a candidate from close."""
+        nonlocal target, phase, over, since, tries
+        target, phase, since, tries = c, "potwierdz", t, 1
+        over = None if platforma.zawis else _Trasa([_przelot(teren, lot, c.gdzie)])
+
+    def leave():
+        """This candidate is judged, or given up: the next, or back to the lanes, or home."""
+        nonlocal target, phase
+        target = None
+        rest = waiting()
+        if rest and t < late:
+            take(rest[0])
+        elif route.koniec or t > limit:
+            phase = "powrot"
+        else:
+            phase = "wroc"
+
+    battery = platforma.lot_min * 60.0
+    while t < battery:
         if phase == "pasy":
-            if wp >= len(lanes) or t > limit:
-                pending = [c for c in candidates if c.stan == "czeka"]
-                if pending and potwierdzaj and t < late:
-                    target, resume, phase = pending[0], teren.baza, "potwierdz"
+            if route.koniec or t > limit:
+                rest = waiting()
+                if rest and potwierdzaj and t < late:
+                    resume = teren.baza
+                    take(rest[0])
                 else:
                     phase = "powrot"
                 continue
-            nxt = wp + 1 < len(lanes) and lane_of[wp + 1] == lane_of[wp]
-            first = wp == 0 or lane_of[wp - 1] != lane_of[wp]
-            ahead = (
-                [lanes[i] for i in range(wp + 1, min(wp + 30, len(lanes)))]
-                if trasa == "poziomice"
-                else None
-            )
-            if lot.krok(dt, lanes[wp], agl, droga=ahead) < (8.0 if platforma.zawis else 30.0):
-                wp += 1
-            elif nxt and not first:
-                # Along a lane, a point it has gone by is not turned back for.
-                a_, b_ = np.asarray(lanes[wp]), np.asarray(lanes[wp + 1])
-                if np.hypot(lot.x - b_[0], lot.y - b_[1]) < np.hypot(*(b_ - a_)):
-                    wp += 1
+            route.krok(lot, dt, agl, wzdluz=trasa == "poziomice", szuka=True)
             if t >= next_shot and lot.nad_ziemia > 0.5 * agl:
                 next_shot = t + 1.0
                 v, spots = look("pasy")
-                seen |= _w_kadrze(v.rogi, gx, gy)
+                przeszukane(v, seen)
                 for s in spots:
-                    val = W.Mozg.ocena(mozg, s)
-                    near = [
-                        c for c in candidates if np.hypot(*(c.gdzie[:2] - s.gdzie[:2])) < merge
-                    ]
-                    if near or val <= 0:
+                    val = mozg.ocena(s)
+
+                    def close(c, s=s):
+                        return np.hypot(*(c.gdzie[:2] - s.gdzie[:2])) < merge
+
+                    if val <= 0 or any(close(c) for c in candidates):
                         continue
-                    c = Kandydat(s.gdzie, val, t)
+                    c = next((c for c in traces if close(c)), None)
+                    if c is None:
+                        traces.append(Kandydat(s.gdzie, val, t))
+                        continue
+                    c.razy += 1
+                    if c.razy < RAZY:
+                        continue
+                    traces.remove(c)
+                    c.gdzie, c.ocena, c.t = s.gdzie, max(c.ocena, val), t
                     candidates.append(c)
                     if not potwierdzaj:
                         c.stan = "potwierdzony"
                     elif target is None:
-                        target, resume, phase = c, (lot.x, lot.y), "potwierdz"
+                        resume = (lot.x, lot.y)
+                        take(c)
         elif phase == "potwierdz":
-            gx_, gy_ = target.gdzie[:2]
-            left = lot.krok(dt, (gx_, gy_), low, stop=platforma.zawis)
-            near = 4.0 if platforma.zawis else 25.0
-            ready = (
-                abs(lot.nad_ziemia - low) < 3.0
-                if platforma.zawis
-                else lot.nad_ziemia < low + 25
-            )
-
-            if (
-                left < near
-                and ready
-                and t >= next_shot
-                and (lot.v < 1.5 or not platforma.zawis)
-            ):
+            tx, ty = target.gdzie[:2]
+            if platforma.zawis:
+                left = lot.krok(dt, (tx, ty), low, stop=True)
+                ready = left < 4.0 and abs(lot.nad_ziemia - low) < LUZ[name] and lot.v < 1.5
+            else:
+                over.krok(lot, dt, low, wzdluz=True)
+                left = math.hypot(tx - lot.x, ty - lot.y)
+                ready = left < 25.0 and lot.nad_ziemia < low + LUZ[name]
+            if ready and t >= next_shot:
                 next_shot = t + (0.5 if platforma.zawis else 0.25)
                 v, spots = look("potwierdz")
-                close = [s for s in spots if np.hypot(*(s.gdzie[:2] - target.gdzie[:2])) < 10.0]
-                if close:
-                    best = min(close, key=lambda s: np.hypot(*(s.gdzie[:2] - target.gdzie[:2])))
-                    target.oceny.append(W.Mozg.ocena(mozg, best))
+                # A look counts if the candidate's place is in the picture.
+                if _w_kadrze(v.rogi, tx, ty):
+                    near = [
+                        s for s in spots if np.hypot(*(s.gdzie[:2] - target.gdzie[:2])) < 10.0
+                    ]
+                    best = min(
+                        near,
+                        key=lambda s: np.hypot(*(s.gdzie[:2] - target.gdzie[:2])),
+                        default=None,
+                    )
+                    target.oceny.append(mozg.ocena(best) if best is not None else None)
+                    target.wysokosci.append(lot.nad_ziemia)
+            done = len(target.oceny) >= 3 if platforma.zawis else over.koniec
+            if done and not target.oceny and not platforma.zawis and tries < 2:
+                # It flew by without the place in its picture, or too high: once
+                # more, from the end it is at now.
+                tries, since = 2, t
+                over = _Trasa([_przelot(teren, lot, target.gdzie)])
+            elif done or t - since > PROBA:
+                good = [o for o in target.oceny if o is not None]
+                if not target.oceny:
+                    target.proba = True  # not seen from close: it stays a candidate
                 else:
-                    target.oceny.append(-1.0)
-            done_quad = platforma.zawis and len(target.oceny) >= 3
-            passed = not platforma.zawis and target.oceny and left > 30.0
-            if not platforma.zawis and left > 30.0 and not target.oceny and t - target.t > 90:
-                passed = True  # it could not get over it
-            if done_quad or passed:
-                good = [o for o in target.oceny if o > -1.0]
-                target.stan = "potwierdzony" if good and np.mean(good) > 0 else "odrzucony"
-                pending = [c for c in candidates if c.stan == "czeka"]
-                if pending and t < late:
-                    target = pending[0]
-                else:
-                    target, phase = None, "wroc"
-            if t > late:
+                    target.stan = "potwierdzony" if good and np.mean(good) > 0 else "odrzucony"
+                leave()
+            if t > late and phase == "potwierdz":
                 phase = "powrot"
         elif phase == "wroc":
-            if lot.krok(dt, resume, agl) < (8.0 if platforma.zawis else 40.0):
+            if lot.krok(dt, resume, agl) < DOLOT[name]:
                 phase = "pasy"
         elif phase == "powrot":
-            if lot.krok(dt, teren.baza, agl, stop=platforma.zawis) < 15.0:
+            if lot.krok(dt, teren.baza, agl, stop=platforma.zawis) < 2 * BLISKO[name]:
+                home = True
                 break
         path.append((t, lot.x, lot.y, lot.z, lot.nad_ziemia, phase))
         t += dt
+        if phase != "powrot":
+            # Whatever it is doing: home while the battery still gets it there.
+            away = math.hypot(lot.x - teren.baza[0], lot.y - teren.baza[1])
+            if t + ZAPAS * away / platforma.predkosc + 20.0 > battery:
+                phase = "powrot"
+        if lot.rozbity:
+            break
         if krok is not None and krok(t, lot, phase, target, candidates):
             break
-    return Wynik(path, candidates, seen, shots, t)
+    crash = (t, lot.x, lot.y) if lot.rozbity else None
+    return Wynik(path, candidates, seen, shots, t, crash, lot.za_nisko, home)
 
 
 def ocen(wynik: Wynik, obiekty, promien: float = 8.0) -> dict:
-    """How the search went: people found of those there, false alarms, when the first was
-    found, how much of the area was seen."""
+    """How the search went: people found of those there, false alarms, when the first of
+    them was first seen, how much of the area was searched; candidates left to be
+    checked and how many of them are people; whether it crashed, whether it got
+    home, how long it flew below its least height, and from how high its closer
+    looks were (their middle)."""
     people = [o for o in obiekty if o.czlowiek]
     reports = [c for c in wynik.kandydaci if c.stan == "potwierdzony"]
     found, wrong, first = set(), 0, None
@@ -429,7 +665,12 @@ def ocen(wynik: Wynik, obiekty, promien: float = 8.0) -> dict:
         any(np.hypot(c.gdzie[0] - o.x, c.gdzie[1] - o.y) < promien for o in people)
         for c in unsure
     )
+    looks = [h for c in wynik.kandydaci for h in c.wysokosci]
     return dict(
+        rozbicie=wynik.rozbicie is not None,
+        wrocil=wynik.wrocil,
+        za_nisko=wynik.za_nisko,
+        z_bliska=float(np.median(looks)) if looks else None,
         do_sprawdzenia=len(unsure),
         do_sprawdzenia_ludzie=near_person,
         znalezieni=len(found),

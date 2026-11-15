@@ -59,23 +59,164 @@ def test_a_person_fades_into_their_pixels_from_higher_up(dolina):
 
 
 def test_both_platforms_fly_lanes_over_the_square_kilometre(dolina):
-    """The plane flies every lane, skipping to turn; the quadcopter the trail's first."""
-    plane = LOT.pasy(PLATFORMY["samolot"], KAMERY["t256s"], 60.0)
-    quad = LOT.pasy(PLATFORMY["quad"], KAMERY["t256s"], 40.0)
+    """The plane flies every lane, skipping to turn; the quadcopter the trail's first, from
+    the end nearer its start."""
+    t, _, _ = dolina
+    plane = LOT.pasy(PLATFORMY["samolot"], KAMERY["t256s"], 60.0, start=t.baza)
+    quad = LOT.pasy(PLATFORMY["quad"], KAMERY["t256s"], 40.0, start=t.baza)
     xs = sorted(lane[0][0] for lane in plane)
     assert xs[0] < -470 and xs[-1] > 470 and len(set(xs)) == len(xs)
     assert abs(plane[1][0][0] - plane[0][0][0]) > 60  # it skips lanes to turn
     assert abs(quad[0][0][0] - 60.0) < 20  # the lane nearest the trail first
+    assert quad[0][0][1] > 0 and t.baza[1] > 0  # from its northern end: the base is north
 
 
-def test_the_plane_holds_its_height_and_never_goes_below_its_floor(dolina):
+def test_a_ray_meets_the_ground_on_the_steepest_slopes_too(dolina):
+    """Over the valley's walls and looking down them, every pixel's point is on the ground."""
     t, _, _ = dolina
-    lot = LOT.Lot(PLATFORMY["samolot"], t, (0.0, 400.0), 60.0)
-    heights = []
-    for _ in range(600):
-        lot.krok(0.2, (0.0, -480.0), 60.0)
+    slope = t.nachylenie()
+    a = np.linspace(-t.polowa, t.polowa, t.n)
+    inside = (np.abs(a) < 450)[:, None] & (np.abs(a) < 450)[None, :]
+    i, j = np.unravel_index(np.argmax(np.where(inside, slope, 0)), slope.shape)
+    assert slope[i, j] > 45
+    for h in (15.0, 60.0):
+        o = np.array([a[j], a[i], float(t.z[i, j]) + h])
+        hit = t.trafienie(o, K.promienie(KAMERY["t256s"], 1.0, 90.0, krawedzie=True)[::4, ::4])
+        assert np.abs(hit[..., 2] - t.wysokosc(hit[..., 0], hit[..., 1])).max() < 0.3
+
+
+def test_someone_standing_is_seen_from_the_side_at_a_pictures_edge(dolina):
+    """Straight below, a head and shoulders; 20 m to the side, a body lying outward."""
+    t, _, temp = dolina
+    rng = np.random.default_rng(0)
+    person = O.Obiekt("czlowiek_stoi", 40.0, 300.0, 0.0, 0.0, O.czlowiek("stoi", -2.0, rng))
+    person.z = float(t.wysokosc(person.x, person.y))
+    grid = np.arange(-3.0, 3.0, 0.02)
+    gx, gy = np.meshgrid(person.x + grid, person.y + grid)
+    above = np.isfinite(K._wewnatrz(person, gx, gy, (person.x, person.y, person.z + 60.0)))
+    side = np.isfinite(
+        K._wewnatrz(person, gx, gy, (person.x, person.y + 20.0, person.z + 60.0))
+    )
+    assert side.sum() > 1.3 * above.sum() and person.wysokosc() > 1.6
+    # And the picture has them where they are seen: a spot within a metre or so of them.
+    v = K.zdjecie(
+        t, temp, [person], KAMERY["t256s"], (40.0, 320.0, person.z + 60.0), 0.0, rng=rng
+    )
+    assert [s for s in W.plamy(v) if np.hypot(*(s.gdzie[:2] - (40.0, 300.0))) < 1.5]
+
+
+def test_a_boulder_looked_at_from_low_down_is_one_warm_spot(dolina):
+    """The ground's own temperature is taken over more than the boulder: it stays a spot."""
+    t, _, temp = dolina
+    hot = float(t.pole(temp, 0.0, 250.0)) + 15.0
+    part = O._elip((0, 0, 0.5), (1.2, 1.0, 0.8), (0.4, 0.4, 0.4), hot)
+    rock = O.Obiekt("glaz", 0.0, 250.0, float(t.wysokosc(0.0, 250.0)), 0.3, [part])
+    v = K.zdjecie(t, temp, [rock], KAMERY["t256s"], (0.0, 250.0, rock.z + 15.0), 0.0)
+    spots = [s for s in W.plamy(v) if np.hypot(*(s.gdzie[:2] - (0.0, 250.0))) < 2.0]
+    assert len(spots) == 1 and spots[0].cechy[2] > 0.7 * np.pi * 1.2 * 1.0
+
+
+def test_as_many_of_each_kind_as_the_table_says():
+    rng = np.random.default_rng(0)
+    for kind, (least, most) in O.SKLAD.items():
+        assert {O._ile(rng, kind) for _ in range(400)} == set(range(least, most + 1))
+
+
+def test_ground_seen_with_too_big_a_pixel_is_not_searched(dolina):
+    t, _, temp = dolina
+    o = (0.0, 300.0, float(t.wysokosc(0.0, 300.0)) + 60.0)
+    for camera, searched in (("t256s", True), ("mlx90640_55", False)):
+        seen = np.zeros((100, 100), bool)
+        LOT.przeszukane(K.zdjecie(t, temp, [], KAMERY[camera], o, 0.0), seen)
+        assert seen.any() == searched
+
+
+def test_nothing_lifts_the_plane_over_a_slope(dolina):
+    """Flown along a contour lane it holds its height; flown at the valley's wall it climbs
+    no faster than it can -- it circles to climb -- and does not meet the ground."""
+    t, _, _ = dolina
+    plane = PLATFORMY["samolot"]
+    lane = max(LOT.poziomice(plane, KAMERY["t256s"], 60.0, t), key=len)
+    kurs = np.arctan2(lane[1][1] - lane[0][1], lane[1][0] - lane[0][0])
+    lot = LOT.Lot(plane, t, lane[0], 60.0, kurs=kurs)
+    route, heights, zs = LOT._Trasa([lane]), [], []
+    for _ in range(3000):
+        route.krok(lot, 0.2, 60.0, wzdluz=True)
         heights.append(lot.nad_ziemia)
-    assert min(heights[100:]) >= LOT.NAJNIZEJ["samolot"] - 0.5 and np.median(heights[100:]) > 40
+        zs.append(lot.z)
+        if route.koniec:
+            break
+    cruise = np.array(heights[150:])
+    assert not lot.rozbity and lot.za_nisko < 2.0
+    assert abs(np.median(cruise) - 60.0) < 8.0 and np.percentile(cruise, 95) < 100.0
+    assert np.diff(zs).max() <= LOT.WZNOSZENIE["samolot"] * 0.2 + 1e-6
+    # At the wall: from over the floor, straight at a point far up the side.
+    lot = LOT.Lot(plane, t, (0.0, 100.0), 60.0, kurs=0.0)
+    lot.z, lot.wystartowal = float(t.wysokosc(0.0, 100.0)) + 60.0, True
+    zs, circled = [lot.z], False
+    for _ in range(1500):
+        left = lot.krok(0.2, (520.0, 100.0), 60.0)
+        zs.append(lot.z)
+        circled |= bool(lot.krazy)
+        if left < 45.0:
+            break
+    assert circled and not lot.rozbity and left < 45.0
+    assert np.diff(zs).max() <= LOT.WZNOSZENIE["samolot"] * 0.2 + 1e-6
+
+
+class _Cieple:
+    """A stand-in brain: it likes what is clearly warmer than the ground round it."""
+
+    def ocena(self, plama):
+        return 0.5 if plama.cechy[1] > 3.0 else -0.5
+
+
+def _lezacy(t, x, y):
+    rng = np.random.default_rng(1)
+    person = O.Obiekt("czlowiek_lezy", x, y, 0.0, 0.4, O.czlowiek("lezy", -2.0, rng))
+    person.z = float(t.wysokosc(x, y))
+    return person
+
+
+@pytest.mark.parametrize("name", ["quad", "samolot"])
+def test_a_search_finds_someone_on_its_first_lane_and_looks_from_close(dolina, name):
+    """The whole of it: lanes, a candidate liked twice, the closer look from as low as it is
+    meant, a report -- and nothing judged that was not looked at."""
+    t, _, temp = dolina
+    plat, cam = PLATFORMY[name], KAMERY["lepton35"]
+    agl = 40.0 if name == "quad" else 50.0
+    _, lanes = LOT.trasa_lotu(plat, cam, agl, t)
+    first = lanes[0]
+    x, y = first[len(first) // 2] if name == "samolot" else (first[0][0], 300.0)
+    person = _lezacy(t, x + 4.0, y)
+
+    def enough(now, lot, phase, target, candidates):
+        return now > 500.0 or any(c.stan != "czeka" for c in candidates)
+
+    w = LOT.szukaj(plat, cam, t, temp, [person], _Cieple(), agl=agl, seed=0, krok=enough)
+    r = LOT.ocen(w, [person])
+    assert r["znalezieni"] == 1 and r["falszywe"] == 0 and not r["rozbicie"]
+    found = [c for c in w.kandydaci if c.stan == "potwierdzony"][0]
+    assert found.razy >= LOT.RAZY and found.oceny
+    assert max(found.wysokosci) <= LOT.NIZEJ[name] + LOT.LUZ[name] + 0.5
+    assert not [c for c in w.kandydaci if c.stan == "odrzucony" and not c.oceny]
+    climbs = np.diff([s[3] for s in w.slad])
+    assert climbs.max() <= LOT.WZNOSZENIE[name] * 0.2 + 1e-6
+
+
+def test_lessons_kept_from_another_version_are_flown_again(tmp_path, monkeypatch):
+    from wingloop.dronomucha.teren import lekcje as L
+
+    monkeypatch.setattr(L, "DATA", tmp_path)
+    cam = KAMERY["mlx90640_55"]
+    said = []
+    L.lekcje("proba", cam, ujecia=2, doliny=(1,), progress=said.append)
+    stamp = (tmp_path / "teren_proba.npz").stat().st_mtime_ns
+    L.lekcje("proba", cam, ujecia=2, doliny=(1,), progress=said.append)
+    assert (tmp_path / "teren_proba.npz").stat().st_mtime_ns == stamp and not said
+    monkeypatch.setattr(L, "WERSJA", L.WERSJA + 1)
+    L.lekcje("proba", cam, ujecia=2, doliny=(1,), progress=said.append)
+    assert (tmp_path / "teren_proba.npz").stat().st_mtime_ns != stamp and said
 
 
 def test_the_plane_flies_the_contours_and_the_ground_below_stays_level(dolina):

@@ -80,6 +80,9 @@ class Hybryda:
     kora: Kora | None = None
     waga: float = 0.0
     zmysly: Zmysly = field(default_factory=Zmysly)
+    #: The same sensors read for a screen, with noise of their own: a search filmed is
+    #: the search that was measured.
+    podglad: Zmysly = field(default_factory=lambda: Zmysly(seed=1))
     #: Every view judged: (the mushroom body's valence, the cortex's opinion
     #: or None, the readings) -- for the operator, and for measuring.
     oceny: list = field(default_factory=list)
@@ -90,10 +93,18 @@ class Hybryda:
     def senses(self) -> np.ndarray:
         return self.zmysly(self.eye)
 
-    def parts(self, f) -> tuple:
-        """(the mushroom body's valence, the cortex's opinion or None, the readings)."""
-        s = self.senses() if (self.gain or self.kora) else None
-        self._last = s
+    def parts(self, f, podglad: bool = False) -> tuple:
+        """(the mushroom body's valence, the cortex's opinion or None, the readings).
+
+        ``podglad``: for a screen -- the senses read with their own noise,
+        and the reading not kept as the one the brain last judged and would
+        learn from.
+        """
+        s = None
+        if self.gain or self.kora:
+            s = self.podglad(self.eye) if podglad else self.senses()
+        if not podglad:
+            self._last = s
         v = float(self.mb.valence(wejscie(f, s, self.gain)[0]))
         c = float(self.kora.opinion(f, s)[0]) if self.kora is not None else None
         return v, c, s
@@ -105,7 +116,7 @@ class Hybryda:
 
     def peek(self, f) -> float:
         """What it thinks of a view, not kept: for a screen."""
-        v, c, _ = self.parts(f)
+        v, c, _ = self.parts(f, podglad=True)
         return laczona(v, c, self.waga)
 
     def learn(self, f, dopamine) -> None:

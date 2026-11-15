@@ -5,7 +5,9 @@ A pixel of a camera 60 m up covers a quarter of a metre of ground, of one
 temperature of everything in that patch, mixed. So each pixel's patch of
 ground is found -- where its corners' rays meet the slope -- and where an
 object lies in it, the patch is sampled finely and the object's warm parts
-mixed in with the ground's in the share of the patch they cover. A person
+mixed in with the ground's in the share of the patch they cover -- as the
+camera sees them along its rays: someone standing at a picture's edge is
+seen from the side, not from above. A person
 lying on snow fills a 0.25 m pixel and is 15 K warm in it; in a 2 m pixel
 they are 2 K warm, as warm as a sunlit stone. Then the optics' blur and the
 sensor's noise.
@@ -64,25 +66,49 @@ def promienie(kamera: Kamera, kurs: float, pochylenie: float = 90.0, krawedzie=F
     return d / np.linalg.norm(d, axis=-1, keepdims=True)
 
 
-def _wewnatrz(obj: O.Obiekt, px, py):
-    """Which points (x, y) the object covers seen from above, and the temperature there
-    -- its topmost part's -- or NaN."""
+def _wewnatrz(obj: O.Obiekt, px, py, skad=None):
+    """Which points of the ground (x, y) the object hides from a camera at ``skad`` (x, y,
+    z), and the temperature seen there -- its topmost part's -- or NaN.
+
+    A part ``h`` m above the ground is seen against the ground further from
+    the camera than it stands, by ``h / (H - h)`` of how far it is from the
+    point under the camera (``H``: the camera's height over the object's
+    ground): someone standing straight below is a head and shoulders, 20 m
+    to the side a body lying outward. Each capsule's two ends and each
+    ellipsoid's middle are moved so. ``skad`` None: seen from straight above.
+    """
     c, s = np.cos(obj.yaw), np.sin(obj.yaw)
     lx = c * (px - obj.x) + s * (py - obj.y)
     ly = -s * (px - obj.x) + c * (py - obj.y)
+    if skad is not None:
+        height = float(skad[2]) - obj.z
+        cam = (
+            c * (skad[0] - obj.x) + s * (skad[1] - obj.y),
+            -s * (skad[0] - obj.x) + c * (skad[1] - obj.y),
+        )
+
+    def seen(q):
+        """Where on the ground a point of a part is seen."""
+        if skad is None:
+            return q[0], q[1]
+        k = q[2] / max(height - q[2], 0.5)
+        return q[0] + (q[0] - cam[0]) * k, q[1] + (q[1] - cam[1]) * k
+
     temp = np.full(px.shape, np.nan)
     top = np.full(px.shape, -np.inf)
     for part in obj.czesci:
         if part.pod_sniegiem:
             continue
         if part.typ == "kapsula":
-            a, b = np.array(part.a), np.array(part.b)
-            ab = b[:2] - a[:2]
-            f = np.clip(((lx - a[0]) * ab[0] + (ly - a[1]) * ab[1]) / max(ab @ ab, 1e-9), 0, 1)
-            inside = np.hypot(lx - a[0] - f * ab[0], ly - a[1] - f * ab[1]) < part.r
-            z = max(a[2], b[2]) + part.r
+            (ax, ay), (bx, by) = seen(part.a), seen(part.b)
+            abx, aby = bx - ax, by - ay
+            f = np.clip(
+                ((lx - ax) * abx + (ly - ay) * aby) / max(abx * abx + aby * aby, 1e-9), 0, 1
+            )
+            inside = np.hypot(lx - ax - f * abx, ly - ay - f * aby) < part.r
+            z = max(part.a[2], part.b[2]) + part.r
         else:
-            (cx, cy, cz), (rx, ry, rz) = part.a, part.r
+            (cx, cy), cz, (rx, ry, rz) = seen(part.a), part.a[2], part.r
             inside = ((lx - cx) / rx) ** 2 + ((ly - cy) / ry) ** 2 < 1.0
             z = cz + rz
         win = inside & (z > top)
@@ -113,7 +139,16 @@ def zdjecie(
     gsd = np.sqrt(span_x * span_y)
     temp = t.pole(ground_temp, mid[..., 0], mid[..., 1])
     for obj in obiekty:
-        near = np.hypot(mid[..., 0] - obj.x, mid[..., 1] - obj.y) < obj.zasieg() + 1.5 * gsd
+        # Seen from the side, a tall object reaches further over the ground. One
+        # level with the camera or above it is not seen from above at all; one
+        # more than 45 degrees off straight down is in no picture of a camera
+        # looking down.
+        tall, up = obj.wysokosc(), skad[2] - obj.z
+        away = float(np.hypot(skad[0] - obj.x, skad[1] - obj.y))
+        if up < tall + 1.0 or (pochylenie > 80.0 and away > up):
+            continue
+        far = obj.zasieg() + away * tall / (up - tall) + 1.5 * gsd
+        near = np.hypot(mid[..., 0] - obj.x, mid[..., 1] - obj.y) < far
         if not near.any():
             continue
         rows, cols = np.nonzero(near)
@@ -126,7 +161,7 @@ def zdjecie(
         c11 = corners[rows + 1, cols + 1][:, None, None, :]
         u, v = fu[None, ..., None], fv[None, ..., None]
         sub = (1 - u) * (1 - v) * c00 + u * (1 - v) * c01 + (1 - u) * v * c10 + u * v * c11
-        part_t = _wewnatrz(obj, sub[..., 0], sub[..., 1])
+        part_t = _wewnatrz(obj, sub[..., 0], sub[..., 1], skad)
         base = temp[rows, cols][:, None, None]
         mixed = np.where(np.isnan(part_t), base, part_t).mean(axis=(1, 2))
         temp[rows, cols] = mixed

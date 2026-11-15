@@ -54,6 +54,7 @@ def main(argv=None) -> None:
     s.add_argument("--seed", type=int, default=0, help="the first search area")
     s.add_argument("--obszary", type=int, default=1, help="how many areas")
     s.add_argument("--plik", default="teren.mp4")
+    s.add_argument("--dzien", default="jesien", help="the day: jesien, mroz, lato")
     for s in (sub.choices["szukaj"], sub.choices["film"]):
         g = s.add_argument_group("dodatki do mózgu muchy")
         g.add_argument("--zestaw", default="mucha", help="a named set: mucha, hybryda, ...")
@@ -118,27 +119,41 @@ def _teren(args) -> None:
 
     if args.kamera not in KAMERY:
         raise SystemExit(f"Nie znam kamery {args.kamera!r}. Znane: {', '.join(KAMERY)}")
+    if args.dzien not in teren.DNI:
+        raise SystemExit(f"Nie znam dnia {args.dzien!r}. Znane: {', '.join(teren.DNI)}")
     plat, cam = PLATFORMY[args.platforma], KAMERY[args.kamera]
     t = teren.dolina()
-    pg = teren.Pogoda()
+    pg = teren.DNI[args.dzien]
     gt = t.temperatura(pg)
     f, p, _ = lekcje.lekcje(args.kamera, cam)
     mozg = wykrywanie.naucz(f, p)
     if args.co == "film":
         objs = obiekty.uloz(t, pg, seed=args.seed)
         out = film.film(
-            args.plik, plat, cam, t, gt, objs, mozg, agl=args.wysokosc, seed=args.seed
+            args.plik,
+            plat,
+            cam,
+            t,
+            gt,
+            objs,
+            mozg,
+            agl=args.wysokosc,
+            seed=args.seed,
+            powietrze=pg.powietrze,
         )
         print(f"film -> {out}")
         return
     for seed in range(args.seed, args.seed + args.obszary):
         objs = obiekty.uloz(t, pg, seed=seed)
-        w = lot.szukaj(plat, cam, t, gt, objs, mozg, agl=args.wysokosc, seed=seed)
+        w = lot.szukaj(
+            plat, cam, t, gt, objs, mozg, agl=args.wysokosc, seed=seed, powietrze=pg.powietrze
+        )
         r = lot.ocen(w, objs)
+        end = "ROZBITY" if r["rozbicie"] else ("" if r["wrocil"] else "NIE WRÓCIŁ")
         print(
             f"obszar {seed}: znalezieni {r['znalezieni']}/{r['ludzie']}, "
             f"fałszywe alarmy {r['falszywe']}, do sprawdzenia {r['do_sprawdzenia']}, "
-            f"przeszukane {100 * r['pokrycie']:.0f}%, lot {r['czas'] / 60:.1f} min"
+            f"przeszukane {100 * r['pokrycie']:.0f}%, lot {r['czas'] / 60:.1f} min {end}"
         )
 
 

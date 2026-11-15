@@ -54,6 +54,16 @@ class Pogoda:
         return np.array([np.sin(az) * np.cos(el), np.cos(az) * np.cos(el), np.sin(el)])
 
 
+#: Days to search on. The lessons are flown on days drawn between a frost and a mild
+#: day (:func:`~.lekcje.pogoda_lekcji`): ``jesien`` and ``mroz`` lie among them,
+#: ``lato`` -- a hot afternoon, the rock warmer than a person -- beyond them.
+DNI = {
+    "jesien": Pogoda(),
+    "mroz": Pogoda(powietrze=-10.0, slonce_az=165.0, slonce_el=14.0, chmury=0.85),
+    "lato": Pogoda(powietrze=16.0, slonce_az=200.0, slonce_el=55.0, chmury=0.1),
+}
+
+
 def _szum(n: int, rng, skale=(400, 200, 100, 50, 25, 12, 6), amp=None) -> np.ndarray:
     """Smooth noise on an n x n grid: octaves of random values, smoothed, summed."""
     from scipy.ndimage import gaussian_filter, zoom
@@ -73,7 +83,7 @@ class Teren:
     """A height field and what covers it, ``krok`` metres a cell, ``polowa`` metres each way.
 
     :meth:`wysokosc` reads the height anywhere (bilinear); :meth:`trafienie`
-    finds where rays from the air meet the ground; :meth:`temperatura` is
+    finds where rays from the air first meet the ground; :meth:`temperatura` is
     how warm the ground is on a given day.
     """
 
@@ -103,6 +113,41 @@ class Teren:
         out = map_coordinates(self.z, [np.ravel(i), np.ravel(j)], order=1, mode="nearest")
         return out.reshape(shape)
 
+    def gladki(self, skala: float = 40.0):
+        """The ground smoothed over ``skala`` m, and its slope east and north: (z, dz/dx,
+        dz/dy), each on the grid -- worked out once and kept. What a plane's way is
+        laid along: it cannot follow wiggles smaller than its turn."""
+        from scipy.ndimage import gaussian_filter
+
+        kept = self.__dict__.setdefault("_gladkie", {})
+        if skala not in kept:
+            zs = gaussian_filter(np.asarray(self.z, float), skala / self.krok)
+            gy, gx = np.gradient(zs, self.krok)
+            kept[skala] = (zs, gx, gy)
+        return kept[skala]
+
+    def poziomica(self, x: float, y: float, ile: float = 150.0, co: float = 30.0):
+        """The contour of the smoothed ground through (x, y), ``ile`` m each way: points
+        (n, 2) every ``co`` m, or None where the ground is too level to have one."""
+        zs, gx, gy = self.gladki()
+        level = float(self.pole(zs, x, y))
+        halves = []
+        for sign in (-1.0, 1.0):
+            px, py, pts = float(x), float(y), []
+            for _ in range(int(round(ile / co))):
+                g = np.array([float(self.pole(gx, px, py)), float(self.pole(gy, px, py))])
+                n = float(np.hypot(*g))
+                if n < 0.02:
+                    return None
+                px, py = px - sign * co * g[1] / n, py + sign * co * g[0] / n
+                # Back onto the contour: along the slope, by what it has drifted off.
+                g = np.array([float(self.pole(gx, px, py)), float(self.pole(gy, px, py))])
+                off = level - float(self.pole(zs, px, py))
+                px, py = px + off * g[0] / max(g @ g, 1e-4), py + off * g[1] / max(g @ g, 1e-4)
+                pts.append((px, py))
+            halves.append(pts)
+        return np.array([*halves[0][::-1], (float(x), float(y)), *halves[1]])
+
     def nachylenie(self) -> np.ndarray:
         """Each cell's slope, degrees."""
         gy, gx = np.gradient(self.z, self.krok)
@@ -123,24 +168,72 @@ class Teren:
         out = map_coordinates(raster, [np.ravel(i), np.ravel(j)], order=order, mode="nearest")
         return out.reshape(shape)
 
-    def trafienie(self, o, d, iteracje: int = 8) -> np.ndarray:
-        """Where rays from ``o`` along ``d`` (..., 3) meet the ground: points (..., 3).
+    def trafienie(self, o, d, iteracje: int = 14, dokladnosc: float = 0.05) -> np.ndarray:
+        """Where rays from ``o`` along ``d`` (..., 3) first meet the ground: points (..., 3).
 
-        Iterated: start on the level of the ground below ``o``, then move each
-        point along its ray to the height of the ground under it -- damped,
-        which converges for rays steeper than the slope; a camera looking
-        down is that.
+        The height of a ray's point above the ground under it, as a function
+        of how far along the ray it is, is brought to zero by the secant
+        method -- a few steps on a slope, however steep, where stepping to
+        the ground's height under the point crawls for rays looking down the
+        slope. Then each hit is checked: is it on the ground (within
+        ``dokladnosc`` m), and was the ray above the ground all the way to
+        it? Rays that fail -- over a cliff's edge, behind a spur -- are
+        walked along from ``o`` to where they first go under, and that
+        crossing is halved down.
         """
         o = np.asarray(o, dtype=float)
         d = np.asarray(d, dtype=float)
-        dz = np.minimum(d[..., 2], -1e-3)
-        ground = float(self.wysokosc(o[0], o[1]))
-        t = (o[2] - ground) / -dz
+        shape = d.shape[:-1]
+        d = d.reshape(-1, 3)
+        dz = np.minimum(d[:, 2], -1e-3)
+
+        def above(t, rays=slice(None)):
+            x, y = o[0] + t * d[rays, 0], o[1] + t * d[rays, 1]
+            return o[2] + t * dz[rays] - self.wysokosc(x, y)
+
+        t0 = (o[2] - float(self.wysokosc(o[0], o[1]))) / -dz
+        f0 = above(t0)
+        t1 = np.maximum(t0 + f0 / -dz, 0.0)
+        f1 = above(t1)
         for _ in range(iteracje):
-            p = o + t[..., None] * d
-            h = self.wysokosc(p[..., 0], p[..., 1])
-            t = np.maximum(0.6 * t + 0.4 * (o[2] - h) / -dz, 0.0)
-        return o + t[..., None] * d
+            if np.abs(f1).max() < dokladnosc:
+                break
+            den = f1 - f0
+            ok = np.abs(den) > 1e-9
+            step = np.where(ok, f1 * (t1 - t0) / np.where(ok, den, 1.0), 0.0)
+            reach = 0.5 * t1 + 5.0
+            t0, f0 = t1, f1
+            t1 = np.maximum(t1 - np.clip(step, -reach, reach), 0.0)
+            f1 = above(t1)
+        # Under the ground on the way there, or not on it: walk those rays.
+        bad = np.abs(f1) > 4 * dokladnosc
+        for share in (0.5, 0.8, 0.93):
+            bad |= above(share * t1) < -4 * dokladnosc
+        if bad.any():
+            t1[bad] = self._krokami(above, o[2], dz, bad, t1[bad])
+        return (o + t1[:, None] * np.stack([d[:, 0], d[:, 1], dz], axis=1)).reshape(*shape, 3)
+
+    def _krokami(self, above, oz, dz, rays, guess, kroki: int = 96) -> np.ndarray:
+        """A ray's first crossing of the ground, walked: ``kroki`` steps to the lowest ground
+        there is, the first step that ends under the ground halved 14 times."""
+        idx = np.nonzero(rays)[0]
+        far = np.maximum((oz - float(self.z.min())) / -dz[idx], guess) + 1.0
+        lo, hi = np.zeros(len(idx)), far.copy()
+        found = np.zeros(len(idx), bool)
+        for k in range(1, kroki + 1):
+            t = far * k / kroki
+            under = (above(t, idx) <= 0) & ~found
+            hi[under] = t[under]
+            lo[~found & ~under] = t[~found & ~under]
+            found |= under
+            if found.all():
+                break
+        for _ in range(14):
+            mid = 0.5 * (lo + hi)
+            under = above(mid, idx) <= 0
+            hi = np.where(under, mid, hi)
+            lo = np.where(under, lo, mid)
+        return hi
 
     def temperatura(self, pogoda: Pogoda, seed: int = 0) -> np.ndarray:
         """How warm each cell's surface is, C, on this day.

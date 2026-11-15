@@ -62,6 +62,18 @@ class Obiekt:
             [self.x + c * p[0] - s * p[1], self.y + s * p[0] + c * p[1], self.z + p[2]]
         )
 
+    def wysokosc(self) -> float:
+        """How high its highest part reaches above the ground, m."""
+        top = 0.0
+        for c in self.czesci:
+            if c.pod_sniegiem:
+                continue
+            if c.b is not None:
+                top = max(top, max(c.a[2], c.b[2]) + float(c.r))
+            else:
+                top = max(top, c.a[2] + c.r[2])
+        return top
+
     def zasieg(self) -> float:
         """How far from (x, y) any part reaches, m."""
         far = 0.0
@@ -191,6 +203,12 @@ SKLAD = {"czlowiek": (1, 2), "kozica": (3, 6), "lis": (1, 3), "glaz": (12, 20)}
 POZY = ("lezy", "lezy", "bok", "siedzi", "stoi")
 
 
+def _ile(rng, rodzaj: str) -> int:
+    """How many of a kind: from the least to the most of :data:`SKLAD`, both counted in."""
+    least, most = SKLAD[rodzaj]
+    return int(rng.integers(least, most + 1))
+
+
 def uloz(t: T.Teren, pogoda: T.Pogoda, seed: int, w=500.0) -> list:
     """A search area's objects, within ``w`` m of its middle.
 
@@ -222,7 +240,7 @@ def uloz(t: T.Teren, pogoda: T.Pogoda, seed: int, w=500.0) -> list:
         raise RuntimeError("no place found")
 
     a = pogoda.powietrze
-    n_people = rng.integers(SKLAD["czlowiek"][0], SKLAD["czlowiek"][1] + 1)
+    n_people = _ile(rng, "czlowiek")
     for i in range(n_people):
         xy = place(lambda c, s: c not in (T.SKALA, T.WODA) and s < 38, near_trail=i % 2 == 0)
         poza = POZY[rng.integers(len(POZY))]
@@ -233,13 +251,13 @@ def uloz(t: T.Teren, pogoda: T.Pogoda, seed: int, w=500.0) -> list:
                 if part.a[0] < -0.1 or rng.uniform() < 0.25:
                     part.pod_sniegiem = True
         out.append(Obiekt("czlowiek_" + poza, *xy, 0.0, rng.uniform(-np.pi, np.pi), parts))
-    for _ in range(rng.integers(*SKLAD["kozica"])):
+    for _ in range(_ile(rng, "kozica")):
         xy = place(lambda c, s: c in (T.SNIEG, T.PIARG, T.SKALA, T.TRAWA) and 20 < s < 45)
         out.append(Obiekt("kozica", *xy, 0.0, rng.uniform(-np.pi, np.pi), kozica(a, rng)))
-    for _ in range(rng.integers(*SKLAD["lis"])):
+    for _ in range(_ile(rng, "lis")):
         xy = place(lambda c, s: c in (T.KOSO, T.TRAWA, T.SZLAK) and s < 30)
         out.append(Obiekt("lis", *xy, 0.0, rng.uniform(-np.pi, np.pi), lis(a, rng)))
-    for _ in range(rng.integers(*SKLAD["glaz"])):
+    for _ in range(_ile(rng, "glaz")):
         xy = place(lambda c, s: c in (T.PIARG, T.SKALA, T.TRAWA, T.SNIEG) and s < 42)
         out.append(Obiekt("glaz", *xy, 0.0, rng.uniform(-np.pi, np.pi), glaz(a, pogoda, rng)))
     for o in out:

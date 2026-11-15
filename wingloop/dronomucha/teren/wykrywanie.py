@@ -4,8 +4,10 @@ A warm spot is a patch warmer than the ground round it by :data:`PROG`
 kelvin: the ground's own temperature is taken as the median of the picture
 in blocks, so a whole sunlit slope is ground, and a boulder on it, or a
 person, is a spot. Each spot is measured as the drone can measure it from
-up there (:data:`CECHY`): how warm its warmest pixel is, C, and how much
-warmer than the ground round it, K; how much ground it covers, m², how long
+up there (:data:`CECHY`): how much warmer than the air its warmest pixel is,
+K -- the drone carries a thermometer; a frosty morning's 5 C and a warm
+day's are not the same thing -- and how much warmer than the ground round
+it, K; how much ground it covers, m², how long
 and how wide it is, m -- from its pixels and how much ground a pixel covers;
 and that last, the pixel's size, so the brain knows how blurred the rest is.
 
@@ -26,7 +28,7 @@ PROG = 2.5
 #: What is measured of a spot, and each measure's lines: (least, most, lines, log scale).
 CECHY = ("temp", "nadwyzka", "pole", "dlugosc", "szerokosc", "piksel")
 STROJENIE = {
-    "temp": (-10.0, 40.0, 12, False),
+    "temp": (-5.0, 40.0, 12, False),
     "nadwyzka": (1.0, 40.0, 10, True),
     "pole": (0.03, 20.0, 10, True),
     "dlugosc": (0.15, 8.0, 10, True),
@@ -37,10 +39,12 @@ STROJENIE = {
 
 @dataclass
 class Plama:
-    """A warm spot: where it is on the ground (x, y, z), its measures (:data:`CECHY`)."""
+    """A warm spot: where it is on the ground (x, y, z), its measures (:data:`CECHY`), and
+    how warm its warmest pixel is, C."""
 
     gdzie: np.ndarray
     cechy: np.ndarray
+    temp: float = 0.0
 
 
 def tlo(temp: np.ndarray, blok: int) -> np.ndarray:
@@ -54,13 +58,20 @@ def tlo(temp: np.ndarray, blok: int) -> np.ndarray:
     return zoom(med, (h / med.shape[0], w / med.shape[1]), order=1)[:h, :w]
 
 
-def plamy(widok, prog: float = PROG) -> list:
-    """Every warm spot in a picture (:class:`~.kamera.Widok`), measured."""
+#: How much ground the ground's own temperature is taken over, m: more than a boulder.
+BLOK = 6.0
+
+
+def plamy(widok, prog: float = PROG, powietrze: float = 0.0) -> list:
+    """Every warm spot in a picture (:class:`~.kamera.Widok`), measured; ``powietrze``: the
+    air's temperature, C, which its warmth is measured from."""
     from scipy import ndimage
 
     temp, gsd = widok.temp, widok.gsd
     g = float(np.median(gsd))
-    blok = int(np.clip(round(6.0 / g), 2, 16))
+    # As big from low down, where it is many pixels, as from high up: with it
+    # held to 16 pixels, a boulder looked at from 15 m was its own ground.
+    blok = int(np.clip(round(BLOK / g), 2, max(2, min(temp.shape) // 2)))
     anomaly = temp - tlo(temp, blok)
     labels, n = ndimage.label(anomaly > prog)
     out = []
@@ -82,7 +93,10 @@ def plamy(widok, prog: float = PROG) -> list:
         out.append(
             Plama(
                 centre,
-                np.array([float(temp[box][mask][k]), float(a[k]), area, length, width, g]),
+                np.array(
+                    [float(temp[box][mask][k]) - powietrze, float(a[k]), area, length, width, g]
+                ),
+                float(temp[box][mask][k]),
             )
         )
     return out

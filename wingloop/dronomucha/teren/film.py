@@ -47,7 +47,9 @@ def _tekstura(t: T.Teren, size: int = 2048) -> Path:
     from scipy.ndimage import zoom
 
     CACHE.mkdir(exist_ok=True)
-    key = hashlib.md5(np.ascontiguousarray(t.z[::40, ::40]).tobytes()).hexdigest()[:10]
+    what = np.ascontiguousarray(t.z[::40, ::40]).tobytes()
+    what += np.ascontiguousarray(t.pokrycie[::8, ::8]).tobytes()
+    key = hashlib.md5(what).hexdigest()[:10]
     path = CACHE / f"tekstura_{key}_{size}.png"
     if path.exists():
         return path
@@ -303,6 +305,7 @@ def film(
     dalmierz: str = "TF03-180",
     seed: int = 0,
     progress=print,
+    powietrze: float = -2.0,
 ) -> Path:
     """Record a search from behind the platform: ``przyspieszenie`` times real time on the
     lanes, ``zwolnij`` times while it looks again; until ``do`` seconds or the end."""
@@ -343,10 +346,11 @@ def film(
         # The platform, pitched and banked as it flies.
         head = lot.kurs
         bank = 0.0
-        if len(state["trail"]) > 3 and not platforma.zawis:
-            dh = (head - state.get("head", head) + np.pi) % (2 * np.pi) - np.pi
-            bank = np.clip(np.arctan2(lot.v * dh / 0.2, LOT.G), -0.6, 0.6)
-        state["head"] = head
+        if "head" in state and t > state["head_t"] and not platforma.zawis:
+            # How fast it turned since the last picture drawn, not since the last step.
+            dh = (head - state["head"] + np.pi) % (2 * np.pi) - np.pi
+            bank = np.clip(np.arctan2(lot.v * dh / (t - state["head_t"]), LOT.G), -0.7, 0.7)
+        state["head"], state["head_t"] = head, t
         quat = np.zeros(4)
         mujoco.mju_euler2Quat(quat, np.array([bank, 0.0, head]), "xyz")
         data.mocap_pos[0] = (lot.x, lot.y, lot.z)
@@ -421,6 +425,8 @@ def film(
             "wroc": "wraca na pas",
             "powrot": "powrót do bazy",
         }
+        if lot.krazy:
+            names[faza] = "krąży, żeby nabrać wysokości"
         found = sum(c.stan == "potwierdzony" for c in kandydaci)
         lrf = f"{dist:5.1f} m" if dist is not None else f"poza zasięgiem ({reach:.0f} m)"
         battery = max(0.0, 100 * (1 - t / (platforma.lot_min * 60)))
@@ -453,6 +459,7 @@ def film(
             seed=seed,
             klatka=on_picture,
             krok=on_step,
+            powietrze=powietrze,
         )
     finally:
         writer.close()
@@ -498,10 +505,12 @@ def przelot(
     dalmierz: str = "TF03-180",
     seed: int = 0,
     zwolnij: float = 0.3,
+    powietrze: float = -2.0,
 ) -> Path:
     """One pass along one lane, as the thermal camera sees it, full screen, ``tempo`` times
     real time -- ``zwolnij`` times as slow within 45 m of ``nad``: the lane over ``nad``
-    (x, y), or the first person's.
+    (x, y), or the first person's -- for the plane the contour through it, 300 m
+    each way, as it flies its lanes; for the quadcopter the north-south lane nearest.
 
     The classic palette, its gain following the picture slowly; a crosshair
     with the temperature under it and the rangefinder's reading; every warm
@@ -517,12 +526,16 @@ def przelot(
     if nad is None:
         person = next(o for o in obiekty if o.czlowiek)
         nad = (person.x, person.y)
-    lanes = LOT.pasy(platforma, kamera, agl)
-    lane = min(lanes, key=lambda ln: abs(ln[0][0] - nad[0]))
-    (x0, y0), (x1, y1) = lane
-    lot = LOT.Lot(platforma, teren, (x0, y0), agl)
-    lot.kurs = float(np.arctan2(y1 - y0, x1 - x0))
+    line = None if platforma.zawis else teren.poziomica(nad[0], nad[1], ile=300.0)
+    if line is not None:
+        lane = [tuple(p) for p in line]
+    else:
+        lane = min(LOT.pasy(platforma, kamera, agl), key=lambda ln: abs(ln[0][0] - nad[0]))
+    (x0, y0), (x1, y1) = lane[0], lane[1]
+    lot = LOT.Lot(platforma, teren, (x0, y0), agl, kurs=float(np.arctan2(y1 - y0, x1 - x0)))
     lot.z = float(teren.wysokosc(x0, y0)) + agl
+    lot.wystartowal = True
+    route = LOT._Trasa([lane])
     rng = np.random.default_rng(seed)
     W_, H_ = size
     ih = H_
@@ -538,13 +551,14 @@ def przelot(
         while t < 200.0:
             near = np.hypot(lot.x - nad[0], lot.y - nad[1]) < 45.0
             dt = tempo * (zwolnij if near else 1.0) / fps
-            if lot.krok(dt, (x1, y1), agl) < 15.0:
+            route.krok(lot, dt, agl, wzdluz=line is not None)
+            if route.koniec or lot.rozbity:
                 break
             t += dt
             v = K.zdjecie(
                 teren, ground_temp, obiekty, kamera, (lot.x, lot.y, lot.z), lot.kurs, rng=rng
             )
-            spots = W.plamy(v)
+            spots = W.plamy(v, powietrze=powietrze)
             a, b = np.percentile(v.temp, 1), np.percentile(v.temp, 99.8)
             lo = a if lo is None else lo + 0.15 * (a - lo)
             hi = b if hi is None else hi + 0.15 * (b - hi)
@@ -566,7 +580,7 @@ def przelot(
                 val = mozg.ocena(s)
                 col = (60, 255, 110) if val > 0 else (235, 235, 235)
                 d.rectangle((cx - half, cy - half, cx + half, cy + half), outline=col, width=2)
-                d.text((cx + half + 6, cy - half), f"{s.cechy[0]:+.1f}°C", fill=col, font=small)
+                d.text((cx + half + 6, cy - half), f"{s.temp:+.1f}°C", fill=col, font=small)
                 label = "człowiek?" if val > 0 else "nie"
                 d.text(
                     (cx + half + 6, cy - half + small.size + 4),
