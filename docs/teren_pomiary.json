@@ -659,6 +659,225 @@ true
 ]
 ],
 "sek": 24
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1511,
+"kandydaci": 0,
+"czas": 685.6000000000189,
+"seed": 15,
+"agl_med": 59.87982177734375,
+"agl_p95": 75.11712646484375,
+"t_pasy": 535.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 150.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 29
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.3922119140625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 490.5999999999807,
+"pokrycie": 0.1432,
+"kandydaci": 3,
+"czas": 698.2000000000218,
+"seed": 16,
+"agl_med": 59.879150390625,
+"agl_p95": 75.12966308592195,
+"t_pasy": 508.20000000000005,
+"t_potwierdz": 53.800000000000004,
+"t_wroc": 11.0,
+"t_powrot": 125.2,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 30
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1511,
+"kandydaci": 0,
+"czas": 685.6000000000189,
+"seed": 17,
+"agl_med": 59.87982177734375,
+"agl_p95": 75.11712646484375,
+"t_pasy": 535.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 150.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 30
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.4742431640625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 416.5999999999849,
+"pokrycie": 0.1485,
+"kandydaci": 1,
+"czas": 689.6000000000198,
+"seed": 18,
+"agl_med": 59.88177490234375,
+"agl_p95": 75.1180419921875,
+"t_pasy": 529.2,
+"t_potwierdz": 17.8,
+"t_wroc": 0.2,
+"t_powrot": 142.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 29
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.40966287039396,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 77.40000000000056,
+"pokrycie": 0.1459,
+"kandydaci": 2,
+"czas": 694.2000000000209,
+"seed": 19,
+"agl_med": 59.89471435546875,
+"agl_p95": 75.128271484375,
+"t_pasy": 503.6,
+"t_potwierdz": 36.2,
+"t_wroc": 21.6,
+"t_powrot": 132.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 29
 }
 ],
 "quad_lepton35_40": [
@@ -1303,6 +1522,232 @@ true
 ]
 ],
 "sek": 5
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 684.2000000000186,
+"seed": 15,
+"agl_med": 39.8741455078125,
+"agl_p95": 50.12830810546875,
+"t_pasy": 531.0,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 153.20000000000002,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 6
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.197509765625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 450.59999999998297,
+"pokrycie": 0.1111,
+"kandydaci": 3,
+"czas": 690.60000000002,
+"seed": 16,
+"agl_med": 39.88299560546875,
+"agl_p95": 50.19803466796875,
+"t_pasy": 509.6,
+"t_potwierdz": 27.6,
+"t_wroc": 13.4,
+"t_powrot": 140.0,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 5
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.47829589843377,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1129,
+"kandydaci": 1,
+"czas": 686.6000000000191,
+"seed": 17,
+"agl_med": 39.8626708984375,
+"agl_p95": 50.1287841796875,
+"t_pasy": 528.6,
+"t_potwierdz": 9.4,
+"t_wroc": 0.2,
+"t_powrot": 148.4,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 5
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.4986572265625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1138,
+"kandydaci": 1,
+"czas": 686.6000000000191,
+"seed": 18,
+"agl_med": 39.87884521484375,
+"agl_p95": 50.129638671875,
+"t_pasy": 525.2,
+"t_potwierdz": 9.8,
+"t_wroc": 3.0,
+"t_powrot": 148.6,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+false
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 6
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.240234375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 425.3999999999844,
+"pokrycie": 0.1114,
+"kandydaci": 2,
+"czas": 689.0000000000197,
+"seed": 19,
+"agl_med": 39.87396240234375,
+"agl_p95": 50.14853515625,
+"t_pasy": 514.0,
+"t_potwierdz": 26.400000000000002,
+"t_wroc": 4.800000000000001,
+"t_powrot": 143.8,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 6
 }
 ],
 "quad_mlx90640_55_20": [
@@ -2256,6 +2701,1501 @@ false
 ]
 ],
 "sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 683.6000000000184,
+"seed": 15,
+"agl_med": 39.87335205078125,
+"agl_p95": 50.103729248046875,
+"t_pasy": 529.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 154.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 683.6000000000184,
+"seed": 16,
+"agl_med": 39.87335205078125,
+"agl_p95": 50.103729248046875,
+"t_pasy": 529.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 154.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.0823974609375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1086,
+"kandydaci": 1,
+"czas": 687.2000000000193,
+"seed": 17,
+"agl_med": 39.87554931640625,
+"agl_p95": 50.069976806640625,
+"t_pasy": 513.2,
+"t_potwierdz": 19.8,
+"t_wroc": 7.0,
+"t_powrot": 147.20000000000002,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 683.6000000000184,
+"seed": 18,
+"agl_med": 39.87335205078125,
+"agl_p95": 50.103729248046875,
+"t_pasy": 529.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 154.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_stoi",
+false,
+false
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.22149658203125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 361.59999999998803,
+"pokrycie": 0.1096,
+"kandydaci": 2,
+"czas": 690.60000000002,
+"seed": 19,
+"agl_med": 39.8809814453125,
+"agl_p95": 50.124655761718465,
+"t_pasy": 500.40000000000003,
+"t_potwierdz": 31.6,
+"t_wroc": 18.0,
+"t_powrot": 140.6,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2503662109375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1067,
+"kandydaci": 1,
+"czas": 687.6000000000193,
+"seed": 20,
+"agl_med": 39.8768310546875,
+"agl_p95": 50.1253173828125,
+"t_pasy": 510.6,
+"t_potwierdz": 20.8,
+"t_wroc": 9.600000000000001,
+"t_powrot": 146.6,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.37286376953125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 467.599999999982,
+"pokrycie": 0.113,
+"kandydaci": 2,
+"czas": 688.6000000000196,
+"seed": 21,
+"agl_med": 39.87744140625,
+"agl_p95": 50.104150390625,
+"t_pasy": 517.8000000000001,
+"t_potwierdz": 19.6,
+"t_wroc": 7.0,
+"t_powrot": 144.20000000000002,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.009521484375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 61.20000000000033,
+"pokrycie": 0.1144,
+"kandydaci": 1,
+"czas": 686.4000000000191,
+"seed": 22,
+"agl_med": 39.877197265625,
+"agl_p95": 50.1313720703125,
+"t_pasy": 520.6,
+"t_potwierdz": 9.8,
+"t_wroc": 7.0,
+"t_powrot": 149.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.25201416015625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 477.39999999998145,
+"pokrycie": 0.1136,
+"kandydaci": 2,
+"czas": 688.6000000000196,
+"seed": 23,
+"agl_med": 39.8734130859375,
+"agl_p95": 50.10390625,
+"t_pasy": 523.4,
+"t_potwierdz": 20.400000000000002,
+"t_wroc": 0.4,
+"t_powrot": 144.4,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.0887451171875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 58.20000000000029,
+"pokrycie": 0.1138,
+"kandydaci": 1,
+"czas": 686.6000000000191,
+"seed": 24,
+"agl_med": 39.8773193359375,
+"agl_p95": 50.12264404296875,
+"t_pasy": 519.8000000000001,
+"t_potwierdz": 10.8,
+"t_wroc": 7.4,
+"t_powrot": 148.6,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2027587890625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 42.20000000000006,
+"pokrycie": 0.1064,
+"kandydaci": 2,
+"czas": 690.0000000000199,
+"seed": 25,
+"agl_med": 39.876953125,
+"agl_p95": 50.120556640625,
+"t_pasy": 504.6,
+"t_potwierdz": 31.0,
+"t_wroc": 13.0,
+"t_powrot": 141.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.3455810546875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 461.79999999998233,
+"pokrycie": 0.115,
+"kandydaci": 1,
+"czas": 686.4000000000191,
+"seed": 26,
+"agl_med": 39.87725830078125,
+"agl_p95": 50.103936767578126,
+"t_pasy": 522.4,
+"t_potwierdz": 10.4,
+"t_wroc": 4.6000000000000005,
+"t_powrot": 149.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+false,
+false
+],
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.30853271484375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 112.20000000000105,
+"pokrycie": 0.1126,
+"kandydaci": 2,
+"czas": 688.6000000000196,
+"seed": 27,
+"agl_med": 39.87738037109375,
+"agl_p95": 50.129791259765625,
+"t_pasy": 517.2,
+"t_potwierdz": 19.8,
+"t_wroc": 7.4,
+"t_powrot": 144.20000000000002,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2508544921875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1146,
+"kandydaci": 1,
+"czas": 686.4000000000191,
+"seed": 28,
+"agl_med": 39.8773193359375,
+"agl_p95": 50.10394287109375,
+"t_pasy": 522.2,
+"t_potwierdz": 11.0,
+"t_wroc": 4.800000000000001,
+"t_powrot": 148.4,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.18994140625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 316.5999999999906,
+"pokrycie": 0.114,
+"kandydaci": 1,
+"czas": 686.200000000019,
+"seed": 29,
+"agl_med": 39.87646484375,
+"agl_p95": 50.10394287109375,
+"t_pasy": 522.2,
+"t_potwierdz": 10.600000000000001,
+"t_wroc": 4.2,
+"t_powrot": 149.20000000000002,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.202392578125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 384.9999999999867,
+"pokrycie": 0.1137,
+"kandydaci": 1,
+"czas": 686.200000000019,
+"seed": 30,
+"agl_med": 39.8740234375,
+"agl_p95": 50.103814697265626,
+"t_pasy": 526.4,
+"t_potwierdz": 10.200000000000001,
+"t_wroc": 0.2,
+"t_powrot": 149.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.1231689453125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1139,
+"kandydaci": 1,
+"czas": 685.8000000000189,
+"seed": 31,
+"agl_med": 39.87548828125,
+"agl_p95": 50.10391845703125,
+"t_pasy": 523.0,
+"t_potwierdz": 9.8,
+"t_wroc": 3.6,
+"t_powrot": 149.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.26678466796875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.111,
+"kandydaci": 4,
+"czas": 695.4000000000211,
+"seed": 32,
+"agl_med": 39.8826904296875,
+"agl_p95": 50.1239013671875,
+"t_pasy": 491.40000000000003,
+"t_potwierdz": 51.800000000000004,
+"t_wroc": 21.400000000000002,
+"t_powrot": 130.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 683.6000000000184,
+"seed": 33,
+"agl_med": 39.87335205078125,
+"agl_p95": 50.103729248046875,
+"t_pasy": 529.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 154.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.3994140625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1042,
+"kandydaci": 3,
+"czas": 693.2000000000206,
+"seed": 34,
+"agl_med": 39.883544921875,
+"agl_p95": 50.1141357421875,
+"t_pasy": 489.6,
+"t_potwierdz": 48.400000000000006,
+"t_wroc": 20.400000000000002,
+"t_powrot": 134.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.262451171875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1138,
+"kandydaci": 1,
+"czas": 686.4000000000191,
+"seed": 35,
+"agl_med": 39.872802734375,
+"agl_p95": 50.10748291015625,
+"t_pasy": 515.2,
+"t_potwierdz": 18.0,
+"t_wroc": 4.4,
+"t_powrot": 148.8,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.23919677734375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 101.2000000000009,
+"pokrycie": 0.1076,
+"kandydaci": 2,
+"czas": 690.40000000002,
+"seed": 36,
+"agl_med": 39.87994384765625,
+"agl_p95": 50.15606689453125,
+"t_pasy": 505.20000000000005,
+"t_potwierdz": 31.8,
+"t_wroc": 12.4,
+"t_powrot": 141.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.39630126953125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1047,
+"kandydaci": 2,
+"czas": 690.40000000002,
+"seed": 37,
+"agl_med": 39.87725830078125,
+"agl_p95": 50.06976318359375,
+"t_pasy": 503.20000000000005,
+"t_potwierdz": 35.6,
+"t_wroc": 10.600000000000001,
+"t_powrot": 141.0,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 683.6000000000184,
+"seed": 38,
+"agl_med": 39.87335205078125,
+"agl_p95": 50.103729248046875,
+"t_pasy": 529.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 154.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.0172119140625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1136,
+"kandydaci": 1,
+"czas": 686.4000000000191,
+"seed": 39,
+"agl_med": 39.876708984375,
+"agl_p95": 50.10396728515625,
+"t_pasy": 521.4,
+"t_potwierdz": 10.8,
+"t_wroc": 5.2,
+"t_powrot": 149.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 683.6000000000184,
+"seed": 40,
+"agl_med": 39.87335205078125,
+"agl_p95": 50.103729248046875,
+"t_pasy": 529.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 154.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.0260009765625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1138,
+"kandydaci": 1,
+"czas": 686.000000000019,
+"seed": 41,
+"agl_med": 39.87744140625,
+"agl_p95": 50.096484374999996,
+"t_pasy": 521.0,
+"t_potwierdz": 9.8,
+"t_wroc": 6.0,
+"t_powrot": 149.20000000000002,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.4725341796875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 339.3999999999893,
+"pokrycie": 0.1099,
+"kandydaci": 3,
+"czas": 693.0000000000206,
+"seed": 42,
+"agl_med": 39.87689208984375,
+"agl_p95": 50.118212890625,
+"t_pasy": 496.8,
+"t_potwierdz": 45.0,
+"t_wroc": 15.4,
+"t_powrot": 135.8,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.32476806640625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 103.20000000000093,
+"pokrycie": 0.1133,
+"kandydaci": 2,
+"czas": 689.2000000000197,
+"seed": 43,
+"agl_med": 39.87738037109375,
+"agl_p95": 50.153936767578124,
+"t_pasy": 507.6,
+"t_potwierdz": 28.8,
+"t_wroc": 9.600000000000001,
+"t_powrot": 143.20000000000002,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.3114013671875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 91.20000000000076,
+"pokrycie": 0.114,
+"kandydaci": 1,
+"czas": 686.4000000000191,
+"seed": 44,
+"agl_med": 39.8782958984375,
+"agl_p95": 50.1277587890625,
+"t_pasy": 519.4,
+"t_potwierdz": 10.600000000000001,
+"t_wroc": 7.800000000000001,
+"t_powrot": 148.6,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.3809814453125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 317.7999999999905,
+"pokrycie": 0.1139,
+"kandydaci": 1,
+"czas": 686.000000000019,
+"seed": 45,
+"agl_med": 39.872802734375,
+"agl_p95": 50.10386962890625,
+"t_pasy": 524.6,
+"t_potwierdz": 10.4,
+"t_wroc": 1.2000000000000002,
+"t_powrot": 149.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 15
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.129638671875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1138,
+"kandydaci": 2,
+"czas": 689.0000000000197,
+"seed": 46,
+"agl_med": 39.87310791015625,
+"agl_p95": 50.1287841796875,
+"t_pasy": 509.20000000000005,
+"t_potwierdz": 29.200000000000003,
+"t_wroc": 7.0,
+"t_powrot": 143.6,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2611083984375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1086,
+"kandydaci": 1,
+"czas": 686.6000000000191,
+"seed": 47,
+"agl_med": 39.8768310546875,
+"agl_p95": 50.0999755859375,
+"t_pasy": 519.4,
+"t_potwierdz": 14.4,
+"t_wroc": 4.4,
+"t_powrot": 148.4,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.400146484375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1139,
+"kandydaci": 1,
+"czas": 686.000000000019,
+"seed": 48,
+"agl_med": 39.872802734375,
+"agl_p95": 50.103826904296874,
+"t_pasy": 526.0,
+"t_potwierdz": 10.0,
+"t_wroc": 0.2,
+"t_powrot": 149.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.3447265625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1127,
+"kandydaci": 2,
+"czas": 688.4000000000195,
+"seed": 49,
+"agl_med": 39.8726806640625,
+"agl_p95": 50.157080078125,
+"t_pasy": 522.6,
+"t_potwierdz": 20.200000000000003,
+"t_wroc": 0.4,
+"t_powrot": 145.20000000000002,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+false
+]
+],
+"sek": 13
 }
 ],
 "quad_t256s_40_lato": [
@@ -2919,6 +4859,245 @@ false
 ]
 ],
 "sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1142,
+"kandydaci": 1,
+"czas": 685.4000000000188,
+"seed": 15,
+"agl_med": 39.875,
+"agl_p95": 50.10382080078125,
+"t_pasy": 526.2,
+"t_potwierdz": 7.2,
+"t_wroc": 0.0,
+"t_powrot": 152.0,
+"kandydaci_lista": [
+[
+"tlo",
+"czeka",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.20904541015625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1128,
+"kandydaci": 2,
+"czas": 689.0000000000197,
+"seed": 16,
+"agl_med": 39.87835693359375,
+"agl_p95": 50.12613525390625,
+"t_pasy": 505.6,
+"t_potwierdz": 28.0,
+"t_wroc": 12.200000000000001,
+"t_powrot": 143.20000000000002,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.4676513671875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1082,
+"kandydaci": 1,
+"czas": 687.0000000000192,
+"seed": 17,
+"agl_med": 39.8746337890625,
+"agl_p95": 50.068878173828125,
+"t_pasy": 515.6,
+"t_potwierdz": 18.400000000000002,
+"t_wroc": 5.2,
+"t_powrot": 147.8,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1142,
+"kandydaci": 1,
+"czas": 685.2000000000188,
+"seed": 18,
+"agl_med": 39.875,
+"agl_p95": 50.10382080078125,
+"t_pasy": 526.2,
+"t_potwierdz": 7.0,
+"t_wroc": 0.0,
+"t_powrot": 152.0,
+"kandydaci_lista": [
+[
+"tlo",
+"czeka",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+false,
+false
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.19182128905959,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.1122,
+"kandydaci": 4,
+"czas": 693.0000000000206,
+"seed": 19,
+"agl_med": 39.8814697265625,
+"agl_p95": 50.08697509765625,
+"t_pasy": 502.8,
+"t_potwierdz": 38.0,
+"t_wroc": 16.8,
+"t_powrot": 135.4,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 13
 }
 ],
 "quad_t256s_40_mroz": [
@@ -3504,6 +5683,213 @@ false
 ]
 ],
 "sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 683.6000000000184,
+"seed": 15,
+"agl_med": 39.87335205078125,
+"agl_p95": 50.103729248046875,
+"t_pasy": 529.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 154.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.1929931640625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1144,
+"kandydaci": 1,
+"czas": 686.000000000019,
+"seed": 16,
+"agl_med": 39.87725830078125,
+"agl_p95": 50.11671752929688,
+"t_pasy": 523.6,
+"t_potwierdz": 9.0,
+"t_wroc": 3.6,
+"t_powrot": 149.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.0823974609375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1079,
+"kandydaci": 1,
+"czas": 687.2000000000193,
+"seed": 17,
+"agl_med": 39.87548828125,
+"agl_p95": 50.069976806640625,
+"t_pasy": 513.2,
+"t_potwierdz": 19.8,
+"t_wroc": 7.0,
+"t_powrot": 147.20000000000002,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1143,
+"kandydaci": 0,
+"czas": 683.6000000000184,
+"seed": 18,
+"agl_med": 39.87335205078125,
+"agl_p95": 50.103729248046875,
+"t_pasy": 529.2,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 154.4,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_stoi",
+false,
+false
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.22039794921875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1095,
+"kandydaci": 2,
+"czas": 690.60000000002,
+"seed": 19,
+"agl_med": 39.8809814453125,
+"agl_p95": 50.124655761718465,
+"t_pasy": 500.40000000000003,
+"t_potwierdz": 31.6,
+"t_wroc": 18.0,
+"t_powrot": 140.6,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 12
 }
 ],
 "quad_t256s_60": [
@@ -4198,6 +6584,1704 @@ true
 ]
 ],
 "sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1648,
+"kandydaci": 0,
+"czas": 686.000000000019,
+"seed": 15,
+"agl_med": 59.87675781249982,
+"agl_p95": 75.15191650390625,
+"t_pasy": 536.0,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 150.0,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.286865234375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 385.79999999998665,
+"pokrycie": 0.1538,
+"kandydaci": 3,
+"czas": 699.400000000022,
+"seed": 16,
+"agl_med": 59.8690185546875,
+"agl_p95": 75.11593017578124,
+"t_pasy": 495.8,
+"t_potwierdz": 60.400000000000006,
+"t_wroc": 20.6,
+"t_powrot": 122.60000000000001,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.393960848721235,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1617,
+"kandydaci": 1,
+"czas": 692.4000000000204,
+"seed": 17,
+"agl_med": 59.878173828125,
+"agl_p95": 75.15606689453125,
+"t_pasy": 521.2,
+"t_potwierdz": 24.0,
+"t_wroc": 10.600000000000001,
+"t_powrot": 136.6,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.0635986328125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1633,
+"kandydaci": 1,
+"czas": 690.0000000000199,
+"seed": 18,
+"agl_med": 59.8773193359375,
+"agl_p95": 75.155908203125,
+"t_pasy": 527.4,
+"t_potwierdz": 18.400000000000002,
+"t_wroc": 3.2,
+"t_powrot": 141.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+false
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.15948486328125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 374.7999999999873,
+"pokrycie": 0.1586,
+"kandydaci": 2,
+"czas": 695.000000000021,
+"seed": 19,
+"agl_med": 59.877685546875,
+"agl_p95": 75.1594970703125,
+"t_pasy": 519.0,
+"t_potwierdz": 36.6,
+"t_wroc": 7.6000000000000005,
+"t_powrot": 131.8,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.221435546875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 432.99999999998397,
+"pokrycie": 0.1546,
+"kandydaci": 3,
+"czas": 700.6000000000223,
+"seed": 20,
+"agl_med": 59.86712646484375,
+"agl_p95": 75.156494140625,
+"t_pasy": 507.20000000000005,
+"t_potwierdz": 56.400000000000006,
+"t_wroc": 18.0,
+"t_powrot": 119.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.342041015625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 464.5999999999822,
+"pokrycie": 0.1621,
+"kandydaci": 1,
+"czas": 690.40000000002,
+"seed": 21,
+"agl_med": 59.8743896484375,
+"agl_p95": 75.1557373046875,
+"t_pasy": 529.4,
+"t_potwierdz": 18.2,
+"t_wroc": 1.6,
+"t_powrot": 141.20000000000002,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.34912109375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 65.40000000000039,
+"pokrycie": 0.158,
+"kandydaci": 2,
+"czas": 695.000000000021,
+"seed": 22,
+"agl_med": 59.8883056640625,
+"agl_p95": 75.14227905273438,
+"t_pasy": 509.6,
+"t_potwierdz": 34.800000000000004,
+"t_wroc": 19.200000000000003,
+"t_powrot": 131.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 12
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.3897705078125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 476.5999999999815,
+"pokrycie": 0.1605,
+"kandydaci": 1,
+"czas": 690.40000000002,
+"seed": 23,
+"agl_med": 59.8790283203125,
+"agl_p95": 75.1554443359375,
+"t_pasy": 531.8000000000001,
+"t_potwierdz": 17.6,
+"t_wroc": 0.2,
+"t_powrot": 140.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2021484375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 60.40000000000032,
+"pokrycie": 0.1634,
+"kandydaci": 1,
+"czas": 690.40000000002,
+"seed": 24,
+"agl_med": 59.8896484375,
+"agl_p95": 75.11806030273438,
+"t_pasy": 520.0,
+"t_potwierdz": 17.400000000000002,
+"t_wroc": 12.600000000000001,
+"t_powrot": 140.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.303466796875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 45.400000000000105,
+"pokrycie": 0.1532,
+"kandydaci": 3,
+"czas": 702.8000000000228,
+"seed": 25,
+"agl_med": 59.869873046875,
+"agl_p95": 75.1143798828125,
+"t_pasy": 507.20000000000005,
+"t_potwierdz": 62.400000000000006,
+"t_wroc": 18.6,
+"t_powrot": 114.60000000000001,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2088623046875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 544.5999999999868,
+"pokrycie": 0.1535,
+"kandydaci": 3,
+"czas": 701.2000000000224,
+"seed": 26,
+"agl_med": 59.874755859375,
+"agl_p95": 75.18359375,
+"t_pasy": 498.20000000000005,
+"t_potwierdz": 57.0,
+"t_wroc": 28.200000000000003,
+"t_powrot": 117.80000000000001,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.40802001953125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 147.80000000000015,
+"pokrycie": 0.1591,
+"kandydaci": 2,
+"czas": 695.000000000021,
+"seed": 27,
+"agl_med": 59.88482666015625,
+"agl_p95": 75.11007080078124,
+"t_pasy": 522.4,
+"t_potwierdz": 35.4,
+"t_wroc": 5.4,
+"t_powrot": 131.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.30596923828125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1628,
+"kandydaci": 2,
+"czas": 693.6000000000207,
+"seed": 28,
+"agl_med": 59.89031982421875,
+"agl_p95": 75.13142089843313,
+"t_pasy": 514.4,
+"t_potwierdz": 30.6,
+"t_wroc": 13.600000000000001,
+"t_powrot": 135.0,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2283935546875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 96.40000000000083,
+"pokrycie": 0.1586,
+"kandydaci": 2,
+"czas": 695.8000000000212,
+"seed": 29,
+"agl_med": 59.8863525390625,
+"agl_p95": 75.0734619140625,
+"t_pasy": 497.8,
+"t_potwierdz": 45.6,
+"t_wroc": 22.6,
+"t_powrot": 129.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.4287109375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 399.79999999998586,
+"pokrycie": 0.1608,
+"kandydaci": 1,
+"czas": 690.40000000002,
+"seed": 30,
+"agl_med": 59.87957763671875,
+"agl_p95": 75.155810546875,
+"t_pasy": 528.8000000000001,
+"t_potwierdz": 18.0,
+"t_wroc": 2.6,
+"t_powrot": 141.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.364990234375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1545,
+"kandydaci": 3,
+"czas": 700.2000000000222,
+"seed": 31,
+"agl_med": 59.86834716796875,
+"agl_p95": 75.12080688476563,
+"t_pasy": 494.0,
+"t_potwierdz": 62.800000000000004,
+"t_wroc": 23.400000000000002,
+"t_powrot": 120.0,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.17218017578125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1492,
+"kandydaci": 4,
+"czas": 704.2000000000231,
+"seed": 32,
+"agl_med": 59.86346435546875,
+"agl_p95": 75.13212280273437,
+"t_pasy": 509.6,
+"t_potwierdz": 69.2,
+"t_wroc": 13.8,
+"t_powrot": 111.60000000000001,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.4534912109375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 344.599999999989,
+"pokrycie": 0.1633,
+"kandydaci": 1,
+"czas": 690.0000000000199,
+"seed": 33,
+"agl_med": 59.87718505859357,
+"agl_p95": 75.15590209960938,
+"t_pasy": 527.6,
+"t_potwierdz": 18.400000000000002,
+"t_wroc": 3.0,
+"t_powrot": 141.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.28347167967854,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1477,
+"kandydaci": 4,
+"czas": 708.6000000000241,
+"seed": 34,
+"agl_med": 59.851806640625,
+"agl_p95": 75.1154296875,
+"t_pasy": 511.40000000000003,
+"t_potwierdz": 77.2,
+"t_wroc": 16.8,
+"t_powrot": 103.2,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.34450683593309,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 452.99999999998283,
+"pokrycie": 0.1508,
+"kandydaci": 4,
+"czas": 705.8000000000235,
+"seed": 35,
+"agl_med": 59.8648681640625,
+"agl_p95": 75.094482421875,
+"t_pasy": 504.40000000000003,
+"t_potwierdz": 71.60000000000001,
+"t_wroc": 20.8,
+"t_powrot": 109.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.119746537641277,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 105.40000000000096,
+"pokrycie": 0.1596,
+"kandydaci": 2,
+"czas": 694.6000000000209,
+"seed": 36,
+"agl_med": 59.89239501953125,
+"agl_p95": 75.136279296875,
+"t_pasy": 510.8,
+"t_potwierdz": 33.6,
+"t_wroc": 18.2,
+"t_powrot": 132.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.178100585936818,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 560.3999999999904,
+"pokrycie": 0.1501,
+"kandydaci": 4,
+"czas": 706.6000000000237,
+"seed": 37,
+"agl_med": 59.85791015625,
+"agl_p95": 75.1851806640625,
+"t_pasy": 503.40000000000003,
+"t_potwierdz": 70.0,
+"t_wroc": 26.6,
+"t_powrot": 106.60000000000001,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.0694580078125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 407.7999999999854,
+"pokrycie": 0.1537,
+"kandydaci": 3,
+"czas": 701.4000000000225,
+"seed": 38,
+"agl_med": 59.87158203125,
+"agl_p95": 75.15966796875,
+"t_pasy": 492.20000000000005,
+"t_potwierdz": 63.6,
+"t_wroc": 28.0,
+"t_powrot": 117.60000000000001,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.215087890625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1576,
+"kandydaci": 2,
+"czas": 694.6000000000209,
+"seed": 39,
+"agl_med": 59.877685546875,
+"agl_p95": 75.1568115234375,
+"t_pasy": 523.0,
+"t_potwierdz": 36.4,
+"t_wroc": 3.0,
+"t_powrot": 132.20000000000002,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.41497802734375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 501.99999999998005,
+"pokrycie": 0.1595,
+"kandydaci": 2,
+"czas": 695.4000000000211,
+"seed": 40,
+"agl_med": 59.8917236328125,
+"agl_p95": 75.1652099609375,
+"t_pasy": 507.40000000000003,
+"t_potwierdz": 34.6,
+"t_wroc": 22.6,
+"t_powrot": 130.8,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.476806640625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1631,
+"kandydaci": 1,
+"czas": 690.2000000000199,
+"seed": 41,
+"agl_med": 59.88096923828107,
+"agl_p95": 75.12531127929688,
+"t_pasy": 526.8000000000001,
+"t_potwierdz": 17.400000000000002,
+"t_wroc": 4.800000000000001,
+"t_powrot": 141.20000000000002,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.1549072265625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 370.5999999999875,
+"pokrycie": 0.1527,
+"kandydaci": 3,
+"czas": 703.0000000000229,
+"seed": 42,
+"agl_med": 59.869140625,
+"agl_p95": 75.1146728515625,
+"t_pasy": 505.8,
+"t_potwierdz": 64.0,
+"t_wroc": 19.0,
+"t_powrot": 114.2,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2578125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 107.40000000000099,
+"pokrycie": 0.1634,
+"kandydaci": 1,
+"czas": 690.2000000000199,
+"seed": 43,
+"agl_med": 59.8876953125,
+"agl_p95": 75.12154541015624,
+"t_pasy": 524.6,
+"t_potwierdz": 16.6,
+"t_wroc": 7.6000000000000005,
+"t_powrot": 141.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.0535888671875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 95.40000000000082,
+"pokrycie": 0.1636,
+"kandydaci": 1,
+"czas": 690.60000000002,
+"seed": 44,
+"agl_med": 59.8876953125,
+"agl_p95": 75.125927734375,
+"t_pasy": 524.6,
+"t_potwierdz": 18.0,
+"t_wroc": 7.0,
+"t_powrot": 141.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.289965820309135,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 91.40000000000076,
+"pokrycie": 0.1492,
+"kandydaci": 4,
+"czas": 710.8000000000246,
+"seed": 45,
+"agl_med": 59.8787841796875,
+"agl_p95": 75.14669189453124,
+"t_pasy": 475.0,
+"t_potwierdz": 86.0,
+"t_wroc": 51.0,
+"t_powrot": 98.80000000000001,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.300817871091567,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1563,
+"kandydaci": 2,
+"czas": 697.0000000000215,
+"seed": 46,
+"agl_med": 59.888427734375,
+"agl_p95": 75.13857421875,
+"t_pasy": 507.0,
+"t_potwierdz": 40.0,
+"t_wroc": 22.0,
+"t_powrot": 128.0,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 13
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.3109130859375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 535.3999999999847,
+"pokrycie": 0.1564,
+"kandydaci": 3,
+"czas": 700.2000000000222,
+"seed": 47,
+"agl_med": 59.8546142578125,
+"agl_p95": 75.129638671875,
+"t_pasy": 499.8,
+"t_potwierdz": 60.0,
+"t_wroc": 20.8,
+"t_powrot": 119.60000000000001,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.28863525390625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1499,
+"kandydaci": 4,
+"czas": 706.4000000000236,
+"seed": 48,
+"agl_med": 59.866455078125,
+"agl_p95": 75.10662841796875,
+"t_pasy": 484.6,
+"t_potwierdz": 87.60000000000001,
+"t_wroc": 27.200000000000003,
+"t_powrot": 107.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+false
+]
+],
+"sek": 14
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 16.2615966796875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.1548,
+"kandydaci": 3,
+"czas": 699.6000000000221,
+"seed": 49,
+"agl_med": 59.86944580078125,
+"agl_p95": 75.12428588867188,
+"t_pasy": 510.40000000000003,
+"t_potwierdz": 53.0,
+"t_wroc": 14.600000000000001,
+"t_powrot": 121.60000000000001,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+false
+]
+],
+"sek": 14
 }
 ],
 "samolot_384_100": [
@@ -5048,6 +9132,2005 @@ true
 ]
 ],
 "sek": 89
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.2978515625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 574.1999999999936,
+"pokrycie": 0.986,
+"kandydaci": 3,
+"czas": 1394.0000000001799,
+"seed": 15,
+"agl_med": 100.09796142578125,
+"agl_p95": 160.64584960937495,
+"t_pasy": 1308.0,
+"t_potwierdz": 57.2,
+"t_wroc": 16.0,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 92
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 36.27880859375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 666.6000000000146,
+"pokrycie": 0.9849,
+"kandydaci": 4,
+"czas": 1398.0000000001808,
+"seed": 16,
+"agl_med": 100.09747314453125,
+"agl_p95": 160.80556030273422,
+"t_pasy": 1295.6000000000001,
+"t_potwierdz": 67.4,
+"t_wroc": 22.200000000000003,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 92
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 33.0516357421875,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 256.999999999994,
+"pokrycie": 0.9897,
+"kandydaci": 4,
+"czas": 1430.6000000001882,
+"seed": 17,
+"agl_med": 100.1015625,
+"agl_p95": 160.71787109374998,
+"t_pasy": 1305.8000000000002,
+"t_potwierdz": 95.4,
+"t_wroc": 16.6,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.1968994140625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 90.80000000000075,
+"pokrycie": 0.9857,
+"kandydaci": 4,
+"czas": 1386.8000000001782,
+"seed": 18,
+"agl_med": 100.09527587890625,
+"agl_p95": 161.16827392578125,
+"t_pasy": 1285.2,
+"t_potwierdz": 72.4,
+"t_wroc": 16.400000000000002,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+false,
+false
+],
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 87
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 37.01953125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 503.79999999997995,
+"pokrycie": 0.9837,
+"kandydaci": 3,
+"czas": 1374.6000000001754,
+"seed": 19,
+"agl_med": 100.09423828125,
+"agl_p95": 161.20908203124998,
+"t_pasy": 1291.4,
+"t_potwierdz": 53.2,
+"t_wroc": 17.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 90
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.10345458984375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 45.60000000000011,
+"pokrycie": 0.986,
+"kandydaci": 1,
+"czas": 1319.0000000001628,
+"seed": 20,
+"agl_med": 100.0946044921875,
+"agl_p95": 161.315576171875,
+"t_pasy": 1287.4,
+"t_potwierdz": 18.6,
+"t_wroc": 0.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 93
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 38.6102294921875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9862,
+"kandydaci": 2,
+"czas": 1347.6000000001693,
+"seed": 21,
+"agl_med": 100.09716796875,
+"agl_p95": 160.87958984374998,
+"t_pasy": 1290.6000000000001,
+"t_potwierdz": 36.800000000000004,
+"t_wroc": 7.4,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 89
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.0074462890625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 528.1999999999831,
+"pokrycie": 0.9864,
+"kandydaci": 4,
+"czas": 1421.200000000186,
+"seed": 22,
+"agl_med": 100.09722900390625,
+"agl_p95": 160.72659301757812,
+"t_pasy": 1303.2,
+"t_potwierdz": 76.60000000000001,
+"t_wroc": 28.400000000000002,
+"t_powrot": 13.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_stoi",
+true,
+true
+]
+],
+"sek": 92
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 33.739990234375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.986,
+"kandydaci": 2,
+"czas": 1366.0000000001735,
+"seed": 23,
+"agl_med": 100.10589599609375,
+"agl_p95": 160.73047485351563,
+"t_pasy": 1299.6000000000001,
+"t_potwierdz": 38.2,
+"t_wroc": 15.4,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+false
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.038330078125,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": 1342.8000000001682,
+"pokrycie": 0.9863,
+"kandydaci": 3,
+"czas": 1416.600000000185,
+"seed": 24,
+"agl_med": 100.10394287109375,
+"agl_p95": 160.6822998046875,
+"t_pasy": 1310.4,
+"t_potwierdz": 76.4,
+"t_wroc": 16.8,
+"t_powrot": 13.0,
+"kandydaci_lista": [
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"czeka",
+true,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 90
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.6000000000000001,
+"z_bliska": 34.8739013671875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 18.399999999999967,
+"pokrycie": 0.9855,
+"kandydaci": 4,
+"czas": 1407.600000000183,
+"seed": 25,
+"agl_med": 100.0986328125,
+"agl_p95": 160.72689208984374,
+"t_pasy": 1294.8000000000002,
+"t_potwierdz": 74.2,
+"t_wroc": 25.8,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.204833984375,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 536.7999999999851,
+"pokrycie": 0.9882,
+"kandydaci": 4,
+"czas": 1429.0000000001878,
+"seed": 26,
+"agl_med": 100.0955810546875,
+"agl_p95": 160.97187499999978,
+"t_pasy": 1293.8000000000002,
+"t_potwierdz": 93.4,
+"t_wroc": 29.0,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+true
+],
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 93
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.938720703125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 625.4000000000052,
+"pokrycie": 0.9855,
+"kandydaci": 5,
+"czas": 1443.6000000001911,
+"seed": 27,
+"agl_med": 100.0897216796875,
+"agl_p95": 161.21848144531242,
+"t_pasy": 1291.0,
+"t_potwierdz": 123.4,
+"t_wroc": 16.400000000000002,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.2845458984375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 151.39999999999995,
+"pokrycie": 0.987,
+"kandydaci": 3,
+"czas": 1393.4000000001797,
+"seed": 28,
+"agl_med": 100.10479736328125,
+"agl_p95": 160.7341552734375,
+"t_pasy": 1297.6000000000001,
+"t_potwierdz": 56.400000000000006,
+"t_wroc": 26.6,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 92
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9858,
+"kandydaci": 1,
+"czas": 1335.8000000001666,
+"seed": 29,
+"agl_med": 100.0977783203125,
+"agl_p95": 161.12421874999984,
+"t_pasy": 1288.6000000000001,
+"t_potwierdz": 34.2,
+"t_wroc": 0.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"tlo",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 89
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.2215576171875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": 19.599999999999962,
+"pokrycie": 0.9861,
+"kandydaci": 7,
+"czas": 1505.000000000205,
+"seed": 30,
+"agl_med": 100.08935546875,
+"agl_p95": 160.72900390625,
+"t_pasy": 1297.8000000000002,
+"t_potwierdz": 160.0,
+"t_wroc": 34.4,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 93
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.68585205078125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9861,
+"kandydaci": 6,
+"czas": 1477.6000000001989,
+"seed": 31,
+"agl_med": 100.1038818359375,
+"agl_p95": 160.73511352539063,
+"t_pasy": 1298.4,
+"t_potwierdz": 133.0,
+"t_wroc": 33.4,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 93
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.1131591796875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 2,
+"pierwszy": null,
+"pokrycie": 0.9822,
+"kandydaci": 6,
+"czas": 1468.6000000001968,
+"seed": 32,
+"agl_med": 100.09710693359375,
+"agl_p95": 160.73764038085938,
+"t_pasy": 1294.4,
+"t_potwierdz": 125.60000000000001,
+"t_wroc": 35.800000000000004,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 92
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.42022705078125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9871,
+"kandydaci": 3,
+"czas": 1401.0000000001814,
+"seed": 33,
+"agl_med": 100.094970703125,
+"agl_p95": 160.72425537109373,
+"t_pasy": 1303.0,
+"t_potwierdz": 62.400000000000006,
+"t_wroc": 22.8,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 90
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.037109375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.9871,
+"kandydaci": 3,
+"czas": 1414.8000000001846,
+"seed": 34,
+"agl_med": 100.0972900390625,
+"agl_p95": 160.739794921875,
+"t_pasy": 1296.6000000000001,
+"t_potwierdz": 76.2,
+"t_wroc": 29.200000000000003,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 93
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.8817138671875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 1307.6000000001602,
+"pokrycie": 0.9857,
+"kandydaci": 2,
+"czas": 1363.2000000001728,
+"seed": 35,
+"agl_med": 100.10302734375,
+"agl_p95": 160.96160888671875,
+"t_pasy": 1294.2,
+"t_potwierdz": 37.0,
+"t_wroc": 19.200000000000003,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.69757080078125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 123.40000000000121,
+"pokrycie": 0.9835,
+"kandydaci": 2,
+"czas": 1344.0000000001685,
+"seed": 36,
+"agl_med": 100.09747314453125,
+"agl_p95": 161.25844726562497,
+"t_pasy": 1289.6000000000001,
+"t_potwierdz": 34.4,
+"t_wroc": 7.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 92
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.0201416015625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 523.199999999982,
+"pokrycie": 0.9905,
+"kandydaci": 2,
+"czas": 1372.400000000175,
+"seed": 37,
+"agl_med": 100.099853515625,
+"agl_p95": 160.7278076171875,
+"t_pasy": 1298.4,
+"t_potwierdz": 44.400000000000006,
+"t_wroc": 16.8,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 95
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.052978515625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 647.2000000000102,
+"pokrycie": 0.9872,
+"kandydaci": 3,
+"czas": 1396.0000000001803,
+"seed": 38,
+"agl_med": 100.0965576171875,
+"agl_p95": 160.98529663085904,
+"t_pasy": 1294.0,
+"t_potwierdz": 60.800000000000004,
+"t_wroc": 28.400000000000002,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.9832763671875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 647.4000000000102,
+"pokrycie": 0.9837,
+"kandydaci": 4,
+"czas": 1411.6000000001839,
+"seed": 39,
+"agl_med": 100.0972900390625,
+"agl_p95": 160.72614135742188,
+"t_pasy": 1303.6000000000001,
+"t_potwierdz": 76.4,
+"t_wroc": 18.8,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 93
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.32843017578125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.986,
+"kandydaci": 3,
+"czas": 1392.4000000001795,
+"seed": 40,
+"agl_med": 100.0943603515625,
+"agl_p95": 160.68519897460936,
+"t_pasy": 1302.4,
+"t_potwierdz": 59.6,
+"t_wroc": 17.6,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.87493896484375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 501.3999999999801,
+"pokrycie": 0.9859,
+"kandydaci": 4,
+"czas": 1411.0000000001837,
+"seed": 41,
+"agl_med": 100.089599609375,
+"agl_p95": 160.6497802734375,
+"t_pasy": 1308.2,
+"t_potwierdz": 79.2,
+"t_wroc": 10.600000000000001,
+"t_powrot": 13.0,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 93
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.188720703125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": 620.8000000000042,
+"pokrycie": 0.9895,
+"kandydaci": 5,
+"czas": 1469.600000000197,
+"seed": 42,
+"agl_med": 100.0947265625,
+"agl_p95": 160.64270019531247,
+"t_pasy": 1311.4,
+"t_potwierdz": 110.2,
+"t_wroc": 35.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 99
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.49371337890625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 99.60000000000088,
+"pokrycie": 0.9883,
+"kandydaci": 3,
+"czas": 1391.8000000001794,
+"seed": 43,
+"agl_med": 100.0947265625,
+"agl_p95": 160.729248046875,
+"t_pasy": 1300.2,
+"t_potwierdz": 58.400000000000006,
+"t_wroc": 20.400000000000002,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+false
+]
+],
+"sek": 94
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.158935546875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 101.6000000000009,
+"pokrycie": 0.9862,
+"kandydaci": 4,
+"czas": 1421.000000000186,
+"seed": 44,
+"agl_med": 100.10052490234375,
+"agl_p95": 160.7318542480469,
+"t_pasy": 1292.4,
+"t_potwierdz": 81.4,
+"t_wroc": 34.4,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 94
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.92889404296875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 1385.2000000001779,
+"pokrycie": 0.9843,
+"kandydaci": 5,
+"czas": 1440.2000000001904,
+"seed": 45,
+"agl_med": 100.09710693359375,
+"agl_p95": 160.7293701171875,
+"t_pasy": 1297.6000000000001,
+"t_potwierdz": 96.2,
+"t_wroc": 33.6,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 97
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 36.9600830078125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 2,
+"pierwszy": 104.80000000000095,
+"pokrycie": 0.9874,
+"kandydaci": 6,
+"czas": 1477.6000000001989,
+"seed": 46,
+"agl_med": 100.0972900390625,
+"agl_p95": 160.64339599609372,
+"t_pasy": 1304.6000000000001,
+"t_potwierdz": 117.0,
+"t_wroc": 43.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 99
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.292236328125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": 583.7999999999957,
+"pokrycie": 0.9874,
+"kandydaci": 6,
+"czas": 1470.4000000001972,
+"seed": 47,
+"agl_med": 100.0972900390625,
+"agl_p95": 160.61673583984373,
+"t_pasy": 1309.4,
+"t_potwierdz": 106.0,
+"t_wroc": 42.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 96
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.91326904296875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": 1336.6000000001668,
+"pokrycie": 0.9858,
+"kandydaci": 3,
+"czas": 1397.2000000001806,
+"seed": 48,
+"agl_med": 100.0985107421875,
+"agl_p95": 160.98499755859342,
+"t_pasy": 1294.0,
+"t_potwierdz": 61.0,
+"t_wroc": 29.400000000000002,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+]
+],
+"sek": 93
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.1478271484375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 1390.000000000179,
+"pokrycie": 0.9861,
+"kandydaci": 5,
+"czas": 1438.40000000019,
+"seed": 49,
+"agl_med": 100.095947265625,
+"agl_p95": 160.69925537109373,
+"t_pasy": 1305.4,
+"t_potwierdz": 87.4,
+"t_wroc": 32.800000000000004,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+]
+],
+"sek": 91
 }
 ],
 "samolot_384_100_lato": [
@@ -6060,6 +12143,293 @@ true
 ]
 ],
 "sek": 87
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.342529296875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.9862,
+"kandydaci": 1,
+"czas": 1335.0000000001664,
+"seed": 15,
+"agl_med": 100.10205078125,
+"agl_p95": 161.1864013671875,
+"t_pasy": 1292.2,
+"t_potwierdz": 21.200000000000003,
+"t_wroc": 8.8,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.2001953125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 650.4000000000109,
+"pokrycie": 0.9862,
+"kandydaci": 4,
+"czas": 1382.8000000001773,
+"seed": 16,
+"agl_med": 100.0963134765625,
+"agl_p95": 161.1130004882812,
+"t_pasy": 1288.4,
+"t_potwierdz": 80.80000000000001,
+"t_wroc": 0.8,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 94
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.6737060546875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 225.9999999999957,
+"pokrycie": 0.9862,
+"kandydaci": 3,
+"czas": 1401.4000000001815,
+"seed": 17,
+"agl_med": 100.1058349609375,
+"agl_p95": 160.7320068359375,
+"t_pasy": 1298.6000000000001,
+"t_potwierdz": 64.0,
+"t_wroc": 26.0,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 94
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.77362060546875,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.9862,
+"kandydaci": 3,
+"czas": 1418.2000000001854,
+"seed": 18,
+"agl_med": 100.10162353515625,
+"agl_p95": 160.73870849609375,
+"t_pasy": 1294.4,
+"t_potwierdz": 91.80000000000001,
+"t_wroc": 19.200000000000003,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+false,
+false
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 91
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.18072509765625,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 3,
+"pierwszy": 576.7999999999942,
+"pokrycie": 0.9863,
+"kandydaci": 6,
+"czas": 1498.4000000002036,
+"seed": 19,
+"agl_med": 100.0892333984375,
+"agl_p95": 160.7257080078125,
+"t_pasy": 1304.2,
+"t_potwierdz": 143.20000000000002,
+"t_wroc": 38.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"czeka",
+true,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 96
 }
 ],
 "samolot_384_100_mroz": [
@@ -6820,6 +13190,245 @@ true
 ]
 ],
 "sek": 83
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.28857421875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9857,
+"kandydaci": 1,
+"czas": 1330.4000000001654,
+"seed": 15,
+"agl_med": 100.0989990234375,
+"agl_p95": 160.72280883789062,
+"t_pasy": 1299.6000000000001,
+"t_potwierdz": 17.8,
+"t_wroc": 0.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 86
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.415771484375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9861,
+"kandydaci": 1,
+"czas": 1334.4000000001663,
+"seed": 16,
+"agl_med": 100.09912109375,
+"agl_p95": 161.2467041015625,
+"t_pasy": 1290.2,
+"t_potwierdz": 31.200000000000003,
+"t_wroc": 0.2,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 88
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.2098388671875,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 225.9999999999957,
+"pokrycie": 0.9858,
+"kandydaci": 3,
+"czas": 1392.0000000001794,
+"seed": 17,
+"agl_med": 100.102294921875,
+"agl_p95": 161.1379028320311,
+"t_pasy": 1292.6000000000001,
+"t_potwierdz": 69.0,
+"t_wroc": 17.6,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 87
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 36.59210205078125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 112.20000000000105,
+"pokrycie": 0.9863,
+"kandydaci": 2,
+"czas": 1360.6000000001723,
+"seed": 18,
+"agl_med": 100.0921630859375,
+"agl_p95": 160.724169921875,
+"t_pasy": 1303.0,
+"t_potwierdz": 38.0,
+"t_wroc": 6.800000000000001,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+false,
+false
+],
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 87
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 36.9306640625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9858,
+"kandydaci": 2,
+"czas": 1367.2000000001738,
+"seed": 19,
+"agl_med": 100.0989990234375,
+"agl_p95": 160.73369140625,
+"t_pasy": 1297.0,
+"t_potwierdz": 40.0,
+"t_wroc": 17.400000000000002,
+"t_powrot": 12.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 88
 }
 ],
 "samolot_lepton35_60": [
@@ -8090,6 +14699,455 @@ false
 ]
 ],
 "sek": 20
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.094970703125,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 1,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 150.6,
+"pokrycie": 0.8044,
+"kandydaci": 13,
+"czas": 1969.2000000003106,
+"seed": 15,
+"agl_med": 60.05908203125,
+"agl_p95": 97.74580688476543,
+"t_pasy": 1444.0,
+"t_potwierdz": 260.6,
+"t_wroc": 215.4,
+"t_powrot": 49.2,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+false
+]
+],
+"sek": 20
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.9293212890625,
+"do_sprawdzenia": 2,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 2,
+"pierwszy": null,
+"pokrycie": 0.8396,
+"kandydaci": 10,
+"czas": 1949.6000000003062,
+"seed": 16,
+"agl_med": 60.0823974609375,
+"agl_p95": 116.38184814453123,
+"t_pasy": 1616.6000000000001,
+"t_potwierdz": 247.0,
+"t_wroc": 56.400000000000006,
+"t_powrot": 29.6,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"czeka",
+true,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 22
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.630126953125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 252.5999999999942,
+"pokrycie": 0.8453,
+"kandydaci": 8,
+"czas": 1951.0000000003065,
+"seed": 17,
+"agl_med": 60.0845947265625,
+"agl_p95": 116.38737792968747,
+"t_pasy": 1649.8000000000002,
+"t_potwierdz": 201.4,
+"t_wroc": 68.8,
+"t_powrot": 31.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 23
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.82470703125,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 69.80000000000045,
+"pokrycie": 0.8598,
+"kandydaci": 8,
+"czas": 1971.6000000003112,
+"seed": 18,
+"agl_med": 60.07757568359375,
+"agl_p95": 119.77882690429668,
+"t_pasy": 1682.0,
+"t_potwierdz": 197.4,
+"t_wroc": 40.6,
+"t_powrot": 51.6,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_bok",
+true,
+false
+]
+],
+"sek": 23
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.99676513671875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 69.80000000000045,
+"pokrycie": 0.8654,
+"kandydaci": 5,
+"czas": 1998.0000000003172,
+"seed": 19,
+"agl_med": 60.100830078125,
+"agl_p95": 121.4891845703125,
+"t_pasy": 1791.8000000000002,
+"t_potwierdz": 102.2,
+"t_wroc": 20.6,
+"t_powrot": 83.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+false
+]
+],
+"sek": 26
 }
 ],
 "samolot_mlx90640_55_60": [
@@ -9257,6 +16315,263 @@ true
 ]
 ],
 "sek": 33
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.47845458984375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 868.2000000000604,
+"pokrycie": 0.7985,
+"kandydaci": 3,
+"czas": 1252.8000000001477,
+"seed": 15,
+"agl_med": 100.08648681640625,
+"agl_p95": 164.63457031249996,
+"t_pasy": 1102.4,
+"t_potwierdz": 57.2,
+"t_wroc": 16.8,
+"t_powrot": 76.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+false
+]
+],
+"sek": 36
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 36.1419677734375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 87.80000000000071,
+"pokrycie": 0.7977,
+"kandydaci": 2,
+"czas": 1223.600000000141,
+"seed": 16,
+"agl_med": 100.08807373046875,
+"agl_p95": 165.69152221679704,
+"t_pasy": 1096.0,
+"t_potwierdz": 36.2,
+"t_wroc": 15.0,
+"t_powrot": 76.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 35
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 33.65362548828125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 214.19999999999638,
+"pokrycie": 0.8028,
+"kandydaci": 2,
+"czas": 1242.8000000001455,
+"seed": 17,
+"agl_med": 100.0953369140625,
+"agl_p95": 164.67532958984373,
+"t_pasy": 1101.4,
+"t_potwierdz": 43.2,
+"t_wroc": 21.8,
+"t_powrot": 76.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 37
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 37.255615234375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 81.80000000000062,
+"pokrycie": 0.8049,
+"kandydaci": 2,
+"czas": 1237.8000000001443,
+"seed": 18,
+"agl_med": 100.0816650390625,
+"agl_p95": 164.62131347656242,
+"t_pasy": 1102.8,
+"t_potwierdz": 47.2,
+"t_wroc": 11.4,
+"t_powrot": 76.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+false,
+false
+],
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 36
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 37.09967041015625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 893.6000000000662,
+"pokrycie": 0.7996,
+"kandydaci": 3,
+"czas": 1265.4000000001506,
+"seed": 19,
+"agl_med": 100.09051513671875,
+"agl_p95": 165.04701538085948,
+"t_pasy": 1100.0,
+"t_potwierdz": 58.400000000000006,
+"t_wroc": 30.6,
+"t_powrot": 76.4,
+"kandydaci_lista": [
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 36
 }
 ],
 "samolot_t256s_60": [
@@ -10335,6 +17650,2479 @@ true
 ]
 ],
 "sek": 58
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.4107666015625,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 145.80000000000027,
+"pokrycie": 0.9351,
+"kandydaci": 8,
+"czas": 1988.800000000315,
+"seed": 15,
+"agl_med": 60.05389404296875,
+"agl_p95": 111.50768432617177,
+"t_pasy": 1704.0,
+"t_potwierdz": 204.8,
+"t_wroc": 11.200000000000001,
+"t_powrot": 68.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.64532470703125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 450.59999999998297,
+"pokrycie": 0.9442,
+"kandydaci": 7,
+"czas": 1984.000000000314,
+"seed": 16,
+"agl_med": 60.0634765625,
+"agl_p95": 112.51130371093743,
+"t_pasy": 1735.4,
+"t_potwierdz": 135.8,
+"t_wroc": 48.800000000000004,
+"t_powrot": 64.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.05120849609375,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 1176.8000000001305,
+"pokrycie": 0.9802,
+"kandydaci": 3,
+"czas": 1961.0000000003088,
+"seed": 17,
+"agl_med": 60.066650390625,
+"agl_p95": 111.32456054687498,
+"t_pasy": 1793.0,
+"t_potwierdz": 73.60000000000001,
+"t_wroc": 20.400000000000002,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 59
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.5606689453125,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 67.80000000000042,
+"pokrycie": 0.9668,
+"kandydaci": 6,
+"czas": 1994.0000000003163,
+"seed": 18,
+"agl_med": 60.0638427734375,
+"agl_p95": 112.03622436523438,
+"t_pasy": 1765.2,
+"t_potwierdz": 143.0,
+"t_wroc": 11.8,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.9937744140625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 67.80000000000042,
+"pokrycie": 0.9717,
+"kandydaci": 5,
+"czas": 1998.8000000003174,
+"seed": 19,
+"agl_med": 60.071533203125,
+"agl_p95": 111.70422363281241,
+"t_pasy": 1785.4,
+"t_potwierdz": 113.80000000000001,
+"t_wroc": 20.8,
+"t_powrot": 78.80000000000001,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 58
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.46856689453125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 350.1999999999887,
+"pokrycie": 0.9497,
+"kandydaci": 6,
+"czas": 1993.4000000003161,
+"seed": 20,
+"agl_med": 60.0537109375,
+"agl_p95": 113.12911376953123,
+"t_pasy": 1717.4,
+"t_potwierdz": 125.4,
+"t_wroc": 77.2,
+"t_powrot": 73.4,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 58
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.6624755859375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.9786,
+"kandydaci": 5,
+"czas": 1996.2000000003168,
+"seed": 21,
+"agl_med": 60.06591796875,
+"agl_p95": 111.49892578124998,
+"t_pasy": 1781.0,
+"t_potwierdz": 110.60000000000001,
+"t_wroc": 28.400000000000002,
+"t_powrot": 76.2,
+"kandydaci_lista": [
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 59
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.2362060546875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 246.79999999999453,
+"pokrycie": 0.9689,
+"kandydaci": 6,
+"czas": 1994.0000000003163,
+"seed": 22,
+"agl_med": 60.06610107421875,
+"agl_p95": 112.1440795898437,
+"t_pasy": 1772.4,
+"t_potwierdz": 113.0,
+"t_wroc": 34.6,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.4073486328125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.9622,
+"kandydaci": 5,
+"czas": 1996.2000000003168,
+"seed": 23,
+"agl_med": 60.060546875,
+"agl_p95": 112.0379760742187,
+"t_pasy": 1756.6000000000001,
+"t_potwierdz": 104.80000000000001,
+"t_wroc": 58.6,
+"t_powrot": 76.2,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.60107421875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": 222.5999999999959,
+"pokrycie": 0.9418,
+"kandydaci": 7,
+"czas": 1989.0000000003151,
+"seed": 24,
+"agl_med": 60.05511474609375,
+"agl_p95": 112.35145874023435,
+"t_pasy": 1714.4,
+"t_potwierdz": 150.20000000000002,
+"t_wroc": 55.400000000000006,
+"t_powrot": 69.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 54
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.9581298828125,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 1,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 17.39999999999997,
+"pokrycie": 0.9805,
+"kandydaci": 4,
+"czas": 1982.8000000003137,
+"seed": 25,
+"agl_med": 60.068115234375,
+"agl_p95": 111.38913574218748,
+"t_pasy": 1795.0,
+"t_potwierdz": 89.60000000000001,
+"t_wroc": 24.200000000000003,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+false
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.4,
+"z_bliska": 34.97705078125,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 66.80000000000041,
+"pokrycie": 0.9397,
+"kandydaci": 7,
+"czas": 1986.0000000003145,
+"seed": 26,
+"agl_med": 60.055419921875,
+"agl_p95": 111.25689086914062,
+"t_pasy": 1719.6000000000001,
+"t_potwierdz": 158.0,
+"t_wroc": 42.400000000000006,
+"t_powrot": 66.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+true
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.85498046875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 168.199999999999,
+"pokrycie": 0.9677,
+"kandydaci": 6,
+"czas": 1999.6000000003176,
+"seed": 27,
+"agl_med": 60.065673828125,
+"agl_p95": 111.49322509765622,
+"t_pasy": 1780.6000000000001,
+"t_potwierdz": 120.4,
+"t_wroc": 19.0,
+"t_powrot": 79.60000000000001,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 60
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.936279296875,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 114.80000000000109,
+"pokrycie": 0.972,
+"kandydaci": 4,
+"czas": 2000.4000000003177,
+"seed": 28,
+"agl_med": 60.063720703125,
+"agl_p95": 112.11563110351562,
+"t_pasy": 1763.2,
+"t_potwierdz": 93.80000000000001,
+"t_wroc": 63.0,
+"t_powrot": 80.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.04388427734375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 395.3999999999861,
+"pokrycie": 0.981,
+"kandydaci": 3,
+"czas": 1956.8000000003078,
+"seed": 29,
+"agl_med": 60.0675048828125,
+"agl_p95": 111.42642822265621,
+"t_pasy": 1803.0,
+"t_potwierdz": 59.400000000000006,
+"t_wroc": 20.400000000000002,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.427001953125,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 33.79999999999994,
+"pokrycie": 0.924,
+"kandydaci": 8,
+"czas": 1973.2000000003115,
+"seed": 30,
+"agl_med": 60.04052734375,
+"agl_p95": 90.45363159179684,
+"t_pasy": 1633.6000000000001,
+"t_potwierdz": 214.20000000000002,
+"t_wroc": 72.2,
+"t_powrot": 53.2,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 51
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.23638916015625,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 216.59999999999624,
+"pokrycie": 0.9569,
+"kandydaci": 6,
+"czas": 1999.4000000003175,
+"seed": 31,
+"agl_med": 60.0621337890625,
+"agl_p95": 112.59084472656251,
+"t_pasy": 1733.8000000000002,
+"t_potwierdz": 145.20000000000002,
+"t_wroc": 41.0,
+"t_powrot": 79.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.00201416015625,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 3,
+"pierwszy": 168.79999999999896,
+"pokrycie": 0.9586,
+"kandydaci": 7,
+"czas": 1997.8000000003171,
+"seed": 32,
+"agl_med": 60.0596923828125,
+"agl_p95": 112.20590820312502,
+"t_pasy": 1753.8000000000002,
+"t_potwierdz": 147.8,
+"t_wroc": 18.400000000000002,
+"t_powrot": 77.80000000000001,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"czeka",
+true,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.099853515625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 66.80000000000041,
+"pokrycie": 0.9225,
+"kandydaci": 8,
+"czas": 1997.600000000317,
+"seed": 33,
+"agl_med": 60.06243896484375,
+"agl_p95": 111.66177978515623,
+"t_pasy": 1698.8000000000002,
+"t_potwierdz": 145.6,
+"t_wroc": 75.60000000000001,
+"t_powrot": 77.60000000000001,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.02685546875,
+"do_sprawdzenia": 2,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.921,
+"kandydaci": 9,
+"czas": 1999.4000000003175,
+"seed": 34,
+"agl_med": 60.0557861328125,
+"agl_p95": 112.16578369140625,
+"t_pasy": 1677.4,
+"t_potwierdz": 202.4,
+"t_wroc": 40.2,
+"t_powrot": 79.4,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"czeka",
+true,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"czeka",
+true,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 53
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.252685546875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": 214.19999999999638,
+"pokrycie": 0.9732,
+"kandydaci": 4,
+"czas": 2000.4000000003177,
+"seed": 35,
+"agl_med": 60.06414794921875,
+"agl_p95": 111.71605834960916,
+"t_pasy": 1774.4,
+"t_potwierdz": 90.2,
+"t_wroc": 55.400000000000006,
+"t_powrot": 80.4,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.02960205078125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 283.79999999999245,
+"pokrycie": 0.9813,
+"kandydaci": 4,
+"czas": 1972.0000000003113,
+"seed": 36,
+"agl_med": 60.0657958984375,
+"agl_p95": 111.22699584960927,
+"t_pasy": 1804.4,
+"t_potwierdz": 63.0,
+"t_wroc": 30.6,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.4810791015625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 2,
+"pierwszy": 142.20000000000047,
+"pokrycie": 0.9585,
+"kandydaci": 6,
+"czas": 2005.0000000003188,
+"seed": 37,
+"agl_med": 60.0579833984375,
+"agl_p95": 112.37287597656236,
+"t_pasy": 1749.4,
+"t_potwierdz": 128.4,
+"t_wroc": 42.2,
+"t_powrot": 85.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.20465087890625,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.972,
+"kandydaci": 5,
+"czas": 2000.2000000003177,
+"seed": 38,
+"agl_med": 60.0621337890625,
+"agl_p95": 112.08302612304686,
+"t_pasy": 1767.6000000000001,
+"t_potwierdz": 110.80000000000001,
+"t_wroc": 41.6,
+"t_powrot": 80.2,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.73583984375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 454.9999999999827,
+"pokrycie": 0.9655,
+"kandydaci": 5,
+"czas": 1994.0000000003163,
+"seed": 39,
+"agl_med": 60.0594482421875,
+"agl_p95": 111.50223999023433,
+"t_pasy": 1764.4,
+"t_potwierdz": 109.2,
+"t_wroc": 46.400000000000006,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_siedzi",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.302734375,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 168.79999999999896,
+"pokrycie": 0.9706,
+"kandydaci": 5,
+"czas": 1997.400000000317,
+"seed": 40,
+"agl_med": 60.0640869140625,
+"agl_p95": 112.09876098632813,
+"t_pasy": 1770.8000000000002,
+"t_potwierdz": 113.80000000000001,
+"t_wroc": 35.4,
+"t_powrot": 77.4,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.545654296875,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 131.40000000000109,
+"pokrycie": 0.9385,
+"kandydaci": 8,
+"czas": 1987.6000000003148,
+"seed": 41,
+"agl_med": 60.05816650390625,
+"agl_p95": 112.69949951171873,
+"t_pasy": 1703.6000000000001,
+"t_potwierdz": 214.8,
+"t_wroc": 1.6,
+"t_powrot": 67.60000000000001,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.9176025390625,
+"do_sprawdzenia": 2,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 4,
+"pierwszy": 154.1999999999998,
+"pokrycie": 0.9225,
+"kandydaci": 12,
+"czas": 1982.4000000003136,
+"seed": 42,
+"agl_med": 60.04534912109375,
+"agl_p95": 91.67330932617186,
+"t_pasy": 1596.4,
+"t_potwierdz": 284.8,
+"t_wroc": 46.2,
+"t_powrot": 55.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 53
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.42388916015625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 1274.8000000001527,
+"pokrycie": 0.9802,
+"kandydaci": 4,
+"czas": 1974.2000000003118,
+"seed": 43,
+"agl_med": 60.07000732421875,
+"agl_p95": 111.80874633789062,
+"t_pasy": 1797.2,
+"t_potwierdz": 92.80000000000001,
+"t_wroc": 10.200000000000001,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 59
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.2330322265625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 639.2000000000083,
+"pokrycie": 0.9801,
+"kandydaci": 4,
+"czas": 1990.0000000003154,
+"seed": 44,
+"agl_med": 60.0675048828125,
+"agl_p95": 111.60806884765626,
+"t_pasy": 1807.8000000000002,
+"t_potwierdz": 77.60000000000001,
+"t_wroc": 30.6,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 59
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 1.5999999999999999,
+"z_bliska": 35.2896728515625,
+"do_sprawdzenia": 2,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 58.800000000000296,
+"pokrycie": 0.9232,
+"kandydaci": 12,
+"czas": 1966.20000000031,
+"seed": 45,
+"agl_med": 60.0399169921875,
+"agl_p95": 88.0003662109375,
+"t_pasy": 1616.2,
+"t_potwierdz": 271.40000000000003,
+"t_wroc": 32.4,
+"t_powrot": 46.2,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 54
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.7491455078125,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 181.79999999999822,
+"pokrycie": 0.9844,
+"kandydaci": 4,
+"czas": 1981.4000000003134,
+"seed": 46,
+"agl_med": 60.0673828125,
+"agl_p95": 111.082958984375,
+"t_pasy": 1814.6000000000001,
+"t_potwierdz": 86.0,
+"t_wroc": 6.800000000000001,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"czeka",
+true,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 62
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.868408203125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.9556,
+"kandydaci": 7,
+"czas": 1997.600000000317,
+"seed": 47,
+"agl_med": 60.05615234375,
+"agl_p95": 111.65290527343743,
+"t_pasy": 1728.0,
+"t_potwierdz": 184.4,
+"t_wroc": 7.6000000000000005,
+"t_powrot": 77.60000000000001,
+"kandydaci_lista": [
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 58
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.6771240234375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": 241.59999999999482,
+"pokrycie": 0.9802,
+"kandydaci": 4,
+"czas": 1982.0000000003135,
+"seed": 48,
+"agl_med": 60.06884765625,
+"agl_p95": 110.88786621093742,
+"t_pasy": 1829.0,
+"t_potwierdz": 71.0,
+"t_wroc": 8.0,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+]
+],
+"sek": 61
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.75909423828125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.9812,
+"kandydaci": 4,
+"czas": 1984.200000000314,
+"seed": 49,
+"agl_med": 60.0687255859375,
+"agl_p95": 111.12410888671874,
+"t_pasy": 1809.6000000000001,
+"t_potwierdz": 75.2,
+"t_wroc": 25.400000000000002,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 62
 }
 ],
 "samolot_t256s_60_lato": [
@@ -11437,6 +21225,377 @@ true
 ]
 ],
 "sek": 47
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.16131591796875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 145.80000000000027,
+"pokrycie": 0.9445,
+"kandydaci": 7,
+"czas": 1987.8000000003149,
+"seed": 15,
+"agl_med": 60.06170654296875,
+"agl_p95": 113.18579711914062,
+"t_pasy": 1712.8000000000002,
+"t_potwierdz": 159.60000000000002,
+"t_wroc": 47.6,
+"t_powrot": 67.8,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.7103271484375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 3,
+"pierwszy": null,
+"pokrycie": 0.9577,
+"kandydaci": 6,
+"czas": 2003.2000000003184,
+"seed": 16,
+"agl_med": 60.0618896484375,
+"agl_p95": 112.18967895507814,
+"t_pasy": 1754.8000000000002,
+"t_potwierdz": 113.80000000000001,
+"t_wroc": 51.400000000000006,
+"t_powrot": 83.2,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 58
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.60919189453125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.972,
+"kandydaci": 5,
+"czas": 2000.2000000003177,
+"seed": 17,
+"agl_med": 60.0645751953125,
+"agl_p95": 111.83992309570297,
+"t_pasy": 1776.0,
+"t_potwierdz": 143.0,
+"t_wroc": 1.0,
+"t_powrot": 80.2,
+"kandydaci_lista": [
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 58
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.1287841796875,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 67.80000000000042,
+"pokrycie": 0.9351,
+"kandydaci": 6,
+"czas": 1987.0000000003147,
+"seed": 18,
+"agl_med": 60.05126953125,
+"agl_p95": 111.96669921875,
+"t_pasy": 1691.0,
+"t_potwierdz": 140.0,
+"t_wroc": 89.0,
+"t_powrot": 67.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_bok",
+true,
+false
+]
+],
+"sek": 55
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.681884765625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 3,
+"pierwszy": 67.80000000000042,
+"pokrycie": 0.9544,
+"kandydaci": 7,
+"czas": 1997.200000000317,
+"seed": 19,
+"agl_med": 60.058349609375,
+"agl_p95": 112.7559814453125,
+"t_pasy": 1728.2,
+"t_potwierdz": 156.4,
+"t_wroc": 35.4,
+"t_powrot": 77.2,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+false,
+false
+]
+],
+"sek": 57
 }
 ],
 "samolot_t256s_60_mroz": [
@@ -12413,6 +22572,329 @@ true
 ]
 ],
 "sek": 52
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.7271728515625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 145.80000000000027,
+"pokrycie": 0.9817,
+"kandydaci": 4,
+"czas": 1971.000000000311,
+"seed": 15,
+"agl_med": 60.065673828125,
+"agl_p95": 111.05313720703121,
+"t_pasy": 1811.6000000000001,
+"t_potwierdz": 67.2,
+"t_wroc": 18.2,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 55
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.664306640625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9803,
+"kandydaci": 3,
+"czas": 1942.0000000003045,
+"seed": 16,
+"agl_med": 60.0662841796875,
+"agl_p95": 111.18453369140617,
+"t_pasy": 1806.0,
+"t_potwierdz": 54.400000000000006,
+"t_wroc": 7.6000000000000005,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.8668212890625,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 611.200000000002,
+"pokrycie": 0.9435,
+"kandydaci": 7,
+"czas": 1988.800000000315,
+"seed": 17,
+"agl_med": 60.0596923828125,
+"agl_p95": 113.01420898437486,
+"t_pasy": 1708.8000000000002,
+"t_potwierdz": 166.4,
+"t_wroc": 44.800000000000004,
+"t_powrot": 68.8,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 54
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.781494140625,
+"do_sprawdzenia": 1,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 93.00000000000078,
+"pokrycie": 0.957,
+"kandydaci": 7,
+"czas": 2000.0000000003176,
+"seed": 18,
+"agl_med": 60.06103515625,
+"agl_p95": 112.4058837890625,
+"t_pasy": 1744.2,
+"t_potwierdz": 147.0,
+"t_wroc": 28.8,
+"t_powrot": 80.0,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"czeka",
+true,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_bok",
+true,
+false
+]
+],
+"sek": 55
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 34.9776611328125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 67.80000000000042,
+"pokrycie": 0.9797,
+"kandydaci": 2,
+"czas": 1910.6000000002973,
+"seed": 19,
+"agl_med": 60.06903076171875,
+"agl_p95": 111.41010131835932,
+"t_pasy": 1792.0,
+"t_potwierdz": 36.2,
+"t_wroc": 8.4,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 53
 }
 ],
 "samolot_t256s_60_nopotw": [
@@ -13485,6 +23967,383 @@ true
 ]
 ],
 "sek": 54
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 5,
+"pierwszy": 145.80000000000027,
+"pokrycie": 0.9803,
+"kandydaci": 7,
+"czas": 1867.6000000002875,
+"seed": 15,
+"agl_med": 60.06658935546875,
+"agl_p95": 111.39755249023436,
+"t_pasy": 1793.6000000000001,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 58
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 5,
+"pierwszy": 395.3999999999861,
+"pokrycie": 0.9803,
+"kandydaci": 6,
+"czas": 1867.6000000002875,
+"seed": 16,
+"agl_med": 60.06658935546875,
+"agl_p95": 111.39755249023436,
+"t_pasy": 1793.6000000000001,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"lis",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 58
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 2,
+"pierwszy": 1141.8000000001225,
+"pokrycie": 0.9803,
+"kandydaci": 3,
+"czas": 1867.6000000002875,
+"seed": 17,
+"agl_med": 60.06658935546875,
+"agl_p95": 111.39755249023436,
+"t_pasy": 1793.6000000000001,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 55
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 8,
+"pierwszy": 67.80000000000042,
+"pokrycie": 0.9803,
+"kandydaci": 10,
+"czas": 1867.6000000002875,
+"seed": 18,
+"agl_med": 60.06658935546875,
+"agl_p95": 111.39755249023436,
+"t_pasy": 1793.6000000000001,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_bok",
+true,
+true
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 4,
+"pierwszy": 67.80000000000042,
+"pokrycie": 0.9803,
+"kandydaci": 6,
+"czas": 1867.6000000002875,
+"seed": 19,
+"agl_med": 60.06658935546875,
+"agl_p95": 111.39755249023436,
+"t_pasy": 1793.6000000000001,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 74.0,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 56
 }
 ],
 "samolot_t256s_60_pasy": [
@@ -14221,6 +25080,565 @@ false
 ]
 ],
 "sek": 60
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.423,
+"kandydaci": 0,
+"czas": 1961.4000000003089,
+"seed": 15,
+"agl_med": 192.445556640625,
+"agl_p95": 402.60553588867185,
+"t_pasy": 1920.0,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 41.400000000000006,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_bok",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 72
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 42.506591796875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": null,
+"pokrycie": 0.4081,
+"kandydaci": 1,
+"czas": 1939.800000000304,
+"seed": 16,
+"agl_med": 194.8060302734375,
+"agl_p95": 402.9713623046875,
+"t_pasy": 1897.0,
+"t_potwierdz": 22.8,
+"t_wroc": 0.2,
+"t_powrot": 19.8,
+"kandydaci_lista": [
+[
+"kozica",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 71
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": null,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.423,
+"kandydaci": 0,
+"czas": 1961.4000000003089,
+"seed": 17,
+"agl_med": 192.445556640625,
+"agl_p95": 402.60553588867185,
+"t_pasy": 1920.0,
+"t_potwierdz": 0.0,
+"t_wroc": 0.0,
+"t_powrot": 41.400000000000006,
+"kandydaci_lista": [],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+],
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 73
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.128173828125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 904.2000000000686,
+"pokrycie": 0.4071,
+"kandydaci": 3,
+"czas": 2003.2000000003184,
+"seed": 18,
+"agl_med": 196.9681396484375,
+"agl_p95": 403.84486083984376,
+"t_pasy": 1827.6000000000001,
+"t_potwierdz": 55.2,
+"t_wroc": 37.2,
+"t_powrot": 83.2,
+"kandydaci_lista": [
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_stoi",
+true,
+true
+],
+[
+"czlowiek_bok",
+false,
+false
+]
+],
+"sek": 67
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"za_nisko": 0.0,
+"z_bliska": 35.17205810546875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 822.60000000005,
+"pokrycie": 0.4334,
+"kandydaci": 6,
+"czas": 1976.6000000003123,
+"seed": 19,
+"agl_med": 189.47467041015625,
+"agl_p95": 395.10191040039064,
+"t_pasy": 1749.6000000000001,
+"t_potwierdz": 116.2,
+"t_wroc": 54.2,
+"t_powrot": 56.6,
+"kandydaci_lista": [
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_siedzi",
+true,
+true
+]
+],
+"sek": 63
+}
+],
+"vtol_384_100": [
+{
+"rozbicie": false,
+"wrocil": true,
+"przejscia": 7,
+"za_nisko": 0.0,
+"z_bliska": 16.2484130859375,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 98.20000000000086,
+"pokrycie": 0.98,
+"kandydaci": 3,
+"czas": 1327.0000000001646,
+"seed": 0,
+"agl_med": 100.152099609375,
+"agl_p95": 174.07529296874995,
+"t_pasy": 1194.6000000000001,
+"t_potwierdz": 105.2,
+"t_wroc": 15.0,
+"t_powrot": 12.200000000000001,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"potwierdzony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 85
+}
+],
+"vtol_t256s_60": [
+{
+"rozbicie": false,
+"wrocil": true,
+"przejscia": 11,
+"za_nisko": 0.0,
+"z_bliska": 16.160400390625,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 1,
+"ludzie": 2,
+"falszywe": 0,
+"pierwszy": 100.20000000000088,
+"pokrycie": 0.9751,
+"kandydaci": 5,
+"czas": 1833.0000000002797,
+"seed": 0,
+"agl_med": 60.17352294921875,
+"agl_p95": 137.74596557617187,
+"t_pasy": 1698.4,
+"t_potwierdz": 78.0,
+"t_wroc": 13.4,
+"t_powrot": 43.2,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+true,
+true
+],
+[
+"czlowiek_stoi",
+false,
+false
+]
+],
+"sek": 56
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"przejscia": 5,
+"za_nisko": 0.0,
+"z_bliska": 16.3604736328125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9754,
+"kandydaci": 2,
+"czas": 1770.8000000002655,
+"seed": 1,
+"agl_med": 60.1834716796875,
+"agl_p95": 138.19549560546875,
+"t_pasy": 1682.2,
+"t_potwierdz": 34.6,
+"t_wroc": 10.8,
+"t_powrot": 43.2,
+"kandydaci_lista": [
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 57
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"przejscia": 13,
+"za_nisko": 0.0,
+"z_bliska": 16.321533203125,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 2,
+"ludzie": 2,
+"falszywe": 1,
+"pierwszy": 332.1999999999897,
+"pokrycie": 0.9757,
+"kandydaci": 6,
+"czas": 1889.8000000002926,
+"seed": 10,
+"agl_med": 60.1568603515625,
+"agl_p95": 137.6474609375,
+"t_pasy": 1696.2,
+"t_potwierdz": 124.0,
+"t_wroc": 26.400000000000002,
+"t_powrot": 43.2,
+"kandydaci_lista": [
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"czlowiek",
+"potwierdzony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"potwierdzony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_bok",
+true,
+true
+],
+[
+"czlowiek_lezy",
+true,
+true
+]
+],
+"sek": 55
+},
+{
+"rozbicie": false,
+"wrocil": true,
+"przejscia": 13,
+"za_nisko": 0.0,
+"z_bliska": 16.22607421875,
+"do_sprawdzenia": 0,
+"do_sprawdzenia_ludzie": 0,
+"znalezieni": 0,
+"ludzie": 1,
+"falszywe": 0,
+"pierwszy": null,
+"pokrycie": 0.9749,
+"kandydaci": 6,
+"czas": 1893.4000000002934,
+"seed": 11,
+"agl_med": 60.15936279296875,
+"agl_p95": 137.74691772460938,
+"t_pasy": 1701.2,
+"t_potwierdz": 123.2,
+"t_wroc": 25.8,
+"t_powrot": 43.2,
+"kandydaci_lista": [
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"lis",
+"odrzucony",
+false,
+2
+],
+[
+"kozica",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"tlo",
+"odrzucony",
+false,
+2
+],
+[
+"glaz",
+"odrzucony",
+false,
+2
+]
+],
+"pozy": [
+[
+"czlowiek_lezy",
+false,
+false
+]
+],
+"sek": 56
 }
 ]
 }

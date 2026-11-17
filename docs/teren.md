@@ -87,108 +87,99 @@ TF02-Pro 13,5 m, TF03-100 50 m, TF03-180 100 m.
 
 ## Lot
 
-- **Pasy samolotu biegną wzdłuż poziomic** (`lot.poziomice`). Na jednym pasie
+- **Trasa samolotu biegnie wzdłuż poziomic** (`lot.poziomice`). Na jednym pasie
   ziemia pod samolotem ma stałą wysokość, więc samolot nie musi się wznosić ani
-  opadać razem ze zboczem. Poziomice pochodzą z terenu wygładzonego na 40 m,
-  bo samolot nie zmieści ciaśniejszych zakrętów. Ich wysokości są dobrane tak,
-  żeby w poziomie pasy leżały co 70% szerokości kadru. Odstęp w pionie wynika
-  z nachylenia, liczonego osobno dla każdego pasma wysokości (mediana): na dnie
-  doliny poziomice są co kilka metrów, na ścianach co kilkadziesiąt.
-- **Pasy quadrocoptera** biegną z północy na południe, co 70% szerokości kadru,
-  najpierw przy szlaku. Po poziomicach quad wypada tak samo (patrz niżej),
-  a pasy wzdłuż szlaku zaczynają od miejsc, gdzie ludzie giną najczęściej.
-- **Wysokość nad terenem:** obie patrzą na mapę terenu wzdłuż swojej drogi,
-  jak terrain following w ArduPilocie, i wznoszą się z wyprzedzeniem
-  (samolot patrzy 800 m do przodu, wznosi się i opada z prędkością 5 m/s).
-  Samolot nie schodzi niżej niż 25 m nad ziemię.
-- **Kolejność pasów:** samolot leci do najbliższego końca nieprzeleconego
-  pasu, ale nie bliżej niż dwa promienie skrętu (promień około 33 m przy
-  przechyle 35°), chyba że inny wybór byłby znacznie dłuższy. Quadrocopter zaczyna od pasów
-  najbliżej szlaku, bo tam ludzie giną najczęściej, a wszystkich na jednym
-  akumulatorze nie przeleci.
-- **Zdjęcia:** jedno na sekundę. Każda plama, którą lubi mózg, to kandydat.
-- **Potwierdzanie:** quadrocopter zniża się nad kandydata na 15 m i ogląda go
-  trzy razy w zawisie. Samolot przelatuje nad nim na 35 m, robiąc 4 zdjęcia
-  na sekundę, i w razie potrzeby zawraca.
-- **Zgłoszenie:** co potwierdzi bliższe spojrzenie, trafia do ekipy jako
-  zgłoszenie ze współrzędnymi.
+  opadać razem ze zboczem. Poziomice pochodzą z terenu wygładzonego na 40 m, bo
+  samolot nie zmieści ciaśniejszych zakrętów. Ich wysokości są dobrane tak, żeby
+  w poziomie pasy leżały co 70% szerokości kadru.
+- **Quadrocopter lata pasami północ–południe**, co 70% szerokości kadru.
+  Zaczyna od pasów najbliżej szlaku i od końca bliższego bazy.
+- **Wysokość nad terenem:** platforma patrzy na mapę terenu wzdłuż drogi, którą
+  naprawdę poleci, i wznosi się z wyprzedzeniem, jak terrain following w
+  ArduPilocie. Nic jej nie podnosi ponad możliwości: samolot wznosi się
+  najwyżej 5 m/s. Gdy na swojej drodze nie utrzyma minimalnych 25 m nad
+  ziemią, najpierw krąży i nabiera wysokości. Zetknięcie z ziemią to rozbicie
+  i koniec lotu.
+- **Zdjęcia:** jedno na sekundę. Kandydatem jest miejsce, które mózg polubił
+  na dwóch kadrach. Pojedyncze polubienie to częściej szum niż człowiek.
+- **Potwierdzanie:**
+  - Quadrocopter zniża się nad kandydata na 15 m i ogląda go trzy razy w
+    zawisie.
+  - Samolot przelatuje nad nim wzdłuż poziomicy, schodząc do 35 m. Zdjęcie
+    liczy się tylko poniżej 43 m i tylko wtedy, gdy miejsce jest w kadrze.
+  - Tiltrotor zatrzymuje się w powietrzu jak quad (patrz `docs/osprey.md`).
+  - Kandydat, którego nie udało się obejrzeć z bliska, zostaje „do
+    sprawdzenia” dla operatora, a nie odrzucony.
+- **Bateria:** pasy kończą się w 80% lotu, potwierdzanie trwa do 92%, a przez
+  cały lot platforma pilnuje, żeby starczyło jej na drogę do bazy.
 
 To kinematyka bez wiatru i bez fizyki lotu. Platforma leci tam, gdzie ją
 skierować, nie szybciej, niż może się obracać i wznosić.
 
 ## Wyniki
 
-Ta sama dolina, 10 obszarów z innym rozmieszczeniem (ziarna 0–9), łącznie
-17 osób. Na każdym obszarze leży też 12–20 nagrzanych głazów, 3–6 kozic i
-1–3 lisy. Samolot ma 40 min lotu i szuka przez 32. Quadrocopter ma 13 min i
-szuka przez 10,4. Zawsze zostaje zapas na powrót.
+Pomiary z listopada 2026, po poprawkach z przeglądu kodu. Wcześniejsze
+liczby nie są porównywalne, bo symulacja jest teraz uczciwsza:
+- promienie kamery trafiają w ziemię także na stromych zboczach;
+- stojący człowiek na brzegu kadru jest widziany z boku;
+- „przeszukane” liczy tylko ziemię widzianą pikselem do 0,5 m;
+- mózg uczył się w trzech innych dolinach i przy losowej pogodzie, od mrozu
+  do łagodnego dnia, a nie w dolinie i w dniu, w którym potem szuka.
 
-| platforma, kamera, wysokość | znalezieni | fałszywe alarmy | przeszukane | 1. znalezisko (mediana) |
+Przeszukiwana dolina jest jedna, ale rozmieszczenie ludzi, zwierząt i głazów
+na każdym obszarze inne. Główne konfiguracje: 50 obszarów (81 osób),
+pozostałe: 20 obszarów (35 osób). W nawiasie 95% przedział ufności. Surowe
+wyniki każdego lotu są w `docs/teren_pomiary.json`.
+
+| platforma, kamera, wysokość | znalezieni | fałszywe alarmy na lot | przeszukane | 1. znalezisko |
 | --- | --- | --- | --- | --- |
-| samolot, T256s, 60 m, **po poziomicach** | **12 / 17** | 20 | 92% | 5,0 min |
-| samolot, 384×288, 100 m, **po poziomicach** | 10 / 17 | **2** | 98% | 1,8 min |
-| samolot, T256s, 60 m | 9 / 17 | 11 | 99% | 8,1 min |
-| samolot, T256s, 60 m, **bez potwierdzania** | 12 / 17 | **88** | 100% | 7,4 min |
-| samolot, T256s, 100 m | 7 / 17 | 2 | 99% | 5,8 min |
-| samolot, 384×288, 100 m | 8 / 17 | **1** | 99% | 14,4 min |
-| samolot, Lepton 3.5, 60 m | 7 / 17 | 17 | 99% | 8,9 min |
-| samolot, MLX90640 55°, 60 m | 0 / 17 | 0 | 100% | – |
-| quad, T256s, 40 m | 6 / 17 | 3 | 14% | 4,4 min |
-| quad, T256s, 60 m | 7 / 17 | 2 | 18% | 4,6 min |
-| quad, 384×288, 60 m | 7 / 17 | **0** | 16% | 1,7 min |
-| quad, Lepton 3.5, 40 m | 7 / 17 | 5 | 16% | 1,9 min |
-| quad, MLX90640 55°, 20 m | 2 / 17 | 1 | 10% | 3,6 min |
-| quad, T256s, 60 m, po poziomicach | 7 / 17 | 2 | 17% | 4,6 min |
+| **samolot, T256s, 60 m** | **53/81 = 65%** [55–75] | 0,72 | 96% | 3,3 min |
+| **samolot, 384×288, 100 m** | **51/81 = 63%** [52–73] | **0,36** | 99% | 4,3 min |
+| samolot, T256s, 100 m | 16/35 = 46% [30–62] | 0,30 | 80% | 3,1 min |
+| samolot, Lepton 3.5, 60 m | 18/35 = 51% [36–67] | 1,05 | 85% | 4,6 min |
+| samolot, T256s, 60 m, bez potwierdzania | 28/35 = 80% [64–90] | 4,70 | 98% | 4,6 min |
+| samolot, T256s, 60 m, pasy północ–południe | 11/35 = 31% [19–48] | 0,15 | 40% | 13,6 min |
+| samolot, MLX90640 55°, 60 m | 0/17 | 0 | 0% | – |
+| quad, T256s, 60 m | 31/81 = 38% [28–49] | **0** | 16% | 5,6 min |
+| quad, T256s, 40 m | 20/81 = 25% [17–35] | **0** | 11% | 5,2 min |
+| quad, 384×288, 60 m | 14/35 = 40% [26–56] | 0,25 | 15% | 5,5 min |
+| quad, Lepton 3.5, 40 m | 7/35 = 20% [10–36] | 0 | 11% | 7,1 min |
+| quad, MLX90640 55°, 20 m | 0/17 | 0 | 1% | – |
 
-Wiersze samolotu bez dopisku „po poziomicach” to loty pasami północ–południe,
-czyli poprzednia wersja.
+**Inne dni** (mózg ich nie widział: „mróz” leży w zakresie lekcji, „lato” z
+16 °C i słońcem 55° nad horyzontem poza nim):
 
-**Pasy po poziomicach: jak samolot trzyma wysokość** (wysokość nad ziemią
-nad przeszukiwanym obszarem, mediana z 10 lotów):
-
-| samolot | zadana | mediana | 95% czasu poniżej |
+| platforma, kamera | jesień | mróz | lato |
 | --- | --- | --- | --- |
-| T256s, pasy północ–południe | 60 m | 85 m | około 185 m |
-| T256s, po poziomicach | 60 m | **60 m** | **101 m** |
-| 384×288, pasy północ–południe | 100 m | 123 m | – |
-| 384×288, po poziomicach | 100 m | **100 m** | 155 m |
+| samolot, T256s, 60 m | 65%, 0,72 alarmu/lot | 57%, **0** alarmów | **34%, 2,05 alarmu/lot** |
+| samolot, 384×288, 100 m | 63%, 0,36 | 60%, 0,05 | **40%, 1,95** |
+| quad, T256s, 40 m | 25%, 0 | 9%, 0 | **0%**, 0,25 |
+
+Żaden z 460 lotów nie skończył się rozbiciem, wszystkie wróciły do bazy.
 
 **Wnioski**
 
-1. **Samolot przeszukuje cały kilometr kwadratowy na jednym akumulatorze,
-   quadrocopter 14–18%.** Quad znajduje mimo to 6–7 z 17 osób, bo zaczyna
-   przy szlaku, gdzie leży połowa zaginionych. Znajduje je szybko (2–5 min)
-   i prawie bez fałszywych alarmów. Podział ról się potwierdza: samolot
-   przeszukuje, quad potwierdza z bliska i sprawdza okolice szlaku.
-2. **MLX90640 z wysokości nie widzi ludzi:** 0 z 17. Z 20 m quad znalazł 2,
-   ale przeszukał tylko 10% obszaru.
-3. **Pasy po poziomicach to dla samolotu największy zysk: z 9 do 12 z 17
-   znalezionych** (T256s, 60 m) i z 8 do 10 (384×288, 100 m). Samolot leci
-   tam, gdzie powinien, czyli mediana 60 m zamiast 85 m, a człowiek ma w kadrze
-   więcej pikseli. Pierwsze znalezisko przychodzi szybciej. Koszt: niżej
-   widać więcej ciepłych plam, więc kandydatów jest około 18 zamiast 12 na lot.
-   Potwierdzanie zjada czas, pasy kończą się w 80% lotu i zostaje 8%
-   nieprzeszukane (92% zamiast 99%). Fałszywych alarmów jest 20 zamiast 11.
-   384×288 ze 100 m po poziomicach to najlepszy kompromis: 10 z 17, tylko
-   2 fałszywe alarmy na 10 lotów i 98% obszaru.
-   Wcześniej, na pasach północ–południe: **kamera 256×192 na 60 m znajdowała
-   najwięcej (9 z 17).** Kamera 384×288 ze
-   100 m znajduje prawie tyle samo (8) i daje tylko 1 fałszywy alarm na 10
-   lotów. Lepton ma za mało pikseli: liczba znalezionych podobna, ale 17
-   fałszywych alarmów.
-4. **Potwierdzanie z bliska usuwa 87% fałszywych alarmów** (z 88 do 11), ale
-   kosztuje 3 z 12 znalezionych. Dron oglądał ich z 35 m i odrzucił albo nie
-   zdążył obejrzeć przed końcem baterii. Prawdziwa akcja wysłałaby tych
-   kandydatów operatorowi, zamiast ich odrzucać. To następny krok.
-5. **Gdzie gubimy ludzi:**
-   - **Wysokość** (na pasach północ–południe): w stromym terenie samolot
-     leciał wyżej, niż chciał (mediana około 85 m przy zadanych 60 m,
-     chwilami ponad 180 m nad kotłem), bo nie nadążał wznosić się ani opadać
-     razem ze zboczem. Pasy po poziomicach to usuwają. Wyżej leci już tylko
-     na przejściach między pasami.
-   - **Stojący człowiek** z góry to głowa i ramiona, około 0,2 m², często bez
-     plamy.
-   - **Lisy i kozice** z daleka bywają brane za ludzi.
+1. **Samolot znajduje około dwóch trzecich zaginionych** na jednym akumulatorze
+   (T256s z 60 m albo 384×288 ze 100 m). Kamera 384×288 robi to z połową
+   fałszywych alarmów, bo ze 100 m widzi tyle co T256s z 60 m, a obejmuje
+   szerszy pas.
+2. **Pasy po poziomicach są dla samolotu konieczne.** Na pasach
+   północ–południe nie nadąża za zboczem: mediana wysokości to 193 m nad
+   ziemią zamiast 60 m, przeszukuje 40% obszaru i znajduje połowę mniej.
+3. **Potwierdzanie z bliska zamienia 4,7 fałszywego alarmu na lot w 0,7**
+   kosztem 15 punktów procentowych znalezionych. Tych kandydatów warto
+   pokazywać operatorowi zamiast ich odrzucać.
+4. **Quadrocopter prawie się nie myli (0 fałszywych alarmów), ale przeszukuje
+   11–16% obszaru.** Dobrze sprawdza okolice szlaku i potwierdza z bliska, ale
+   nie przeszuka kilometra kwadratowego.
+5. **Upał to słaby punkt mózgu.** W lecie nagrzane głazy są cieplejsze od
+   człowieka, fałszywe alarmy rosną do 2 na lot, a znalezionych spada o
+   połowę. Lekcje z cieplejszymi dniami to następny krok.
+6. **Kogo gubimy:** leżący na dnie doliny, gdy jest za mały w kadrze, i
+   siedzący lub stojący, którego głowa z góry wygląda jak kozica. Stojący
+   człowiek widziany z boku na brzegu kadru jest teraz łatwiejszy niż w
+   poprzedniej wersji symulacji.
+7. **MLX90640 z wysokości nie widzi nikogo**, nawet z 20 m.
 
 ## Filmy
 
@@ -206,12 +197,12 @@ nad przeszukiwanym obszarem, mediana z 10 lotów):
 
 ## Co dalej
 
+- Lekcje z cieplejszych dni (do +25 °C, wysokie słońce), żeby mózg nie mylił
+  nagrzanych głazów z ludźmi.
 - Operator zamiast odrzucania: kandydaci odrzuceni z bliska albo
   nieobejrzani idą do człowieka z obrazem (`operator.py` już to umie w
   arenie).
-- Szybsze potwierdzanie po poziomicach (np. kilku kandydatów obok siebie
-  jednym przelotem), żeby nie tracić 8% obszaru.
-- Kamera pochylona do przodu przy potwierdzaniu, bo stojący człowiek widać
-  z boku, a nie z góry.
+- Druga i trzecia dolina do przeszukiwania, a nie tylko do nauki.
+- Kamera pochylona do przodu przy potwierdzaniu.
 - Prawdziwy NMT z GUGiK zamiast doliny z procedury.
 - Wiatr i prawdziwa dynamika lotu (ArduPilot SITL).
