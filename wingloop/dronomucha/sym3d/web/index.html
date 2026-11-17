@@ -97,11 +97,70 @@
     #misja { min-width: 0; left: 16px; right: 16px; }
     #sterowanie { left: 16px; right: 16px; transform: none; flex-wrap: wrap; }
   }
+
+  /* ---------------- four views: a lesson. 1 near infrared, 2 the camera behind, 3 thermal, 4 the map */
+  #nir, #cztery, #dziennik, #h-tempo { display: none; }
+  :root[data-uklad="cztery"] body { background: #03060a; }
+  :root[data-uklad="cztery"] #nir { display: block; position: fixed; left: 0; top: 0; width: 50vw; height: 50vh; }
+  :root[data-uklad="cztery"] #scena { left: 50vw; top: 0; width: 50vw; height: 50vh; }
+  :root[data-uklad="cztery"] #znaczniki { left: 50%; top: 0; width: 50%; height: 50%; overflow: hidden; }
+  :root[data-uklad="cztery"] #cztery { display: block; position: absolute; inset: 0; }
+  #cztery .linia-v { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); opacity: 0.55; }
+  #cztery .linia-h { position: absolute; top: 50%; left: 0; right: 0; height: 2px; margin-top: -1px; background: var(--accent); opacity: 0.55; }
+  #cztery .etykieta { position: absolute; padding: 5px 12px 4px; background: rgba(0,0,0,0.62); font: 700 17px "Rajdhani", sans-serif; letter-spacing: 0.16em; color: var(--hud); border-left: 3px solid var(--accent); }
+  #cztery .etykieta b { color: var(--accent); margin-right: 8px; }
+  #cztery .e1 { left: 14px; top: 14px; } #cztery .e2 { left: calc(50% + 14px); top: 14px; }
+  #cztery .e3 { left: 14px; top: calc(50% + 14px); } #cztery .e4 { left: calc(50% + 14px); top: calc(50% + 14px); }
+  #cztery .nir-dane { position: absolute; left: 25%; transform: translateX(-50%); top: calc(50% - 42px); font: 600 16px "Rajdhani", sans-serif; letter-spacing: 0.12em; color: #8dffb4; text-shadow: 0 0 6px rgba(80,255,140,0.6); white-space: nowrap; }
+  #cztery .nir-krzyz { position: absolute; left: 25%; top: 25%; width: 70px; height: 70px; transform: translate(-50%, -50%); border: 2px solid rgba(140,255,180,0.7); border-radius: 50%; }
+  #cztery .nir-krzyz::before, #cztery .nir-krzyz::after { content: ""; position: absolute; background: rgba(140,255,180,0.7); }
+  #cztery .nir-krzyz::before { left: 50%; top: -18px; bottom: -18px; width: 2px; margin-left: -1px; }
+  #cztery .nir-krzyz::after { top: 50%; left: -18px; right: -18px; height: 2px; margin-top: -1px; }
+  :root[data-uklad="cztery"] #kompas { left: 75%; top: calc(50% - 62px); width: 520px; height: 42px; }
+  :root[data-uklad="cztery"] #wskazniki { right: 14px; top: 64px; padding: 6px 12px; }
+  :root[data-uklad="cztery"] #wskazniki .w { margin: 2px 0 6px; }
+  :root[data-uklad="cztery"] #wskazniki .w b { font-size: 24px; }
+  :root[data-uklad="cztery"] #h-tempo { display: block; position: absolute; left: calc(50% + 270px); top: 14px; padding: 6px 12px; background: rgba(0,0,0,0.62); font: 600 15px "Rajdhani", sans-serif; letter-spacing: 0.1em; color: var(--hud-dim); }
+  :root[data-uklad="cztery"] #h-tempo b { color: var(--accent); font-size: 18px; margin-right: 10px; }
+  :root[data-uklad="cztery"] #termo { left: 0; top: 50%; width: 50%; height: 50%; padding: 0; border: 0; border-radius: 0; background: #000; }
+  :root[data-uklad="cztery"] #termo::before, :root[data-uklad="cztery"] #termo::after { display: none; }
+  :root[data-uklad="cztery"] #termo .obraz { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 720px; height: 540px; border-radius: 0; }
+  :root[data-uklad="cztery"] #termo .naglowek { position: absolute; right: 14px; top: 14px; z-index: 2; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 15px; background: rgba(0,0,0,0.62); padding: 6px 10px; margin: 0; }
+  :root[data-uklad="cztery"] #termo .temp { font-size: 20px; }
+  :root[data-uklad="cztery"] #termo .skala { display: block; position: absolute; right: 22px; top: 92px; bottom: 30px; width: 16px; background: linear-gradient(to top, #000000, #28005a, #780a8c, #c8285a, #f06e14, #fac828, #ffffdc); border: 1px solid rgba(255,255,255,0.4); z-index: 2; }
+  #termo .skala { display: none; }
+  :root[data-uklad="cztery"] #mapa { left: 50%; top: 50%; width: 50%; height: 50%; padding: 0; border: 0; border-radius: 0; background: #0a1118; }
+  :root[data-uklad="cztery"] #mapa::before, :root[data-uklad="cztery"] #mapa::after { display: none; }
+  :root[data-uklad="cztery"] #mapa canvas { position: absolute; left: 0; top: 0; width: 540px; height: 540px; border-radius: 0; }
+  :root[data-uklad="cztery"] #mapa .naglowek { display: none; }
+  :root[data-uklad="cztery"] #misja { z-index: 3; left: calc(50% + 556px); top: calc(50% + 14px); min-width: 0; width: 330px; padding: 10px 14px; }
+  :root[data-uklad="cztery"] #misja .platforma { font-size: 22px; }
+  :root[data-uklad="cztery"] #dziennik { z-index: 3; display: block; position: absolute; left: calc(50% + 556px); top: calc(50% + 170px); width: 350px; font-family: "Rajdhani", sans-serif; }
+  #dziennik .tytul-dz { font-size: 13px; letter-spacing: 0.18em; color: var(--hud-dim); margin-bottom: 6px; }
+  #dziennik .wpis { margin-bottom: 6px; padding: 5px 10px; border-left: 3px solid var(--accent); background: rgba(255,255,255,0.05); font-size: 16px; font-weight: 700; letter-spacing: 0.06em; }
+  #dziennik .wpis span { color: var(--hud-dim); margin-right: 8px; font-weight: 600; }
+  #dziennik .wpis small { display: block; font: 400 12px "Inter", sans-serif; color: var(--hud-dim); letter-spacing: 0; }
+  #dziennik .wpis.ok { border-left-color: var(--ok); color: var(--ok); }
+  #dziennik .wpis.nie { border-left-color: rgba(200,210,220,0.6); color: var(--hud-dim); }
+  #dziennik .wpis.pusty { border-left-color: var(--panel-edge); color: var(--hud-dim); font-weight: 500; }
+  :root[data-uklad="cztery"] #toasty { display: none; }
+  :root[data-uklad="cztery"] #tytul { left: 50%; top: 50%; bottom: auto; transform: translate(-50%, -50%); padding: 18px 40px; background: rgba(3,6,10,0.78); border: 1px solid var(--accent); }
 </style>
 </head>
 <body>
+<canvas id="nir"></canvas>
 <canvas id="scena"></canvas>
 <div id="hud">
+  <div id="cztery">
+    <div class="linia-v"></div><div class="linia-h"></div>
+    <div class="nir-krzyz"></div><div class="nir-dane" id="n-dane"></div>
+    <div class="etykieta e1"><b>1</b>NOKTOWIZJA · BLISKA PODCZERWIEŃ</div>
+    <div class="etykieta e2"><b>2</b>KAMERA 3. OSOBY</div>
+    <div class="etykieta e3"><b>3</b>TERMOWIZJA · T256s</div>
+    <div class="etykieta e4"><b>4</b>MAPA TAKTYCZNA · 1 km²</div>
+  </div>
+  <div id="h-tempo"></div>
+  <div id="dziennik"></div>
   <div id="ramka"></div>
   <div id="znaczniki"></div>
   <div id="misja" class="panel">
@@ -122,7 +181,7 @@
   </div>
   <div id="termo" class="panel">
     <div class="naglowek"><span>IR <b id="h-kam">T256s</b></span><span id="h-zakres">−2…+8 °C</span></div>
-    <div class="obraz"><canvas id="h-termo" width="256" height="192"></canvas><canvas id="h-termo-nak" width="768" height="576"></canvas><div class="temp" id="h-temp">+0.0°</div></div>
+    <div class="obraz"><canvas id="h-termo" width="256" height="192"></canvas><canvas id="h-termo-nak" width="768" height="576"></canvas><div class="temp" id="h-temp">+0.0°</div></div><div class="skala"></div>
   </div>
   <div id="mapa" class="panel"><div class="naglowek">MAPA · 1 km²</div><canvas id="h-mapa" width="480" height="480"></canvas></div>
   <div id="toasty"></div>

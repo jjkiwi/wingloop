@@ -97,6 +97,38 @@ zapisuje je do mp4 (ffmpeg, H.264).
 | `ilustracja` | wszystkie trzy drony nad tym samym miejscem, kamera z wysięgnika |
 | `tiltrotor` | zbliżenie: gondole przechylają się z zawisu do przelotu |
 | `przejscie` | tiltrotor startuje pionowo i przechodzi w przelot |
+| `lekcja` | 60 s, cztery okna: noktowizja, kamera 3. osoby, termowizja, mapa z dziennikiem zdarzeń |
+
+### Lekcja w czterech oknach
+
+`lekcja` to dłuższy film z lotu tiltrotora: start pionowy, przeszukiwanie wzdłuż
+poziomic i dwa potwierdzenia z zawisu na 35 m. Ekran jest podzielony na cztery
+okna:
+
+1. **Noktowizja.** Kamera bliskiej podczerwieni pod dronem. To emulacja w
+   shaderze: roślinność odbija NIR jasno (wskaźnik podobny do NDVI liczony z
+   koloru), niebo jest ciemne. Do tego zielony luminofor, ziarno, linie i
+   winieta tubusu.
+2. **Kamera 3. osoby.** W przelocie jedzie za dronem. W zawisie przechodzi w
+   powolny obrót wokół niego.
+3. **Termowizja.** Obraz jak w okienku T256s, z ramką kandydata i skalą barw.
+4. **Mapa taktyczna.** Panel misji i dziennik zdarzeń (wykrycia,
+   potwierdzenia).
+
+Czas filmu nie biegnie równo z czasem lotu. `odcinki` w `klipy.js` mapują
+fragmenty lotu na sekundy filmu: przelot jest przyspieszony, a zawisy idą w
+czasie rzeczywistym. Tempo widać w rogu okna 2.
+
+Długi film nagrywa się kawałkami, w kilku procesach naraz:
+
+```bash
+for z in 0:375 375:750 750:1125 1125:1500; do
+  ZAKRES=$z KLATKI=klatki node ../nagraj.js lekcja scena.json lekcja.mp4 25 1920 1080 &
+done; wait
+ffmpeg -framerate 25 -i klatki/%05d.png -c:v libx264 -pix_fmt yuv420p -crf 18 lekcja.mp4
+```
+
+Gotowe klatki są pomijane, więc przerwane nagranie można wznowić.
 
 Na procesorze klatka zajmuje 3–4 s. Najdroższe okazały się:
 - zrzut ekranu, który czeka, aż SwiftShader skończy rysować;

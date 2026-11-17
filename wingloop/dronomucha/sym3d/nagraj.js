@@ -48,6 +48,25 @@ function fontCss() {
   await page.evaluate(() => document.fonts.ready);
   const dl = await page.evaluate(() => window.SIM.klip.dlugosc || 5);
   const n = Math.round(dl * fps);
+  // Part of a long clip, as frames to a folder (KLATKI), several recorders side by side:
+  // ZAKRES="from:to". A few frames before it first, unrecorded, settle the thermal gain.
+  if (process.env.ZAKRES) {
+    const [k0, k1] = process.env.ZAKRES.split(':').map(Number), dir = process.env.KLATKI;
+    fs.mkdirSync(dir, { recursive: true });
+    for (let k = Math.max(0, k0 - 8); k < k0; k++) await page.evaluate((t) => window.SIM.klatka(t), k / fps);
+    const tStart = Date.now();
+    for (let k = k0; k < Math.min(k1, n); k++) {
+      const name = path.join(dir, `${String(k).padStart(5, '0')}.png`);
+      if (fs.existsSync(name)) continue;
+      await page.evaluate((t) => window.SIM.klatka(t), k / fps);
+      fs.writeFileSync(name + '.tmp', await page.screenshot({ type: 'png' }));
+      fs.renameSync(name + '.tmp', name);
+      if ((k - k0) % 25 === 0) console.log(`  ${k}/${n}  ${((Date.now() - tStart) / 1000 / (k - k0 + 1)).toFixed(1)} s/klatkę`);
+    }
+    await browser.close();
+    console.log(`-> ${dir} ${k0}:${k1}`);
+    return;
+  }
   console.log(`klip ${klip}: ${n} klatek, scena gotowa po ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   const ff = spawn(FFMPEG, ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '17', '-preset', 'slow', '-movflags', '+faststart', out]);
   ff.stderr.on('data', (d) => process.stderr.write(d));

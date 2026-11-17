@@ -24,7 +24,10 @@ const HASH = location.hash.replace('#', '');
 const STYL_NAZWA = (KLIP && KLIP.styl) || params.get('styl') || (HASH in STYLE ? HASH : 'realizm');
 const STYL = STYLE[STYL_NAZWA];
 const W = Number(params.get('w') || 0), H = Number(params.get('h') || 0);
+// Four views (a lesson): near infrared, the camera behind, the thermal camera, the map.
+const CZTERY = !!(KLIP && KLIP.uklad === 'cztery');
 document.documentElement.dataset.styl = STYL_NAZWA;
+if (CZTERY) document.documentElement.dataset.uklad = 'cztery';
 if (NAGRANIE) document.body.classList.add('nagrywanie');
 
 const FAZY = ['PRZESZUKIWANIE', 'POTWIERDZANIE', 'POWRÓT NA PAS', 'POWRÓT DO BAZY'];
@@ -75,7 +78,8 @@ const canvas = document.getElementById('scena');
 // No logarithmic depth: writing the depth from the fragment shader turns off the early depth
 // test, and a software renderer then shades every hidden fragment of the valley too.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
-const width = W || window.innerWidth, height = H || window.innerHeight;
+// In four views the 3-D view fills a quarter of the screen.
+const width = (W || window.innerWidth) / (CZTERY ? 2 : 1), height = (H || window.innerHeight) / (CZTERY ? 2 : 1);
 renderer.setPixelRatio(W ? 1 : Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(width, height, false);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -264,6 +268,71 @@ void main() {
 });
 if (!BEZ.has('grade')) composer.addPass(grade);
 
+// ---------------------------------------------------------------- the near-infrared camera
+// A gimbal camera looking ahead and down, sensitive in the near infrared, shown as a night
+// vision tube shows it: green phosphor, grain, the tube's edge. Leaves (the dwarf pine, the
+// meadow) reflect the near infrared strongly and are bright; water and the blue sky dark.
+let nirCam = null, nirComposer = null, nirCtx = null, nirImg = null, nirBuf = null, nirPass = null;
+if (CZTERY) {
+  nirCam = new THREE.PerspectiveCamera(36, width / height, 0.3, 40000);
+  const nirRT = new THREE.WebGLRenderTarget(width, height); // bytes: read back to a canvas
+  nirComposer = new EffectComposer(renderer, nirRT);
+  nirComposer.renderToScreen = false;
+  nirComposer.setSize(width, height);
+  nirComposer.addPass(new RenderPass(scene, nirCam));
+  nirComposer.addPass(new OutputPass());
+  nirPass = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uCzas: { value: 0 }, uRes: { value: new THREE.Vector2(width, height) } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: /* glsl */`
+uniform sampler2D tDiffuse; uniform float uCzas; uniform vec2 uRes; varying vec2 vUv;
+float rnd(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void main() {
+  vec3 c = texture2D(tDiffuse, vUv).rgb;
+  float lum = dot(c, vec3(0.30, 0.59, 0.11));
+  // Leaves, by how much greener than red and blue they are (as NDVI measures them), are
+  // bright in the near infrared; the blue sky and water dark.
+  float avg = 0.5 * (c.r + c.b);
+  float veg = max(0.0, (c.g - avg) / (c.g + avg + 0.02));
+  float sky = max(0.0, c.b - c.r);
+  float nir = clamp(lum * 1.25 + veg * 1.3 - sky * 0.9, 0.0, 1.0);
+  nir = smoothstep(0.0, 0.85, pow(nir, 0.75));
+  nir += (rnd(vUv * uRes + uCzas * 37.0) - 0.5) * 0.10;          // the tube's grain
+  nir *= 0.93 + 0.07 * sin(vUv.y * uRes.y * 3.14159);              // its scan lines
+  vec2 q = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
+  float edge = smoothstep(0.98, 0.62, length(q * vec2(0.62, 1.0))); // the tube's edge
+  vec3 phos = vec3(0.32, 1.0, 0.46) * nir + vec3(0.0, 0.025, 0.01);
+  gl_FragColor = vec4(phos * edge, 1.0);
+}`,
+  });
+  nirComposer.addPass(nirPass);
+  nirCtx = document.getElementById('nir').getContext('2d');
+  document.getElementById('nir').width = width; document.getElementById('nir').height = height;
+  nirImg = nirCtx.createImageData(width, height);
+  nirBuf = new Uint8Array(width * height * 4);
+}
+
+function obrazNIR(s, w, tKlip, hide) {
+  // From the gimbal under the drone: ahead and down, more down in a hover.
+  const pitch = THREE.MathUtils.degToRad(32 + 40 * w);
+  const o = S.w2t(s.x, s.y, s.z - 0.35);
+  const ahead = new THREE.Vector3(Math.cos(s.kurs) * Math.cos(pitch), -Math.sin(pitch), -Math.sin(s.kurs) * Math.cos(pitch));
+  nirCam.position.copy(o); nirCam.lookAt(o.clone().add(ahead)); nirCam.updateMatrixWorld();
+  const was = hide.map((m) => m.visible); hide.forEach((m) => { m.visible = false; });
+  const shadows = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false;
+  nirPass.uniforms.uCzas.value = tKlip;
+  nirComposer.render();
+  renderer.shadowMap.autoUpdate = shadows;
+  hide.forEach((m, i) => { m.visible = was[i]; });
+  renderer.readRenderTargetPixels(nirComposer.readBuffer, 0, 0, width, height, nirBuf);
+  // Read back bottom row first: turn it the right way up.
+  const row = width * 4;
+  for (let y = 0; y < height; y++) nirImg.data.set(nirBuf.subarray((height - 1 - y) * row, (height - y) * row), y * row);
+  nirCtx.putImageData(nirImg, 0, 0);
+  const deg = ((90 - THREE.MathUtils.radToDeg(s.kurs)) % 360 + 360) % 360;
+  document.getElementById('n-dane').textContent = `KURS ${deg.toFixed(0).padStart(3, '0')}°  ·  POCHYLENIE −${(32 + 40 * w).toFixed(0)}°  ·  AGL ${s.agl.toFixed(0)} m`;
+}
+
 // ---------------------------------------------------------------- the head-up display
 const $ = (id) => document.getElementById(id);
 for (const [id, on] of [['termo', STYL.hud.termo], ['mapa', STYL.hud.mapa]]) $(id).style.display = on ? '' : 'none';
@@ -415,6 +484,17 @@ function rysujToasty(lot, t) {
   box.innerHTML = html;
 }
 
+function rysujDziennik(lot, t) {
+  // Everything that happened, latest first: when, and what the brain made of it.
+  const rows = lot.zd.filter((e) => e.t <= t).slice(-7).reverse().map((e) => {
+    const mm = String(Math.floor(e.t / 60)).padStart(2, '0'), ss = String(Math.floor(e.t % 60)).padStart(2, '0');
+    const what = { czeka: 'KANDYDAT WYKRYTY', potwierdzony: 'POTWIERDZONO: CZŁOWIEK', odrzucony: 'ODRZUCONY Z BLISKA', do_sprawdzenia: 'DO SPRAWDZENIA' }[e.stan];
+    const cls = e.stan === 'potwierdzony' ? 'ok' : e.stan === 'odrzucony' ? 'nie' : '';
+    return `<div class="wpis ${cls}"><span>${mm}:${ss}</span>${what}<small>mózg ${e.ocena >= 0 ? '+' : '−'}${Math.abs(e.ocena).toFixed(3)} · ${e.x.toFixed(0)}, ${e.y.toFixed(0)} m</small></div>`;
+  });
+  $('dziennik').innerHTML = '<div class="tytul-dz">DZIENNIK ZDARZEŃ</div>' + (rows.length ? rows.join('') : '<div class="wpis pusty">brak zdarzeń: przeszukuje</div>');
+}
+
 function hudTekst(lot, s, kandydaci) {
   $('h-platforma').textContent = NAZWY[lot.nazwa];
   let tryb = FAZY[s.faza];
@@ -488,6 +568,19 @@ function kamera(klip, s, lot, tc) {
     const a = nad(k.od), b = nad(k.do), q = tc / (klip.dlugosc || 5);
     camera.position.copy(a).lerp(b, q * q * (3 - 2 * q));
     camera.lookAt(k.cel ? nad(k.cel) : s.pos);
+  } else if (k.typ === 'taktyczna') {
+    // Behind it in cruise; round it and over its shoulder, looking down, in a hover.
+    const w = zawisWokol(lot, s.t);
+    const right = new THREE.Vector3(Math.sin(head), 0, Math.cos(head));
+    const chase = s.pos.clone().addScaledVector(fwd, -8).addScaledVector(right, 1.2).add(new THREE.Vector3(0, 1.8, 0));
+    const chaseLook = s.pos.clone().addScaledVector(fwd, 28).add(new THREE.Vector3(0, -5, 0));
+    const ang = (k.kat0 || 0) + 0.09 * s.t;
+    const orbit = s.pos.clone().add(new THREE.Vector3(Math.cos(ang) * 9, 3, Math.sin(ang) * 9));
+    const orbitLook = s.pos.clone().add(new THREE.Vector3(0, -2.5, 0));
+    camera.position.copy(chase).lerp(orbit, w);
+    camera.position.y = Math.max(camera.position.y, tr.h(camera.position.x, -camera.position.z) + 1.5);
+    camera.lookAt(chaseLook.lerp(orbitLook, w));
+    camera.fov = 50 + 12 * w; camera.updateProjectionMatrix();
   } else if (k.typ === 'swobodna') {
     controls.target.lerp(s.pos, 0.08); controls.update();
   }
@@ -529,6 +622,8 @@ function klatka(tSim, tKlip) {
   if (STYL.hud.termo && !BEZ.has('termo') && (NAGRANIE || (klatkaNr++ % 3 === 0))) mierz('termo', () => obrazTermo(s, kand));
   grade.uniforms.uCzas.value = tKlip;
   mierz('render', () => composer.render());
+  if (CZTERY) mierz('nir', () => obrazNIR(s, zawisWokol(lot, tSim), tKlip, [...Object.values(modele), linie, obrys, laser, kropka, ...beams.values()]));
+  if (CZTERY) rysujDziennik(lot, tSim);
   hudTekst(lot, s, kand);
   if (STYL.hud.mapa) mierz('mapa', () => rysujMape(lot, s, kand, rogi));
   const kursDeg = ((90 - THREE.MathUtils.radToDeg(s.kurs)) % 360 + 360) % 360;
@@ -536,9 +631,33 @@ function klatka(tSim, tKlip) {
   rysujZnaczniki(s, kand);
   rysujToasty(lot, tSim);
   if (KLIP && KLIP.tytul) {
-    const a = Math.min(1, tKlip / 0.6) * Math.min(1, ((KLIP.dlugosc || 5) - tKlip) / 0.6);
+    const end = KLIP.tytulDo || KLIP.dlugosc || 5;
+    const a = Math.max(0, Math.min(1, tKlip / 0.6) * Math.min(1, (end - tKlip) / 0.6));
     $('tytul').innerHTML = `<div class="duzy" style="opacity:${a}">${KLIP.tytul}</div><div class="maly" style="opacity:${a}">${KLIP.podtytul || ''}</div>`;
+    $('tytul').style.visibility = a > 0 ? 'visible' : 'hidden';
+    $('tytul').style.opacity = String(Math.min(1, a * 1.5));
   }
+}
+
+// ---------------------------------------------------------------- the lesson's time
+// A lesson is pieces of the flight, each at its own pace: [from s, to s, film seconds, what].
+function czasLekcji(tKlip) {
+  let acc = 0;
+  for (const [a, b, d, opis] of KLIP.odcinki) {
+    if (tKlip <= acc + d) return { t: a + (b - a) * (tKlip - acc) / d, tempo: (b - a) / d, opis };
+    acc += d;
+  }
+  const last = KLIP.odcinki[KLIP.odcinki.length - 1];
+  return { t: last[1], tempo: 1, opis: last[3] };
+}
+if (KLIP && KLIP.odcinki) KLIP.dlugosc = KLIP.odcinki.reduce((a, o) => a + o[2], 0);
+
+// How much it hovers about now: the camera behind moves round it as it does.
+function zawisWokol(lot, t) {
+  let n = 0;
+  for (let k = 0; k <= 12; k++) n += lot.w_chwili(t - 2 + 4 * k / 12).zawis ? 1 : 0;
+  const w = n / 13;
+  return w * w * (3 - 2 * w);
 }
 
 // ---------------------------------------------------------------- playing, or recording
@@ -550,7 +669,13 @@ window.SIM = {
   czasy,
   // Render the clip's frame at tKlip seconds; resolves once drawn.
   async klatka(tKlip) {
-    const t = KLIP.t0 + tKlip * (KLIP.tempo || 1);
+    let t = KLIP.t0 + tKlip * (KLIP.tempo || 1);
+    if (KLIP.odcinki) {
+      const c = czasLekcji(tKlip);
+      t = c.t;
+      const tempoEl = document.getElementById('h-tempo');
+      if (tempoEl) tempoEl.innerHTML = `<b>${c.tempo > 1.05 ? '×' + c.tempo.toFixed(0) : 'CZAS RZECZYWISTY'}</b>${c.opis}`;
+    }
     klatka(t, tKlip);
     // Wait until the frame is really drawn: a pixel read back makes the GL finish.
     const gl = renderer.getContext(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));

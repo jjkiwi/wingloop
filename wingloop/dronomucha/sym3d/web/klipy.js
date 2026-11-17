@@ -27,6 +27,21 @@ export const KLIPY = {
     kamera: { typ: 'orbita', srodek: [0, 0, 0], wokolDrona: true, r: 3.4, wys: 0.7, obrot: 0.55, kat0: 1.9, patrz: 0.0, fov: 40 },
     tytul: 'Tiltrotor z bliska', podtytul: 'gondole przechylają się z zawisu do przelotu',
   },
+  // A lesson: the tiltrotor's search, in four views (near infrared, the camera behind, the
+  // thermal camera, the map), its pieces each at their own pace.
+  lekcja: {
+    styl: 'taktyczny', lot: 'vtol', uklad: 'cztery', t0: 0,
+    kamera: { typ: 'taktyczna', kat0: 0.6 },
+    odcinki: [
+      [0, 16, 8, 'start pionowy i przejście w przelot'],
+      [16, 48, 6, 'przeszukiwanie wzdłuż poziomic'],
+      [48, 66, 18, 'kandydat: zawis na 35 m, trzy spojrzenia z bliska'],
+      [66, 122, 7, 'powrót do przelotu i dalej po pasie'],
+      [122, 138, 16, 'drugi kandydat: siedzący człowiek'],
+      [138, 150, 5, 'z powrotem w przelocie'],
+    ],
+    tytul: 'Lekcja: tiltrotor', podtytul: 'start · przeszukiwanie · dwa potwierdzenia z zawisu', tytulDo: 3.5,
+  },
   przejscie: {
     styl: 'realizm', lot: 'vtol', t0: 6.0, tempo: 1.7, dlugosc: 5,
     kamera: { typ: 'poscig', dist: 5.2, wys: 0.9, bok: 3.2, przod: 2, celWys: -0.1, fov: 46 },
