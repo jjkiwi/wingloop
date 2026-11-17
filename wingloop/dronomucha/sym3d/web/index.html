@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dronomucha 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root {
+    --hud: #e9f6ff;
+    --hud-dim: rgba(233, 246, 255, 0.62);
+    --accent: #ffc23d;
+    --ok: #4dffa0;
+    --bad: #ff5a4d;
+    --panel: rgba(8, 14, 22, 0.58);
+    --panel-edge: rgba(233, 246, 255, 0.16);
+    --glow: 0 0 10px rgba(120, 200, 255, 0.35);
+  }
+  :root[data-styl="noc"] { --hud: #b9ffd9; --hud-dim: rgba(185, 255, 217, 0.6); --accent: #ffb347; --panel: rgba(2, 10, 8, 0.62); --glow: 0 0 12px rgba(80, 255, 160, 0.35); }
+  :root[data-styl="taktyczny"] { --hud: #dff4ff; --accent: #ff9f1c; --panel: rgba(4, 12, 20, 0.66); }
+  :root[data-styl="ilustracja"] { --hud: #2b2440; --hud-dim: rgba(43, 36, 64, 0.65); --accent: #ff6b6b; --ok: #1f9e6a; --panel: rgba(255, 250, 240, 0.72); --panel-edge: rgba(43, 36, 64, 0.18); --glow: none; }
+  html, body { margin: 0; height: 100%; background: #05080c; overflow: hidden; }
+  body { font-family: "Inter", system-ui, sans-serif; color: var(--hud); }
+  #scena { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #hud { position: fixed; inset: 0; pointer-events: none; font-family: "Rajdhani", "Inter", sans-serif; letter-spacing: 0.04em; text-shadow: var(--glow); }
+  .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 6px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .panel::before, .panel::after { content: ""; position: absolute; width: 12px; height: 12px; border-color: var(--accent); border-style: solid; }
+  .panel::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; border-radius: 6px 0 0 0; }
+  .panel::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; border-radius: 0 0 6px 0; }
+  #misja { top: 18px; left: 18px; padding: 12px 16px 12px; min-width: 300px; }
+  #misja .platforma { font-size: 26px; font-weight: 700; text-transform: uppercase; line-height: 1; }
+  #misja .tryb { font-size: 15px; font-weight: 600; color: var(--accent); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.12em; }
+  #misja .wiersz { display: flex; gap: 18px; margin-top: 10px; font-size: 15px; color: var(--hud-dim); }
+  #misja .wiersz b { color: var(--hud); font-size: 20px; font-weight: 600; display: block; }
+  .bateria { margin-top: 10px; height: 6px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden; }
+  .bateria i { display: block; height: 100%; width: 50%; background: linear-gradient(90deg, var(--ok), #b8ff4d); border-radius: 3px; }
+  #kompas { top: 14px; left: 50%; transform: translateX(-50%); width: 560px; height: 46px; padding: 0; }
+  #kompas canvas { width: 100%; height: 100%; display: block; }
+  #wskazniki { top: 96px; right: 18px; padding: 10px 14px; text-align: right; }
+  #wskazniki .w { margin: 6px 0 10px; }
+  #wskazniki .w small { display: block; font-size: 12px; color: var(--hud-dim); letter-spacing: 0.16em; }
+  #wskazniki .w b { font-size: 30px; font-weight: 700; }
+  #wskazniki .w span { font-size: 14px; color: var(--hud-dim); margin-left: 3px; }
+  #termo { left: 18px; bottom: 18px; padding: 8px; }
+  #termo .naglowek { display: flex; justify-content: space-between; font-size: 13px; color: var(--hud-dim); margin: 0 2px 6px; letter-spacing: 0.12em; }
+  #termo .naglowek b { color: var(--accent); }
+  #termo .obraz { position: relative; width: 384px; height: 288px; border-radius: 3px; overflow: hidden; background: #000; }
+  #termo canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #termo .temp { position: absolute; left: 50%; top: 50%; transform: translate(14px, -26px); font-size: 15px; font-weight: 700; color: #fff; text-shadow: 0 0 4px #000; }
+  #mapa { right: 18px; bottom: 18px; padding: 8px; }
+  #mapa canvas { width: 240px; height: 240px; display: block; border-radius: 3px; }
+  #mapa .naglowek { font-size: 13px; color: var(--hud-dim); margin: 0 2px 6px; letter-spacing: 0.12em; }
+  #znaczniki { position: absolute; inset: 0; }
+  .znacznik { position: absolute; transform: translate(-50%, -100%); text-align: center; white-space: nowrap; }
+  .znacznik .romb { width: 16px; height: 16px; margin: 0 auto; border: 2px solid currentColor; transform: rotate(45deg); background: rgba(0,0,0,0.25); }
+  .znacznik .opis { font-size: 14px; font-weight: 700; margin-top: 6px; letter-spacing: 0.08em; }
+  .znacznik .odl { font-size: 12px; color: var(--hud-dim); }
+  .znacznik.czeka { color: var(--accent); }
+  .znacznik.potwierdzony { color: var(--ok); }
+  .znacznik.odrzucony { color: rgba(200,210,220,0.6); }
+  .znacznik.do_sprawdzenia { color: #7ec8ff; }
+  #toasty { position: absolute; top: 18px; right: 18px; width: 330px; }
+  .toast { margin-bottom: 8px; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--panel); border-radius: 4px; font-size: 17px; font-weight: 600; opacity: 0; transform: translateX(20px); transition: none; }
+  .toast small { display: block; font-family: "Inter", sans-serif; font-weight: 400; font-size: 12px; color: var(--hud-dim); letter-spacing: 0; margin-top: 2px; }
+  .toast.ok { border-left-color: var(--ok); }
+  #tytul { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); text-align: center; }
+  #tytul .duzy { font-size: 44px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+  #tytul .maly { font-size: 16px; color: var(--hud-dim); letter-spacing: 0.3em; text-transform: uppercase; margin-top: 4px; }
+  #ramka { position: absolute; inset: 0; pointer-events: none; }
+  :root[data-styl="taktyczny"] #ramka { background: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px); }
+  #sterowanie { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; pointer-events: auto; font-family: "Rajdhani", sans-serif; }
+  #sterowanie button, #sterowanie select { font: 600 14px "Rajdhani", sans-serif; color: var(--hud); background: rgba(255,255,255,0.08); border: 1px solid var(--panel-edge); border-radius: 4px; padding: 5px 10px; cursor: pointer; letter-spacing: 0.06em; }
+  #sterowanie button.on { background: var(--accent); color: #111; }
+  #sterowanie input[type=range] { width: 220px; }
+  .nagrywanie #sterowanie { display: none; }
+  /* Recording: the frame's blur behind the panels costs a software compositor seconds. */
+  .nagrywanie .panel { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(8, 14, 22, 0.7); }
+  :root[data-styl="ilustracja"] .nagrywanie .panel, .nagrywanie:is([data-x]) .panel {}
+  :root[data-styl="ilustracja"] body.nagrywanie .panel { background: rgba(255, 250, 240, 0.82); }
+  #ladowanie { position: fixed; inset: 0; display: grid; place-items: center; font: 600 22px "Rajdhani", sans-serif; letter-spacing: 0.2em; color: #cfe8ff; background: #05080c; }
+  @media (max-width: 900px) {
+    #kompas, #wskazniki { display: none; }
+    #termo .obraz { width: 192px; height: 144px; }
+    #mapa canvas { width: 140px; height: 140px; }
+    #misja { min-width: 0; left: 16px; right: 16px; }
+    #sterowanie { left: 16px; right: 16px; transform: none; flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scena"></canvas>
+<div id="hud">
+  <div id="ramka"></div>
+  <div id="znaczniki"></div>
+  <div id="misja" class="panel">
+    <div class="platforma" id="h-platforma">—</div>
+    <div class="tryb" id="h-tryb">—</div>
+    <div class="wiersz">
+      <div>CZAS<b id="h-czas">00:00</b></div>
+      <div>ZGŁOSZENIA<b id="h-zgl">0</b></div>
+      <div>KANDYDACI<b id="h-kand">0</b></div>
+    </div>
+    <div class="bateria"><i id="h-bat"></i></div>
+  </div>
+  <div id="kompas" class="panel"><canvas id="h-kompas" width="1120" height="92"></canvas></div>
+  <div id="wskazniki" class="panel">
+    <div class="w"><small>NAD ZIEMIĄ</small><b id="h-agl">0</b><span>m</span></div>
+    <div class="w"><small>PRĘDKOŚĆ</small><b id="h-v">0</b><span>m/s</span></div>
+    <div class="w"><small>WYSOKOŚĆ</small><b id="h-amsl">0</b><span>m n.p.m.</span></div>
+  </div>
+  <div id="termo" class="panel">
+    <div class="naglowek"><span>IR <b id="h-kam">T256s</b></span><span id="h-zakres">−2…+8 °C</span></div>
+    <div class="obraz"><canvas id="h-termo" width="256" height="192"></canvas><canvas id="h-termo-nak" width="768" height="576"></canvas><div class="temp" id="h-temp">+0.0°</div></div>
+  </div>
+  <div id="mapa" class="panel"><div class="naglowek">MAPA · 1 km²</div><canvas id="h-mapa" width="480" height="480"></canvas></div>
+  <div id="toasty"></div>
+  <div id="tytul"></div>
+</div>
+<div id="sterowanie" class="panel">
+  <select id="s-lot"><option value="samolot">Samolot</option><option value="quad">Quad</option><option value="vtol">Tiltrotor</option></select>
+  <select id="s-styl"><option value="realizm">Złota godzina</option><option value="taktyczny">Taktyczny</option><option value="noc">Noc</option><option value="ilustracja">Ilustracja</option></select>
+  <button id="s-kam">Kamera: pościg</button>
+  <button id="s-play" class="on">❚❚</button>
+  <button id="s-tempo">×10</button>
+  <input id="s-czas" type="range" min="0" max="1000" value="0">
+</div>
+<div id="ladowanie">ŁADOWANIE DOLINY…</div>
+<script type="module" src="sim.js"></script>
+</body>
+</html>
