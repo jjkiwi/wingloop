@@ -547,6 +547,8 @@ def szukaj(
         kurs=math.atan2(first[1] - teren.baza[1], first[0] - teren.baza[0]),
     )
     seen = np.zeros((int(2 * POLE / 10), int(2 * POLE / 10)), bool)
+    # The close looks are judged by the compartment taught on them, if the brain has one.
+    judge = getattr(mozg, "z_bliska", None) or mozg
     candidates: list[Kandydat] = []
     traces: list[Kandydat] = []  # liked in one picture so far: not yet candidates
     path, shots = [], 0
@@ -658,7 +660,7 @@ def szukaj(
                         key=lambda s: np.hypot(*(s.gdzie[:2] - target.gdzie[:2])),
                         default=None,
                     )
-                    target.oceny.append(mozg.ocena(best) if best is not None else None)
+                    target.oceny.append(judge.ocena(best) if best is not None else None)
                     target.wysokosci.append(lot.nad_ziemia)
             done = len(target.oceny) >= 3 if hover else over.koniec
             if done and not target.oceny and not hover and tries < 2:

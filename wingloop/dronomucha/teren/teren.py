@@ -54,13 +54,15 @@ class Pogoda:
         return np.array([np.sin(az) * np.cos(el), np.cos(az) * np.cos(el), np.sin(el)])
 
 
-#: Days to search on. The lessons are flown on days drawn between a frost and a mild
-#: day (:func:`~.lekcje.pogoda_lekcji`): ``jesien`` and ``mroz`` lie among them,
-#: ``lato`` -- a hot afternoon, the rock warmer than a person -- beyond them.
+#: Days to search on. The lessons are flown on days drawn between a frost and a hot
+#: afternoon (:func:`~.lekcje.pogoda_lekcji`): ``jesien``, ``mroz`` and ``lato`` lie
+#: among them, ``upal`` -- 27 C and the sun high, the rock far warmer than a person --
+#: beyond them.
 DNI = {
     "jesien": Pogoda(),
     "mroz": Pogoda(powietrze=-10.0, slonce_az=165.0, slonce_el=14.0, chmury=0.85),
     "lato": Pogoda(powietrze=16.0, slonce_az=200.0, slonce_el=55.0, chmury=0.1),
+    "upal": Pogoda(powietrze=27.0, slonce_az=210.0, slonce_el=60.0, chmury=0.0),
 }
 
 

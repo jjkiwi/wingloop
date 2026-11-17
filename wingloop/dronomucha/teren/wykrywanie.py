@@ -117,24 +117,44 @@ def kod(cechy, gain: int = 4) -> np.ndarray:
     return lines[0] if np.ndim(cechy) == 1 else lines
 
 
-class Mozg:
-    """The fly's mushroom body judging warm spots: +1 a person, -1 not."""
+#: Spots seen with a pixel under this, m -- from below about 70 m with the T256s -- are
+#: what the second compartment (:attr:`Mozg.z_bliska`) learns on.
+BLISKO = 0.2
 
-    def __init__(self, mb, gain: int = 4):
-        self.mb, self.gain = mb, gain
+
+class Mozg:
+    """The fly's mushroom body judging warm spots: +1 a person, -1 not.
+
+    ``z_bliska``, when there is one, is a second compartment taught only on spots seen
+    from close (:data:`BLISKO`): the look that confirms a candidate is judged by it. Close
+    up a person is plainly bigger than a fox or a chamois, and a brain taught on every
+    height -- and on hot days, when a person is barely warmer than the ground -- weighs
+    that less than one taught on the close looks alone.
+    """
+
+    def __init__(self, mb, gain: int = 4, z_bliska: "Mozg | None" = None):
+        self.mb, self.gain, self.z_bliska = mb, gain, z_bliska
 
     def ocena(self, plama: Plama) -> float:
         return float(self.mb.valence(kod(plama.cechy, self.gain)))
 
 
-def naucz(cechy, ludzie, gain: int = 4, seed: int = 0) -> Mozg:
+def naucz(cechy, ludzie, gain: int = 4, seed: int = 0, blisko: float | None = BLISKO) -> Mozg:
     """Teach the fly's mushroom body on measured spots: dopamine for the people's, punishment
-    for the rest's -- as a prediction error, three passes (docs/uczenie_maszynowe.md)."""
+    for the rest's -- as a prediction error, three passes (docs/uczenie_maszynowe.md). With
+    ``blisko``, a second compartment is taught on the spots seen with a pixel under it
+    (:attr:`Mozg.z_bliska`), if there are people among them."""
     from wingloop.lab.learning import MushroomBody
     from wingloop.lab.navigate import teach
 
+    cechy, ludzie = np.asarray(cechy, dtype=float), np.asarray(ludzie, bool)
     X = kod(cechy, gain)
-    kinds = np.where(np.asarray(ludzie, bool), "czlowiek", "inne")
+    kinds = np.where(ludzie, "czlowiek", "inne")
     mb = MushroomBody(X.shape[1], seed=seed, on_off=True, sparseness=0.03)
     teach(mb, X, kinds, {"czlowiek": 1.0, "inne": -1.0}, aim=0.3, epochs=3, seed=seed)
-    return Mozg(mb, gain)
+    close = None
+    if blisko is not None and len(cechy):
+        near = cechy[:, 5] < blisko
+        if ludzie[near].any() and (~ludzie[near]).any():
+            close = naucz(cechy[near], ludzie[near], gain, seed=seed + 1, blisko=None)
+    return Mozg(mb, gain, close)

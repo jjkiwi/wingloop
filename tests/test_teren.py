@@ -256,3 +256,32 @@ def test_the_tiltrotor_hovers_at_four_times_the_power_it_cruises_at():
     low = moc(3.0, disks, 17.0, 10.0, gestosc(0, 15))
     assert 3.5 < high["stosunek"] < 4.5 and high["zawis"] > 1.05 * low["zawis"]
     assert VTOL.zawis_koszt == pytest.approx(round(high["stosunek"]))
+
+
+def test_the_close_looks_have_their_own_compartment_taught_on_them_alone():
+    """A second compartment learns on the spots seen from close, where a person is bigger
+    than a fox; without people among the close spots there is nothing for it to learn."""
+    rng = np.random.default_rng(3)
+
+    def spots(n, person, pixel):
+        size = 1.2 if person else 0.3
+        return np.column_stack(
+            [
+                rng.uniform(5, 15, n),
+                rng.uniform(4, 10, n),
+                rng.uniform(0.6, 1.4, n) * size * 0.5,
+                rng.uniform(0.8, 1.2, n) * size * 1.5,
+                rng.uniform(0.8, 1.2, n) * size * 0.5,
+                np.full(n, pixel),
+            ]
+        )
+
+    near = np.vstack([spots(60, True, 0.06), spots(60, False, 0.06)])
+    far = np.vstack([spots(60, True, 0.5), spots(60, False, 0.5)])
+    labels = np.r_[np.ones(60, bool), np.zeros(60, bool)]
+    m = W.naucz(np.vstack([near, far]), np.r_[labels, labels])
+    assert m.z_bliska is not None and m.z_bliska.z_bliska is None
+    liked = [m.z_bliska.ocena(W.Plama(np.zeros(3), c)) > 0 for c in near]
+    assert np.mean(liked[:60]) > 0.7 and np.mean(liked[60:]) < 0.3
+    assert W.naucz(far, labels).z_bliska is None
+    assert W.naucz(np.vstack([near, far]), np.r_[labels, labels], blisko=None).z_bliska is None

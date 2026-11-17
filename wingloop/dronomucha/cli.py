@@ -54,7 +54,7 @@ def main(argv=None) -> None:
     s.add_argument("--seed", type=int, default=0, help="the first search area")
     s.add_argument("--obszary", type=int, default=1, help="how many areas")
     s.add_argument("--plik", default="teren.mp4")
-    s.add_argument("--dzien", default="jesien", help="the day: jesien, mroz, lato")
+    s.add_argument("--dzien", default="jesien", help="the day: jesien, mroz, lato, upal")
     for s in (sub.choices["szukaj"], sub.choices["film"]):
         g = s.add_argument_group("dodatki do mózgu muchy")
         g.add_argument("--zestaw", default="mucha", help="a named set: mucha, hybryda, ...")

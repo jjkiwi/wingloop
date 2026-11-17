@@ -7,7 +7,7 @@ ground. Each warm spot found (:func:`~.wykrywanie.plamy`)
 is a lesson, labelled by what really lies there -- a person, or not -- as
 the dopamine of a real find would label it. The lessons are flown in other
 valleys than the one searched (:data:`DOLINY`), on other days
-(:func:`pogoda_lekcji`: frost to a mild day, clear to overcast): what the
+(:func:`pogoda_lekcji`: a hard frost to a hot summer afternoon, clear to overcast): what the
 brain is then tried on, it has not seen.
 """
 
@@ -30,30 +30,43 @@ ZIARNO = 1000
 DOLINY = (1, 2, 3)
 #: Raised whenever the ground, the objects, the camera or the measures change what a
 #: lesson holds: kept lessons of another version are flown again.
-WERSJA = 3
+WERSJA = 4
+#: How many pictures the lessons are: with days from frost to heat, 1500 held too few
+#: people for the hot ones (docs/teren.md).
+UJECIA = 3000
+#: How many of the lesson pictures are taken over an object, the rest anywhere. A search
+#: sees bare ground nearly all the time: with three in four over objects, the brain taught
+#: on hot days too took sun-warmed ground for people and spent the flight checking it.
+NAD_OBIEKTEM = 0.5
 DATA = Path(__file__).resolve().parent.parent / "data"
 
 
 def pogoda_lekcji(rng) -> T.Pogoda:
-    """A day for a lesson: between a hard frost and a mild day, the sun low or half-way up,
-    clear or overcast. The brain is to know a person on any of them."""
+    """A day for a lesson: between a hard frost and a hot summer afternoon, the sun low or
+    high, clear or overcast. The brain is to know a person on any of them -- and on a hot
+    day a sunlit boulder is warmer than a person."""
     return T.Pogoda(
-        powietrze=float(rng.uniform(-12.0, 12.0)),
+        powietrze=float(rng.uniform(-12.0, 25.0)),
         slonce_az=float(rng.uniform(100.0, 260.0)),
-        slonce_el=float(rng.uniform(8.0, 50.0)),
+        slonce_el=float(rng.uniform(8.0, 58.0)),
         chmury=float(rng.uniform(0.0, 0.9)),
     )
 
 
 def nagraj(
-    kamera: Kamera, ujecia: int = 1500, wysokosci=(12.0, 110.0), seed: int = 0, doliny=DOLINY
+    kamera: Kamera,
+    ujecia: int = 1500,
+    wysokosci=(12.0, 110.0),
+    seed: int = 0,
+    doliny=DOLINY,
+    nad_obiektem: float = NAD_OBIEKTEM,
 ):
     """(measures, is it a person, what it was) of every warm spot in ``ujecia`` pictures.
 
     Every twenty pictures another placing of people, animals and boulders,
     in the next of the valleys ``doliny``, on another day
-    (:func:`pogoda_lekcji`). Three pictures in four are taken over an
-    object -- a person, a chamois, a fox or a boulder, each as often -- the
+    (:func:`pogoda_lekcji`). ``nad_obiektem`` of the pictures are taken over
+    an object -- a person, a chamois, a fox or a boulder, each as often -- the
     rest anywhere; two in five from 12-40 m, the heights of a closer look,
     the rest from up to 110 m.
     """
@@ -67,7 +80,7 @@ def nagraj(
             pg = pogoda_lekcji(rng)
             gt = t.temperatura(pg, seed=i)
             area = O.uloz(t, pg, seed=ZIARNO + seed * 1000 + i)
-        if rng.uniform() < 0.75:
+        if rng.uniform() < nad_obiektem:
             # Over one of a kind, each kind as often: by their numbers three
             # pictures in four would be of boulders and one in fifty of a fox
             # -- and a fox is what a person is taken for.
@@ -102,14 +115,24 @@ def nagraj(
 
 def _klucz(kamera: Kamera, ujecia: int, doliny=DOLINY) -> str:
     """What a kept file of lessons was flown with: another, and it is flown again."""
-    what = (WERSJA, kamera.px, kamera.fov, kamera.netd, W.PROG, W.BLOK, tuple(doliny), ujecia)
+    what = (
+        WERSJA,
+        kamera.px,
+        kamera.fov,
+        kamera.netd,
+        W.PROG,
+        W.BLOK,
+        tuple(doliny),
+        ujecia,
+        NAD_OBIEKTEM,
+    )
     return "|".join(str(v) for v in what)
 
 
 def lekcje(
     kamera_nazwa: str,
     kamera: Kamera,
-    ujecia: int = 1500,
+    ujecia: int = UJECIA,
     fresh=False,
     progress=print,
     doliny=DOLINY,
@@ -124,6 +147,6 @@ def lekcje(
                 return d["cechy"], d["ludzie"], d["rodzaje"]
         if progress:
             progress(f"Lekcje {path.name} są z innej wersji symulacji: nagrywam od nowa.")
-    f, p, k = nagraj(kamera, ujecia, doliny=doliny)
+    f, p, k = nagraj(kamera, ujecia, doliny=doliny, nad_obiektem=NAD_OBIEKTEM)
     np.savez_compressed(path, cechy=f, ludzie=p, rodzaje=k, klucz=key)
     return f, p, k

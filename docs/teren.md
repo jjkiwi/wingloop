@@ -181,6 +181,79 @@ wyniki każdego lotu są w `docs/teren_pomiary.json`.
    poprzedniej wersji symulacji.
 7. **MLX90640 z wysokości nie widzi nikogo**, nawet z 20 m.
 
+## Nauka: ciepłe dni (listopad 2026, tura 3)
+
+Wniosek 5 mówił, że upał to słaby punkt mózgu. Mózg uczył się dalej w trzech
+krokach:
+
+1. **Lekcje od mrozu do upału.** Dni w lekcjach losowane są teraz od −12 °C do
+   +25 °C, ze słońcem od 8° do 58° nad horyzontem (wcześniej do +12 °C i 50°).
+   Dzień „lato” leży więc w zakresie lekcji. Doszedł dzień testowy „upał”
+   (+27 °C, słońce 60°, bezchmurnie), który leży poza nim.
+2. **3000 zdjęć zamiast 1500, połowa nad pustym terenem.** Przy samym
+   poszerzeniu zakresu dni mózg w locie lubił trzy razy więcej plam:
+   - głównie nagrzaną słońcem ziemię;
+   - samolot potwierdzał wtedy przez 9 minut zamiast 2,5;
+   - w lecie przeszukiwał 72% obszaru zamiast 95%.
+
+   Lekcje były w 3/4 zdjęciami obiektów, a lot to prawie sama pusta ziemia.
+   Połowa zdjęć nad pustym terenem oduczyła go większości tych pomyłek.
+   (`lekcje.NAD_OBIEKTEM`, `lekcje.UJECIA`)
+3. **Drugi przedział mózgu do potwierdzania** (`wykrywanie.Mozg.z_bliska`).
+   Jest uczony tylko na plamach widzianych z bliska (piksel poniżej 20 cm).
+   Z bliska człowiek jest wyraźnie większy od lisa, a mózg uczony na
+   wszystkich wysokościach i dniach ważył to za słabo. W teście z bliska:
+   - lisy uznawane za człowieka: 46% → 22%;
+   - ludzie uznawani: bez zmian, około 85% jesienią.
+
+**Co nie zadziałało:**
+- *Bezwzględna temperatura plamy jako siódma cecha.* W zakresie lekcji
+  pomagała odróżnić człowieka od głazu. W upale, czyli poza zakresem lekcji,
+  mózg uznawał 2% ludzi.
+- *Próg oceny powyżej zera.* Oceny ludzi leżą tuż nad zerem, więc nawet
+  0,01 odcinało większość z nich.
+- *5000 zdjęć.* Mózg znowu stawał się zbyt chętny.
+
+Pomiar na tych samych 20 obszarach (35 osób), T256s. Samolot i tiltrotor
+lecą na 60 m, quad na 40 m. Lekcje wersji 3 (przed) i 4 (po):
+
+| platforma | dzień | przed | po | fałszywe alarmy na lot, przed → po |
+| --- | --- | --- | --- | --- |
+| samolot | jesień | 25/35 = 71% | 23/35 = 66% | 0,80 → 0,90 |
+| samolot | mróz | 20/35 = 57% | 23/35 = 66% | 0 → 0,75 |
+| samolot | lato | 12/35 = 34% | **16/35 = 46%** | 2,05 → 1,75 |
+| samolot | upał | 7/35 = 20% | 10/35 = 29% | 2,80 → 2,45 |
+| **tiltrotor** | jesień | 21/35 = 60% | 23/35 = 66% | 0,75 → 1,85 |
+| **tiltrotor** | mróz | 18/35 = 51% | **28/35 = 80%** | 0,05 → 1,45 |
+| **tiltrotor** | lato | 12/35 = 34% | 14/35 = 40% | 2,05 → 2,05 |
+| **tiltrotor** | upał | 6/35 = 17% | **12/35 = 34%** | 3,20 → 2,80 |
+| quad | jesień | 6/35 = 17% | 9/35 = 26% | 0 → 0,10 |
+| quad | mróz | 3/35 = 9% | 6/35 = 17% | 0 → 0 |
+| quad | lato | 0/35 | 6/35 = 17% | 0,25 → 0,45 |
+| quad | upał | 0/35 | 2/35 = 6% | 0,60 → 0,60 |
+| **razem** | | **130/420 = 31%** | **172/420 = 41%** | **1,05 → 1,26** |
+
+Pojedyncze wiersze mają szerokie przedziały ufności (±15 punktów). Wiarygodna
+jest suma: te same obszary, 420 osób, o 42 znalezionych więcej. Kosztuje to
+0,2 fałszywego alarmu na lot więcej, głównie w zimne dni: kozice i lisy, które
+nowy mózg częściej bierze za człowieka. Bez drugiego przedziału ludzi było
+180, ale fałszywych alarmów 1,71 na lot.
+
+Najwięcej zyskał tiltrotor: w mrozie 80% zamiast 51%, w upale dwa razy więcej
+znalezionych. Upał nadal jest najtrudniejszy. Z 60 m plamą staje się tylko 24
+z 35 osób (jesienią wszystkie 35):
+- leżący: 14 z 17;
+- siedzący: 5 z 5;
+- na boku: 4 z 7;
+- stojący: 1 z 6.
+
+Reszty nie odróżnia od nagrzanej ziemi żadna lekcja. Znalezionych jest
+jednak 10–12, a nie 24, więc większą część strat w upale nadal robi mózg.
+
+Żaden z 480 lotów nie skończył się rozbiciem. Surowe wyniki są w
+`docs/teren_pomiary_lekcje4.json`. Główne tabele w „Wyniki” pochodzą z lekcji
+wersji 3.
+
 ## Filmy
 
 - **Z widoku trzeciej osoby** (`film.film`): samolot z tyłu nad doliną.
@@ -197,8 +270,11 @@ wyniki każdego lotu są w `docs/teren_pomiary.json`.
 
 ## Co dalej
 
-- Lekcje z cieplejszych dni (do +25 °C, wysokie słońce), żeby mózg nie mylił
-  nagrzanych głazów z ludźmi.
+- Kozice i lisy z bliska: nowy mózg myli je z człowiekiem częściej niż
+  stary. Do sprawdzenia: kamera pochylona przy potwierdzaniu, żeby widzieć
+  sylwetkę z boku.
+- W upale: mózg nadal odrzuca około połowy ludzi, którzy są plamą. Szukać
+  o świcie, gdy ziemia jest chłodna i plamą stają się też stojący.
 - Operator zamiast odrzucania: kandydaci odrzuceni z bliska albo
   nieobejrzani idą do człowieka z obrazem (`operator.py` już to umie w
   arenie).
