@@ -869,14 +869,32 @@ of a Tatra-like valley -- a glacial trough, a cirque with a tarn, ridges,
 snow, rock, scree and dwarf pine, sunlit rock as warm as a jacket -- searched
 by a foam plane and a quadcopter from 40-100 m with a thermal camera looking
 down; people in four poses, chamois, foxes and boulders as parts, each warm
-in its own way; every pixel the mix of what lies in it. The plane searches
-the whole square kilometre on one battery, the quadcopter 14-18% (starting
-by the trail, where half the lost lie). A 256x192 camera from 60 m found 9
-of 17 people on 10 searches with 11 false alarms; looking again from lower
-down removed 87% of the false alarms; a 32x24 MLX90640 found none. Films:
-the plane from behind, with the camera's view and the rangefinder's beam
-drawn in; one pass full screen through the thermal camera.
+in its own way, seen along the camera's rays; every pixel the mix of what
+lies in it. The brain learns in three other valleys on days from a frost to
+a mild one. The plane flies lanes along the contours -- across the slopes it
+could not keep its height and searched 40% -- and finds 65% of the lost
+(53 of 81 on 50 areas, 95% interval 55-75%) with 0.7 false alarms a flight;
+a 384x288 camera from 100 m finds as many with half the false alarms. The
+quadcopter searches 11-16% and finds 25-38%, with no false alarms. A hot
+summer day, outside what it learnt, halves what it finds: boulders warmer
+than people. 460 flights, none crashed, all home.
 `python -m wingloop.dronomucha teren szukaj --platforma samolot --kamera t256s`.
+
+**A tiltrotor, as the Osprey flies** (`docs/osprey.md`, in Polish). A third
+platform: two front rotors in nacelles that tilt from lifting to pulling and
+a third at the tail, on a 2 m wing, 3 kg, a 186 Wh lithium-ion pack. Thin
+mountain air makes its hover cost 460 W against 115 W cruising: a minute
+hovering is four minutes flying. It takes off and lands where a quadcopter
+does, searches as the plane does, and stops in the air to look closer.
+
+**The search in 3-D, as a game draws it** (`wingloop/dronomucha/sym3d`). The
+real-scale search exported -- the valley, its cover and warmth, every object,
+every platform's flight step by step and every candidate's story -- and drawn
+in a browser with three.js: sky and low sun, shadows, haze, dwarf pine and
+scree, the tarn, the three drones with spinning rotors and tilting nacelles,
+the thermal camera's own picture, and a game's head-up display. Four looks
+(golden hour, tactical, night, illustration); clips recorded frame by frame
+headless (`nagraj.js`).
 
 What you watch is the validated physics, not an animation: the rigid
 NeuroMechFly with blade-element wings is simulated, and a second copy of the

@@ -14,7 +14,7 @@ candidate, and they go to look again from lower down:
   (where people are lost most) -- it cannot fly them all on one battery;
 - the **tiltrotor** (:data:`~..platformy.VTOL`) searches as the plane does and
   looks as the quadcopter does: it tilts its rotors up, stops over the
-  candidate, comes down to :data:`NIZEJ` ``["vtol"]`` m and looks three
+  candidate, comes down to :data:`NIZEJ` ``["vtol"]`` m (35) and looks three
   times, then climbs in a hover to where it can fly as a plane again; a
   minute in a hover costs it several of cruising (:attr:`Lot.energia`);
 - the **plane** cannot stop: it flies over it along its contour
@@ -57,7 +57,9 @@ from . import wykrywanie as W
 #: look still counts as one from close.
 #: The tiltrotor has two sets of these: ``"vtol"`` flying as a plane, ``"vtol_zawis"``
 #: in a hover (:attr:`Lot.klucz`).
-NIZEJ = {"quad": 15.0, "samolot": 35.0, "vtol": 15.0, "vtol_zawis": 15.0}
+#: The tiltrotor hovers at 35 m: from 15 m straight over them, the T256s's brain turned
+#: down every person sitting or standing (0 of 11); from 35 m it found 60% of all, not 46%.
+NIZEJ = {"quad": 15.0, "samolot": 35.0, "vtol": 35.0, "vtol_zawis": 35.0}
 LUZ = {"quad": 3.0, "samolot": 8.0, "vtol": 8.0, "vtol_zawis": 3.0}
 #: How fast each climbs and comes down, m/s.
 WZNOSZENIE = {"quad": 3.0, "samolot": 5.0, "vtol": 5.0, "vtol_zawis": 3.0}
