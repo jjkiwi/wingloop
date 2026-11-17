@@ -9,18 +9,23 @@ export const KLIPY = {
   },
   taktyczny: {
     styl: 'taktyczny', lot: 'quad', t0: 57.0, tempo: 1.0, dlugosc: 5,
-    kamera: { typ: 'orbita', srodek: [43.7, 368.2, 0.5], wokolDrona: true, r: 6.5, wys: 2.2, obrot: 0.2, kat0: 0.6, patrz: 0.22, fov: 55 },
+    kamera: { typ: 'orbita', srodek: [43.7, 368.2, 0.5], wokolDrona: true, r: 4.5, wys: 3.5, obrot: 0.14, kat0: 0.6, patrz: 0.09, fov: 62 },
     tytul: 'Taktyczny', podtytul: 'propozycja 2 · centrum dowodzenia',
   },
   noc: {
     styl: 'noc', lot: 'vtol', t0: 59.0, tempo: 1.0, dlugosc: 5,
-    kamera: { typ: 'orbita', srodek: [43.7, 368.2, 0.5], wokolDrona: true, r: 7, wys: 1.8, obrot: -0.2, kat0: 2.2, patrz: 0.25, fov: 55 },
+    kamera: { typ: 'orbita', srodek: [43.7, 368.2, 0.5], wokolDrona: true, r: 5, wys: 3.5, obrot: -0.14, kat0: 2.2, patrz: 0.09, fov: 62 },
     tytul: 'Noc', podtytul: 'propozycja 3 · termowizja i reflektor',
   },
   ilustracja: {
     styl: 'ilustracja', lot: 'vtol', wszystkie: true, t0: 55.0, tempo: 1.0, dlugosc: 5,
-    kamera: { typ: 'kran', od: [125, 470, 70], do: [95, 430, 42], cel: [46, 372, 12], fov: 42 },
+    kamera: { typ: 'kran', od: [92, 425, 52], do: [78, 402, 40], cel: [46, 372, 33], fov: 46 },
     tytul: 'Ilustracja', podtytul: 'propozycja 4 · stylizowana',
+  },
+  tiltrotor: {
+    styl: 'realizm', lot: 'vtol', t0: 8.6, tempo: 1.0, dlugosc: 5,
+    kamera: { typ: 'orbita', srodek: [0, 0, 0], wokolDrona: true, r: 3.4, wys: 0.7, obrot: 0.55, kat0: 1.9, patrz: 0.0, fov: 40 },
+    tytul: 'Tiltrotor z bliska', podtytul: 'gondole przechylają się z zawisu do przelotu',
   },
   przejscie: {
     styl: 'realizm', lot: 'vtol', t0: 6.0, tempo: 1.7, dlugosc: 5,
