@@ -10,7 +10,7 @@ export const STYLE = {
     ekspozycja: 0.78, bloom: { moc: 0.3, promien: 0.45, prog: 0.9 },
     grade: { kontrast: 1.07, nasycenie: 1.08, tint: [1.04, 1.0, 0.93], lift: [0.012, 0.008, 0.0], winieta: 0.42, ziarno: 0.022, aberracja: 0.0012 },
     paleta: { cSnieg: 0xf4f6fb, cSkala: 0x6d6862, cSkala2: 0x8a8378, cPiarg: 0x8f8a82, cKoso: 0x223a1e, cTrawa: 0x9c8a4e, cTrawa2: 0x7c7a3a, cWoda: 0x16303d, cSzlak: 0x7b6449 },
-    roslinnosc: 0x2a4423, kamienie: 0x8a857c, woda: 0x183846,
+    roslinnosc: 0x2a4423, kamienie: 0xa29d94, woda: 0x183846,
     chmury: { ile: 14, kolor: 0xffe2c4, krycie: 0.55 },
     hud: { linie: true, kolorLinii: 0xffd36b, mapa: true, termo: true, znaczniki: true },
   },

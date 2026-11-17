@@ -79,9 +79,11 @@
   #ramka { position: absolute; inset: 0; pointer-events: none; }
   :root[data-styl="taktyczny"] #ramka { background: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px); }
   #sterowanie { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; pointer-events: auto; font-family: "Rajdhani", sans-serif; }
-  #sterowanie button, #sterowanie select { font: 600 14px "Rajdhani", sans-serif; color: var(--hud); background: rgba(255,255,255,0.08); border: 1px solid var(--panel-edge); border-radius: 4px; padding: 5px 10px; cursor: pointer; letter-spacing: 0.06em; }
+  #sterowanie button, #sterowanie select { font: 600 13px "Rajdhani", sans-serif; color: var(--hud); background: rgba(255,255,255,0.08); border: 1px solid var(--panel-edge); border-radius: 4px; padding: 4px 8px; cursor: pointer; letter-spacing: 0.06em; }
+  #sterowanie select option { color: #111; }
+  #sterowanie :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   #sterowanie button.on { background: var(--accent); color: #111; }
-  #sterowanie input[type=range] { width: 220px; }
+  #sterowanie input[type=range] { width: 130px; accent-color: var(--accent); }
   .nagrywanie #sterowanie { display: none; }
   /* Recording: the frame's blur behind the panels costs a software compositor seconds. */
   .nagrywanie .panel { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(8, 14, 22, 0.7); }
@@ -129,7 +131,7 @@
 <div id="sterowanie" class="panel">
   <select id="s-lot"><option value="samolot">Samolot</option><option value="quad">Quad</option><option value="vtol">Tiltrotor</option></select>
   <select id="s-styl"><option value="realizm">Złota godzina</option><option value="taktyczny">Taktyczny</option><option value="noc">Noc</option><option value="ilustracja">Ilustracja</option></select>
-  <button id="s-kam">Kamera: pościg</button>
+  <button id="s-kam">Pościg</button>
   <button id="s-play" class="on">❚❚</button>
   <button id="s-tempo">×10</button>
   <input id="s-czas" type="range" min="0" max="1000" value="0">

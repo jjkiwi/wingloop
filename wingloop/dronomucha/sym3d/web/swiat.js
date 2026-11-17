@@ -343,7 +343,7 @@ export function kamienie(tr, kolor, zasieg = 650) {
   const mesh = new THREE.InstancedMesh(geo, mat, pts.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), cc = new THREE.Color(kolor);
   pts.forEach(([x, y], k) => {
-    const sc = 0.25 + Math.pow(r(), 2.2) * 1.4;
+    const sc = 0.2 + Math.pow(r(), 2.4) * 1.1;
     q.setFromEuler(new THREE.Euler(r() * 3, r() * 3, r() * 3));
     s.set(sc * (0.8 + r() * 0.5), sc * (0.5 + r() * 0.4), sc * (0.8 + r() * 0.5));
     m.compose(w2t(x, y, tr.h(x, y) + sc * 0.2), q, s);

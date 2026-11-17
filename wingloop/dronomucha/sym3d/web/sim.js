@@ -20,7 +20,8 @@ const params = new URLSearchParams(location.search);
 const BEZ = new Set((params.get('bez') || '').split(',')); // stages turned off, for measuring
 const NAGRANIE = params.has('nagranie');
 const KLIP = params.get('klip') ? KLIPY[params.get('klip')] : null;
-const STYL_NAZWA = (KLIP && KLIP.styl) || params.get('styl') || 'realizm';
+const HASH = location.hash.replace('#', '');
+const STYL_NAZWA = (KLIP && KLIP.styl) || params.get('styl') || (HASH in STYLE ? HASH : 'realizm');
 const STYL = STYLE[STYL_NAZWA];
 const W = Number(params.get('w') || 0), H = Number(params.get('h') || 0);
 document.documentElement.dataset.styl = STYL_NAZWA;
@@ -470,12 +471,12 @@ function kamera(klip, s, lot, tc) {
   const head = lot.kursSredni(s.t);
   const fwd = new THREE.Vector3(Math.cos(head), 0, -Math.sin(head));
   if (k.typ === 'poscig') {
-    const dist = k.dist ?? 9, up = k.wys ?? 2.6, side = k.bok ?? 0;
+    const dist = k.dist ?? 8, up = k.wys ?? 1.8, side = k.bok ?? 1.2;
     const right = new THREE.Vector3(Math.sin(head), 0, Math.cos(head));
     camera.position.copy(s.pos).addScaledVector(fwd, -dist).addScaledVector(right, side).add(new THREE.Vector3(0, up, 0));
     const ground = tr.h(camera.position.x, -camera.position.z);
     camera.position.y = Math.max(camera.position.y, ground + 1.5);
-    camera.lookAt(s.pos.clone().addScaledVector(fwd, k.przod ?? 4).add(new THREE.Vector3(0, k.celWys ?? -1.2, 0)));
+    camera.lookAt(s.pos.clone().addScaledVector(fwd, k.przod ?? 28).add(new THREE.Vector3(0, k.celWys ?? -5, 0)));
   } else if (k.typ === 'orbita') {
     const c = k.srodek ? S.w2t(k.srodek[0], k.srodek[1], tr.h(k.srodek[0], k.srodek[1]) + (k.srodek[2] || 0)) : s.pos;
     const ang = (k.kat0 || 0) + (k.obrot || 0.15) * tc;
@@ -494,6 +495,7 @@ function kamera(klip, s, lot, tc) {
 }
 
 const czasy = {};
+let klatkaNr = 0;
 const sync = () => { const gl = renderer.getContext(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4)); };
 const mierz = (k, f) => { const a = performance.now(); const r = f(); sync(); czasy[k] = (czasy[k] || 0) + performance.now() - a; return r; };
 function klatka(tSim, tKlip) {
@@ -523,7 +525,8 @@ function klatka(tSim, tKlip) {
   }
   for (const [id, b] of beams) b.visible = seenIds.has(id);
   const rogi = STYL.hud.linie || STYL.hud.mapa ? mierz('zasieg', () => zasieg(s)) : null;
-  if (STYL.hud.termo && !BEZ.has('termo')) mierz('termo', () => obrazTermo(s, kand));
+  // Live, the thermal picture is read back every third frame: it waits on the graphics card.
+  if (STYL.hud.termo && !BEZ.has('termo') && (NAGRANIE || (klatkaNr++ % 3 === 0))) mierz('termo', () => obrazTermo(s, kand));
   grade.uniforms.uCzas.value = tKlip;
   mierz('render', () => composer.render());
   hudTekst(lot, s, kand);
@@ -539,7 +542,7 @@ function klatka(tSim, tKlip) {
 }
 
 // ---------------------------------------------------------------- playing, or recording
-let trybKamery = 'poscig', tSim = Number(params.get('t') || 30), tempo = 10, gra = true;
+let trybKamery = 'poscig', tSim = Number(params.get('t') || 118), tempo = 3, gra = true;
 const controls = new OrbitControls(camera, canvas); controls.enabled = false; controls.enableDamping = true;
 $('ladowanie').remove();
 window.SIM = {
@@ -560,11 +563,14 @@ if (!NAGRANIE) {
   const lotSel = $('s-lot'), stylSel = $('s-styl'), suw = $('s-czas');
   lotSel.value = lotNazwa; stylSel.value = STYL_NAZWA;
   lotSel.onchange = () => { lotNazwa = lotSel.value; tSim = 30; };
-  stylSel.onchange = () => { const p = new URLSearchParams(location.search); p.set('styl', stylSel.value); p.set('lot', lotNazwa); p.set('t', tSim.toFixed(0)); location.search = p.toString(); };
+  // A style builds its own world: the page is drawn again, the style kept in its #hash.
+  stylSel.onchange = () => { location.hash = stylSel.value; location.reload(); };
+  window.addEventListener('hashchange', () => { if (location.hash.replace('#', '') in STYLE) location.reload(); });
   const kamery = ['poscig', 'swobodna'];
-  $('s-kam').onclick = () => { trybKamery = kamery[(kamery.indexOf(trybKamery) + 1) % kamery.length]; controls.enabled = trybKamery === 'swobodna'; $('s-kam').textContent = 'Kamera: ' + (trybKamery === 'poscig' ? 'pościg' : 'swobodna'); };
+  $('s-kam').onclick = () => { trybKamery = kamery[(kamery.indexOf(trybKamery) + 1) % kamery.length]; controls.enabled = trybKamery === 'swobodna'; $('s-kam').textContent = trybKamery === 'poscig' ? 'Pościg' : 'Swobodna'; };
   $('s-play').onclick = () => { gra = !gra; $('s-play').textContent = gra ? '❚❚' : '▶'; $('s-play').classList.toggle('on', gra); };
   const tempa = [1, 3, 10, 30];
+  $('s-tempo').textContent = '×' + tempo;
   $('s-tempo').onclick = () => { tempo = tempa[(tempa.indexOf(tempo) + 1) % tempa.length]; $('s-tempo').textContent = '×' + tempo; };
   suw.oninput = () => { tSim = loty[lotNazwa].koniec * suw.value / 1000; };
   window.addEventListener('resize', () => {
