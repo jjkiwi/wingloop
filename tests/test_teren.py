@@ -178,16 +178,19 @@ def _lezacy(t, x, y):
     return person
 
 
-@pytest.mark.parametrize("name", ["quad", "samolot"])
-def test_a_search_finds_someone_on_its_first_lane_and_looks_from_close(dolina, name):
+@pytest.mark.parametrize("name", ["quad", "samolot", "vtol"])
+def test_a_search_finds_someone_on_its_lane_and_looks_from_close(dolina, name):
     """The whole of it: lanes, a candidate liked twice, the closer look from as low as it is
     meant, a report -- and nothing judged that was not looked at."""
     t, _, temp = dolina
     plat, cam = PLATFORMY[name], KAMERY["lepton35"]
     agl = 40.0 if name == "quad" else 50.0
-    _, lanes = LOT.trasa_lotu(plat, cam, agl, t)
-    first = lanes[0]
-    x, y = first[len(first) // 2] if name == "samolot" else (first[0][0], 300.0)
+    # Where it flies a minute in, searching: flown once over an empty valley.
+    probe = LOT.szukaj(
+        plat, cam, t, temp, [], _Cieple(), agl=agl, seed=0, krok=lambda now, *a: now > 61.0
+    )
+    _, x, y, _, _, phase = probe.slad[-1]
+    assert phase == "pasy"
     person = _lezacy(t, x + 4.0, y)
 
     def enough(now, lot, phase, target, candidates):
@@ -198,7 +201,11 @@ def test_a_search_finds_someone_on_its_first_lane_and_looks_from_close(dolina, n
     assert r["znalezieni"] == 1 and r["falszywe"] == 0 and not r["rozbicie"]
     found = [c for c in w.kandydaci if c.stan == "potwierdzony"][0]
     assert found.razy >= LOT.RAZY and found.oceny
-    assert max(found.wysokosci) <= LOT.NIZEJ[name] + LOT.LUZ[name] + 0.5
+    looking = "vtol_zawis" if name == "vtol" else name  # the tiltrotor looks in a hover
+    assert max(found.wysokosci) <= LOT.NIZEJ[name] + LOT.LUZ[looking] + 0.5
+    if name == "vtol":
+        # Up as a quadcopter, on as a plane, down to look as a quadcopter again.
+        assert w.przejscia >= 2 and w.energia > w.czas  # a hover costs more than cruising
     assert not [c for c in w.kandydaci if c.stan == "odrzucony" and not c.oceny]
     climbs = np.diff([s[3] for s in w.slad])
     assert climbs.max() <= LOT.WZNOSZENIE[name] * 0.2 + 1e-6
@@ -238,3 +245,14 @@ def test_the_plane_flies_the_contours_and_the_ground_below_stays_level(dolina):
     pts = np.concatenate([np.asarray(lane) for lane in contours])
     assert pts[:, 0].min() < -450 and pts[:, 0].max() > 450
     assert pts[:, 1].min() < -450 and pts[:, 1].max() > 450
+
+
+def test_the_tiltrotor_hovers_at_four_times_the_power_it_cruises_at():
+    """The arithmetic of docs/osprey.md: thin mountain air costs a hover more."""
+    from wingloop.dronomucha.platformy import VTOL, gestosc, moc
+
+    disks = 2 * np.pi * 0.1905**2 + np.pi * 0.1525**2
+    high = moc(3.0, disks, 17.0, 10.0, gestosc(1800, 0))
+    low = moc(3.0, disks, 17.0, 10.0, gestosc(0, 15))
+    assert 3.5 < high["stosunek"] < 4.5 and high["zawis"] > 1.05 * low["zawis"]
+    assert VTOL.zawis_koszt == pytest.approx(round(high["stosunek"]))

@@ -12,6 +12,11 @@ candidate, and they go to look again from lower down:
 - the **quadcopter** flies to it, comes down to :data:`NIZEJ` ``["quad"]`` m,
   hovers and looks three times; it flies the lanes nearest the trail first
   (where people are lost most) -- it cannot fly them all on one battery;
+- the **tiltrotor** (:data:`~..platformy.VTOL`) searches as the plane does and
+  looks as the quadcopter does: it tilts its rotors up, stops over the
+  candidate, comes down to :data:`NIZEJ` ``["vtol"]`` m and looks three
+  times, then climbs in a hover to where it can fly as a plane again; a
+  minute in a hover costs it several of cruising (:attr:`Lot.energia`);
 - the **plane** cannot stop: it flies over it along its contour
   (:meth:`~.teren.Teren.poziomica`), at :data:`NIZEJ` ``["samolot"]`` m,
   looking four times a second while it is in the picture -- along the
@@ -50,21 +55,26 @@ from . import wykrywanie as W
 
 #: How low it comes to look again, m above the ground, and how much higher than that a
 #: look still counts as one from close.
-NIZEJ = {"quad": 15.0, "samolot": 35.0}
-LUZ = {"quad": 3.0, "samolot": 8.0}
+#: The tiltrotor has two sets of these: ``"vtol"`` flying as a plane, ``"vtol_zawis"``
+#: in a hover (:attr:`Lot.klucz`).
+NIZEJ = {"quad": 15.0, "samolot": 35.0, "vtol": 15.0, "vtol_zawis": 15.0}
+LUZ = {"quad": 3.0, "samolot": 8.0, "vtol": 8.0, "vtol_zawis": 3.0}
 #: How fast each climbs and comes down, m/s.
-WZNOSZENIE = {"quad": 3.0, "samolot": 5.0}
-OPADANIE = {"quad": 2.5, "samolot": 5.0}
+WZNOSZENIE = {"quad": 3.0, "samolot": 5.0, "vtol": 5.0, "vtol_zawis": 3.0}
+OPADANIE = {"quad": 2.5, "samolot": 5.0, "vtol": 5.0, "vtol_zawis": 2.5}
 #: How far along its way each looks at the ground ahead to hold its height, m, and the
 #: least height over the ground it is to keep, m.
-PRZED = {"quad": 60.0, "samolot": 800.0}
-NAJNIZEJ = {"quad": 5.0, "samolot": 25.0}
+PRZED = {"quad": 60.0, "samolot": 800.0, "vtol": 800.0, "vtol_zawis": 60.0}
+NAJNIZEJ = {"quad": 5.0, "samolot": 25.0, "vtol": 25.0, "vtol_zawis": 5.0}
+#: How fast the tiltrotor moves in a hover, m/s, and how fast it speeds up once its
+#: rotors tilt forward, m/s2.
+ZAWIS_V, ROZPED = 8.0, 3.0
 #: How far past the end of the way it knows the plane keeps its least height: room to turn.
 ZAWROT = 150.0
 #: Within this of a point of its way it has reached it, m; the plane turns no tighter
 #: than about 33 m, so a point it must reach (a lane's first, home) is given more.
-BLISKO = {"quad": 8.0, "samolot": 30.0}
-DOLOT = {"quad": 8.0, "samolot": 45.0}
+BLISKO = {"quad": 8.0, "samolot": 30.0, "vtol": 30.0, "vtol_zawis": 8.0}
+DOLOT = {"quad": 8.0, "samolot": 45.0, "vtol": 45.0, "vtol_zawis": 8.0}
 #: Home is flown to with this many times the time the straight way takes left.
 ZAPAS = 1.5
 #: How long it tries to get over one candidate, s.
@@ -108,7 +118,8 @@ class Wynik:
     """A search: the path (t, x, y, z, height above ground, phase), every candidate, which
     of the area's cells were searched, the pictures taken, how long it flew, s;
     where it crashed (t, x, y) or None, how long it flew below its least
-    height, s, and whether it got home before its battery ended."""
+    height, s, whether it got home before its battery ended; the battery used, in
+    seconds of cruising, and how often the tiltrotor tilted its rotors."""
 
     slad: list
     kandydaci: list
@@ -118,6 +129,8 @@ class Wynik:
     rozbicie: tuple | None = None
     za_nisko: float = 0.0
     wrocil: bool = True
+    energia: float = 0.0
+    przejscia: int = 0
 
 
 def _wrap(a: float) -> float:
@@ -129,7 +142,10 @@ class Lot:
 
     ``rozbity``: it met the ground. ``za_nisko``: seconds flown below its least
     height (:data:`NAJNIZEJ`) since it first climbed above it. ``krazy``: the
-    plane is circling to climb (+1 left, -1 right), 0 otherwise.
+    plane is circling to climb (+1 left, -1 right), 0 otherwise. ``zawis``: it
+    hovers -- the quadcopter always, the tiltrotor when told (:meth:`tryb`).
+    ``energia``: the battery used, in seconds of cruising: a second of the
+    tiltrotor's hover is :attr:`~..platformy.Platforma.zawis_koszt` of them.
     """
 
     def __init__(self, platforma: Platforma, teren, start, agl: float, kurs: float = 0.0):
@@ -138,12 +154,35 @@ class Lot:
         self.x, self.y = float(x), float(y)
         self.z = float(teren.wysokosc(x, y)) + 2.0
         self.kurs = float(kurs)
-        self.v = 0.0 if platforma.zawis else platforma.predkosc
+        # The tiltrotor takes off as a quadcopter does: straight up, in a hover.
+        self.zawis = platforma.zawis or platforma.vtol
+        self.v = 0.0 if self.zawis else platforma.predkosc
         self.agl = agl
+        self.energia = 0.0
+        self.przejscia = 0
         self.wystartowal = False
         self.rozbity = False
         self.za_nisko = 0.0
         self.krazy = 0
+
+    @property
+    def klucz(self) -> str:
+        """Which of the tables' rows it flies by now: the tiltrotor has one for each mode."""
+        if self.p.vtol:
+            return "vtol_zawis" if self.zawis else "vtol"
+        return self.p.nazwa
+
+    def tryb(self, zawis: bool) -> None:
+        """The tiltrotor: hover, or fly as a plane. Leaving a hover low down it climbs in
+        the hover first, to where it can fly as a plane (:data:`NAJNIZEJ` and 5 m)."""
+        if not self.p.vtol:
+            return
+        if not zawis and self.zawis and self.nad_ziemia < NAJNIZEJ["vtol"] + 5.0:
+            zawis = True
+        if zawis != self.zawis:
+            self.zawis = zawis
+            self.krazy = 0
+            self.przejscia += 1
 
     @property
     def skret(self) -> float:
@@ -159,11 +198,11 @@ class Lot:
         to turn. A point every second of flight, for ``ile`` m.
         """
         pts = [cel, *(droga if droga is not None else ())]
-        ile = PRZED[self.p.nazwa] if ile is None else ile
+        ile = PRZED[self.klucz] if ile is None else ile
         step = max(self.v, 1.0)
         rate = self.skret
         x, y, k = self.x, self.y, self.kurs
-        near2 = BLISKO[self.p.nazwa] ** 2
+        near2 = BLISKO[self.klucz] ** 2
         xs, ys, known = [x], [y], [True]
         i, past = 0, 0.0
         for _ in range(int(ile / step)):
@@ -191,7 +230,7 @@ class Lot:
         d = np.linspace(0, ile, 32)
         xs = self.x + d * np.cos(ku)
         ys = self.y + d * np.sin(ku)
-        climb = WZNOSZENIE[self.p.nazwa] * d / max(self.v, 1.0)
+        climb = WZNOSZENIE[self.klucz] * d / max(self.v, 1.0)
         return float(np.max(self.t.wysokosc(xs, ys) + agl - climb))
 
     def krok(
@@ -204,16 +243,18 @@ class Lot:
         faster than it can come down, to stay at its height over it."""
         if self.rozbity:
             return float(np.hypot(cel[0] - self.x, cel[1] - self.y))
-        name = self.p.nazwa
+        name = self.klucz
         up, down, floor = WZNOSZENIE[name], OPADANIE[name], NAJNIZEJ[name]
+        self.energia += dt * (self.p.zawis_koszt if self.zawis and self.p.vtol else 1.0)
         dx, dy = cel[0] - self.x, cel[1] - self.y
         dist = float(np.hypot(dx, dy))
         want = math.atan2(dy, dx)
         turn = _wrap(want - self.kurs)
         here = float(self.t.wysokosc(self.x, self.y))
-        if self.p.zawis:
+        if self.zawis:
+            top = ZAWIS_V if self.p.vtol else self.p.predkosc
             self.kurs += float(np.clip(turn, -np.pi / 2 * dt, np.pi / 2 * dt))
-            target_v = self.p.predkosc if not stop else min(self.p.predkosc, 0.8 * dist)
+            target_v = top if not stop else min(top, 0.8 * dist)
             if abs(turn) > np.pi / 3:
                 target_v = min(target_v, 1.0)
             ahead = 5.0 if stop and dist < 10.0 else PRZED["quad"]
@@ -227,8 +268,10 @@ class Lot:
                 target_v = 0.0  # and under its least height stops, and climbs
             self.v += float(np.clip(target_v - self.v, -3.0 * dt, 3.0 * dt))
         else:
+            if self.v < self.p.predkosc:  # the tiltrotor, its rotors tilting forward
+                self.v = min(self.p.predkosc, self.v + ROZPED * dt)
             xs, ys, d, known = self.tor(cel, droga)
-            ground = self.t.wysokosc(xs, ys) - up * d / self.v
+            ground = self.t.wysokosc(xs, ys) - up * d / max(self.v, 1.0)
             least = float(np.max(ground)) + floor
             z_want = max(float(np.max(ground[known])) + agl, least)
             if not self.wystartowal:
@@ -433,7 +476,7 @@ class _Trasa:
         lane it has gone by is not turned back for. ``wzdluz``: the plane
         holds its height along the points to come.
         """
-        i, name = self.i, lot.p.nazwa
+        i, name = self.i, lot.klucz
         first = i == 0 or self.pas[i - 1] != self.pas[i]
         more = i + 1 < len(self.pts) and self.pas[i + 1] == self.pas[i]
         ahead = self.pts[i + 1 : i + 30] if wzdluz else None
@@ -488,6 +531,8 @@ def szukaj(
     name = platforma.nazwa
     agl = agl or platforma.wysokosc
     low = NIZEJ[name]
+    # How it looks again: stopped in the air (quadcopter, tiltrotor), or flying by.
+    hover = platforma.zawis or platforma.vtol
     trasa, lanes = trasa_lotu(platforma, kamera, agl, teren, trasa)
     route = _Trasa(lanes)
     first = route.pts[0]
@@ -530,26 +575,27 @@ def szukaj(
         """Go and look at a candidate from close."""
         nonlocal target, phase, over, since, tries
         target, phase, since, tries = c, "potwierdz", t, 1
-        over = None if platforma.zawis else _Trasa([_przelot(teren, lot, c.gdzie)])
+        over = None if hover else _Trasa([_przelot(teren, lot, c.gdzie)])
 
     def leave():
         """This candidate is judged, or given up: the next, or back to the lanes, or home."""
         nonlocal target, phase
         target = None
         rest = waiting()
-        if rest and t < late:
+        if rest and lot.energia < late:
             take(rest[0])
-        elif route.koniec or t > limit:
+        elif route.koniec or lot.energia > limit:
             phase = "powrot"
         else:
             phase = "wroc"
 
     battery = platforma.lot_min * 60.0
-    while t < battery:
+    while lot.energia < battery:
+        lot.tryb(phase == "potwierdz")
         if phase == "pasy":
-            if route.koniec or t > limit:
+            if route.koniec or lot.energia > limit:
                 rest = waiting()
-                if rest and potwierdzaj and t < late:
+                if rest and potwierdzaj and lot.energia < late:
                     resume = teren.baza
                     take(rest[0])
                 else:
@@ -585,15 +631,20 @@ def szukaj(
                         take(c)
         elif phase == "potwierdz":
             tx, ty = target.gdzie[:2]
-            if platforma.zawis:
+            if hover:
                 left = lot.krok(dt, (tx, ty), low, stop=True)
-                ready = left < 4.0 and abs(lot.nad_ziemia - low) < LUZ[name] and lot.v < 1.5
+                ready = (
+                    left < 4.0
+                    and lot.zawis
+                    and abs(lot.nad_ziemia - low) < LUZ[lot.klucz]
+                    and lot.v < 1.5
+                )
             else:
                 over.krok(lot, dt, low, wzdluz=True)
                 left = math.hypot(tx - lot.x, ty - lot.y)
                 ready = left < 25.0 and lot.nad_ziemia < low + LUZ[name]
             if ready and t >= next_shot:
-                next_shot = t + (0.5 if platforma.zawis else 0.25)
+                next_shot = t + (0.5 if hover else 0.25)
                 v, spots = look("potwierdz")
                 # A look counts if the candidate's place is in the picture.
                 if _w_kadrze(v.rogi, tx, ty):
@@ -607,8 +658,8 @@ def szukaj(
                     )
                     target.oceny.append(mozg.ocena(best) if best is not None else None)
                     target.wysokosci.append(lot.nad_ziemia)
-            done = len(target.oceny) >= 3 if platforma.zawis else over.koniec
-            if done and not target.oceny and not platforma.zawis and tries < 2:
+            done = len(target.oceny) >= 3 if hover else over.koniec
+            if done and not target.oceny and not hover and tries < 2:
                 # It flew by without the place in its picture, or too high: once
                 # more, from the end it is at now.
                 tries, since = 2, t
@@ -620,13 +671,13 @@ def szukaj(
                 else:
                     target.stan = "potwierdzony" if good and np.mean(good) > 0 else "odrzucony"
                 leave()
-            if t > late and phase == "potwierdz":
+            if lot.energia > late and phase == "potwierdz":
                 phase = "powrot"
         elif phase == "wroc":
-            if lot.krok(dt, resume, agl) < DOLOT[name]:
+            if lot.krok(dt, resume, agl) < DOLOT[lot.klucz]:
                 phase = "pasy"
         elif phase == "powrot":
-            if lot.krok(dt, teren.baza, agl, stop=platforma.zawis) < 2 * BLISKO[name]:
+            if lot.krok(dt, teren.baza, agl, stop=platforma.zawis) < 2 * BLISKO[lot.klucz]:
                 home = True
                 break
         path.append((t, lot.x, lot.y, lot.z, lot.nad_ziemia, phase))
@@ -634,14 +685,16 @@ def szukaj(
         if phase != "powrot":
             # Whatever it is doing: home while the battery still gets it there.
             away = math.hypot(lot.x - teren.baza[0], lot.y - teren.baza[1])
-            if t + ZAPAS * away / platforma.predkosc + 20.0 > battery:
+            if lot.energia + ZAPAS * away / platforma.predkosc + 20.0 > battery:
                 phase = "powrot"
         if lot.rozbity:
             break
         if krok is not None and krok(t, lot, phase, target, candidates):
             break
     crash = (t, lot.x, lot.y) if lot.rozbity else None
-    return Wynik(path, candidates, seen, shots, t, crash, lot.za_nisko, home)
+    return Wynik(
+        path, candidates, seen, shots, t, crash, lot.za_nisko, home, lot.energia, lot.przejscia
+    )
 
 
 def ocen(wynik: Wynik, obiekty, promien: float = 8.0) -> dict:
@@ -669,6 +722,7 @@ def ocen(wynik: Wynik, obiekty, promien: float = 8.0) -> dict:
     return dict(
         rozbicie=wynik.rozbicie is not None,
         wrocil=wynik.wrocil,
+        przejscia=wynik.przejscia,
         za_nisko=wynik.za_nisko,
         z_bliska=float(np.median(looks)) if looks else None,
         do_sprawdzenia=len(unsure),

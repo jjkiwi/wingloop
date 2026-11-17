@@ -48,7 +48,7 @@ def main(argv=None) -> None:
     s.add_argument("--obszary", type=int, default=1, help="how many areas")
     s = sub.add_parser("teren", help="a search at real scale: a Tatra valley, 1 km²")
     s.add_argument("co", choices=("szukaj", "film"))
-    s.add_argument("--platforma", choices=("samolot", "quad"), default="samolot")
+    s.add_argument("--platforma", choices=("samolot", "quad", "vtol"), default="samolot")
     s.add_argument("--kamera", default="t256s", help="t256s, p2pro, 384, lepton35, mlx90640_55")
     s.add_argument("--wysokosc", type=float, default=None, help="m above the ground")
     s.add_argument("--seed", type=int, default=0, help="the first search area")

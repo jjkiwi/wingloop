@@ -11,7 +11,12 @@ A rescue search in the mountains is about a square kilometre flown at
   look; 10-15 minutes in the air;
 - the **plane** (:data:`SAMOLOT`) cannot stop, but flies 30-45 minutes at
   twice the speed: it is what covers the square kilometre, and looks closer
-  by circling lower.
+  by circling lower;
+- the **tiltrotor** (:data:`VTOL`), flying as the Osprey does: two front
+  rotors that tilt from lifting to pulling and a third at the back, on a
+  wing (docs/osprey.md). It takes off and lands where a quadcopter does,
+  searches as the plane does, and stops in the air to look closer -- at
+  four times the battery a minute of cruising costs.
 
 Every measure here is in real metres -- unlike the lab's arena, at 1:50.
 :func:`pokrycie` is how much ground a body with a camera searches in one
@@ -64,7 +69,11 @@ class Platforma:
     """A body to carry the brain: whether it hovers, how fast it searches (m/s), how
     slow it can fly (m/s, 0 for a hover), minutes in the air, the height it
     searches from (m), the tightest circle it flies (m), and what it can lift
-    besides itself (g)."""
+    besides itself (g).
+
+    ``vtol``: it flies as a plane and can stop in the air as a quadcopter
+    (a tiltrotor); ``lot_min`` is then minutes cruising, and a minute in a
+    hover costs ``zawis_koszt`` of them."""
 
     nazwa: str
     pl: str
@@ -75,6 +84,8 @@ class Platforma:
     wysokosc: float
     krag: float
     udzwig: float
+    vtol: bool = False
+    zawis_koszt: float = 1.0
 
     def zapas(self) -> float:
         """Minutes of searching: a fifth of the flight kept back to get home."""
@@ -103,7 +114,53 @@ SAMOLOT = Platforma(
     krag=40.0,
     udzwig=300.0,
 )
-PLATFORMY = {"quad": QUAD, "samolot": SAMOLOT}
+#: The tiltrotor of docs/osprey.md: 3 kg on a 2 m wing, a 6S2P lithium-ion pack
+#: (186 Wh). Cruising at 17 m/s it draws about 120 W, hovering at 1800 m about
+#: 480 W: four times as much (:func:`moc`).
+VTOL = Platforma(
+    "vtol",
+    "tiltrotor",
+    zawis=False,
+    predkosc=17.0,
+    najwolniej=0.0,
+    lot_min=60.0,
+    wysokosc=60.0,
+    krag=45.0,
+    udzwig=400.0,
+    vtol=True,
+    zawis_koszt=4.0,
+)
+PLATFORMY = {"quad": QUAD, "samolot": SAMOLOT, "vtol": VTOL}
+
+
+def gestosc(wysokosc_m: float, temp_c: float = 0.0) -> float:
+    """Air's density, kg/m3, at a height above the sea (the standard atmosphere's
+    pressure) and a temperature: in the Tatras 15-20% thinner than at the sea."""
+    p = 101325.0 * (1 - 2.25577e-5 * wysokosc_m) ** 5.25588
+    return p / (287.05 * (273.15 + temp_c))
+
+
+def moc(
+    masa: float,
+    dyski: float,
+    predkosc: float,
+    doskonalosc: float,
+    rho: float = 1.0,
+    fm: float = 0.6,
+    naped: float = 0.75,
+    smiglo: float = 0.65,
+    awionika: float = 12.0,
+) -> dict:
+    """The electric power a body draws hovering and cruising, W: momentum theory for the
+    hover -- ``masa`` kg on rotors of ``dyski`` m2 in all, figure of merit ``fm`` --
+    and lift over drag ``doskonalosc`` at ``predkosc`` m/s with a propeller of
+    efficiency ``smiglo`` for the cruise; motors and controllers ``naped`` efficient,
+    and ``awionika`` W for the flight controller, the camera and the radio."""
+    thrust = masa * 9.81
+    hover = thrust**1.5 / np.sqrt(2 * rho * dyski) / fm / naped + awionika
+    cruise = thrust * predkosc / doskonalosc / smiglo / naped + awionika
+    return dict(zawis=hover, przelot=cruise, stosunek=hover / cruise)
+
 
 #: How much of a person's strip a pass sees well enough to find them: the
 #: edges of a picture look at the ground slantwise and from further. And how

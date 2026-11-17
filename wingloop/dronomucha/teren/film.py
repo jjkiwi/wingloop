@@ -429,7 +429,7 @@ def film(
             names[faza] = "krąży, żeby nabrać wysokości"
         found = sum(c.stan == "potwierdzony" for c in kandydaci)
         lrf = f"{dist:5.1f} m" if dist is not None else f"poza zasięgiem ({reach:.0f} m)"
-        battery = max(0.0, 100 * (1 - t / (platforma.lot_min * 60)))
+        battery = max(0.0, 100 * (1 - lot.energia / (platforma.lot_min * 60)))
         lines = [
             f"{platforma.pl}  ·  t = {int(t) // 60:02d}:{int(t) % 60:02d}  ·  ×{speed:.0f}",
             names.get(faza, faza),
