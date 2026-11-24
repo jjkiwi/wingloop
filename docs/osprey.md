@@ -153,10 +153,13 @@ wniosek dotyczy quada: jego 15 m też warto podnieść albo pochylić kamerę.
 - mróz: 3 z 25 osób, 12%, wobec 57% samolotu;
 - lato: 0 z 25 osób, ponad 2 fałszywe alarmy na lot, wobec 34% samolotu.
 
-Z 35 m (20 obszarów, 35 osób, `docs/teren.md`, „Nauka: ciepłe dni”):
-- mróz: 51%, a po nowych lekcjach 80%;
-- lato: 34%, potem 40%;
-- upał (+27 °C): 17%, potem 34%.
+Z 35 m (20 obszarów, 35 osób, `docs/teren.md`, „Nauka: ciepłe dni” i
+„Nauka: własne loty”). Liczby w kolejności: lekcje wersji 3, potem nowe
+lekcje, potem lekcje z własnych lotów:
+- jesień: 60%, 66%, 77% (fałszywe alarmy na lot: 0,75, 1,85, 0,35);
+- mróz: 51%, 80%, 83% (0,05, 1,45, 0,05);
+- lato: 34%, 40%, 34% (2,05, 2,05, 0,45);
+- upał (+27 °C): 17%, 34%, 20% (3,20, 2,80, 1,00).
 
 **Bateria:** tiltrotor przeszukuje cały kilometr w około 30 minut i zużywa
 przy tym około dwóch trzecich akumulatora (przelot plus 12 przejść i ok.

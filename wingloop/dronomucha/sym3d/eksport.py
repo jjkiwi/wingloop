@@ -24,7 +24,6 @@ from ..teren import lekcje as L
 from ..teren import lot as LOT
 from ..teren import obiekty as O
 from ..teren import teren as T
-from ..teren import wykrywanie as W
 
 #: The phases, as numbers in a flight's rows.
 FAZY = ("pasy", "potwierdz", "wroc", "powrot")
@@ -127,8 +126,7 @@ def eksport(
     pg = T.DNI[dzien]
     gt = t.temperatura(pg)
     obiekty = O.uloz(t, pg, seed=seed)
-    f, p, _ = L.lekcje(kamera, KAMERY[kamera])
-    mozg = W.naucz(f, p)
+    mozg = L.mozg(kamera, KAMERY[kamera])
     flights = {}
     for name in platformy:
         plat = PLATFORMY[name]

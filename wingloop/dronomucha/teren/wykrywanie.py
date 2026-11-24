@@ -139,11 +139,22 @@ class Mozg:
         return float(self.mb.valence(kod(plama.cechy, self.gain)))
 
 
-def naucz(cechy, ludzie, gain: int = 4, seed: int = 0, blisko: float | None = BLISKO) -> Mozg:
+def naucz(
+    cechy,
+    ludzie,
+    gain: int = 4,
+    seed: int = 0,
+    blisko: float | None = BLISKO,
+    z_lotow=None,
+) -> Mozg:
     """Teach the fly's mushroom body on measured spots: dopamine for the people's, punishment
     for the rest's -- as a prediction error, three passes (docs/uczenie_maszynowe.md). With
     ``blisko``, a second compartment is taught on the spots seen with a pixel under it
-    (:attr:`Mozg.z_bliska`), if there are people among them."""
+    (:attr:`Mozg.z_bliska`), if there are people among them.
+
+    ``z_lotow`` -- (measures, is it a person) of spots seen in the drone's own searches
+    (:func:`~.lekcje.loty`) -- are lessons for the second compartment only: among them are
+    the boulders and chamois the first one took for people and flew down to see."""
     from wingloop.lab.learning import MushroomBody
     from wingloop.lab.navigate import teach
 
@@ -154,6 +165,9 @@ def naucz(cechy, ludzie, gain: int = 4, seed: int = 0, blisko: float | None = BL
     teach(mb, X, kinds, {"czlowiek": 1.0, "inne": -1.0}, aim=0.3, epochs=3, seed=seed)
     close = None
     if blisko is not None and len(cechy):
+        if z_lotow is not None and len(z_lotow[0]):
+            cechy = np.vstack([cechy, np.asarray(z_lotow[0], dtype=float)])
+            ludzie = np.concatenate([ludzie, np.asarray(z_lotow[1], bool)])
         near = cechy[:, 5] < blisko
         if ludzie[near].any() and (~ludzie[near]).any():
             close = naucz(cechy[near], ludzie[near], gain, seed=seed + 1, blisko=None)

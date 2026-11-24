@@ -115,7 +115,7 @@ def main(argv=None) -> None:
 def _teren(args) -> None:
     """A search, or a film of one, at real scale (:mod:`.teren`)."""
     from .platformy import KAMERY, PLATFORMY
-    from .teren import film, lekcje, lot, obiekty, teren, wykrywanie
+    from .teren import film, lekcje, lot, obiekty, teren
 
     if args.kamera not in KAMERY:
         raise SystemExit(f"Nie znam kamery {args.kamera!r}. Znane: {', '.join(KAMERY)}")
@@ -125,8 +125,7 @@ def _teren(args) -> None:
     t = teren.dolina()
     pg = teren.DNI[args.dzien]
     gt = t.temperatura(pg)
-    f, p, _ = lekcje.lekcje(args.kamera, cam)
-    mozg = wykrywanie.naucz(f, p)
+    mozg = lekcje.mozg(args.kamera, cam)
     if args.co == "film":
         objs = obiekty.uloz(t, pg, seed=args.seed)
         out = film.film(

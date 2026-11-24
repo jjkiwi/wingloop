@@ -254,6 +254,91 @@ jednak 10–12, a nie 24, więc większą część strat w upale nadal robi móz
 `docs/teren_pomiary_lekcje4.json`. Główne tabele w „Wyniki” pochodzą z lekcji
 wersji 3.
 
+## Nauka: własne loty (listopad 2026, tura 4)
+
+Po turze 3 dron zgłaszał 1,26 fałszywego alarmu na lot. Tylko co trzecie
+zgłoszenie było człowiekiem (172 ludzi i 303 pomyłki). Pomyłki to prawie
+zawsze nagrzane słońcem głazy (221), a w zimne dni kozice (73).
+
+Powód: zdjęcia do lekcji są losowe, więc rzadko pokazują to, co mózg w
+locie bierze za człowieka. Dlatego dron uczy się teraz także na **własnych
+poszukiwaniach** (`lekcje.loty`):
+- 90 lotów, 2/3 samolotem i 1/3 tiltrotorem;
+- loty nad dolinami do nauki (1–3), w losowe dni, z mózgiem uczonym na
+  zdjęciach;
+- każda oceniona plama dostaje etykietę: człowiek albo nie;
+- z pustej ziemi zostaje co dziesiąta plama (`lekcje.TLO_Z_LOTOW`);
+- razem 42 865 plam, w tym 1107 ludzi i 2580 spojrzeń z bliska.
+
+Wśród nich są wszystkie głazy i kozice, do których mózg zniżał się, żeby
+obejrzeć je z bliska. Tak uczy się mucha: dopamina przychodzi po tym, co
+zrobiła, a nie po losowym obrazku.
+
+Na lotach uczy się tylko **przedział potwierdzający**
+(`wykrywanie.naucz(..., z_lotow=...)`, `lekcje.mozg`). Przedział
+przeszukujący zostaje taki sam jak w turze 3.
+
+Pomiar na tych samych 20 obszarach (35 osób), T256s, wysokości jak w turze 3:
+
+| platforma | dzień | tura 3 | z lotami | fałszywe alarmy na lot |
+| --- | --- | --- | --- | --- |
+| samolot | jesień | 23/35 = 66% | 21/35 = 60% | 0,90 → 0,20 |
+| samolot | mróz | 23/35 = 66% | 22/35 = 63% | 0,75 → 0,05 |
+| samolot | lato | 16/35 = 46% | 12/35 = 34% | 1,75 → 1,25 |
+| samolot | upał | 10/35 = 29% | 5/35 = 14% | 2,45 → 1,00 |
+| **tiltrotor** | jesień | 23/35 = 66% | **27/35 = 77%** | 1,85 → **0,35** |
+| **tiltrotor** | mróz | 28/35 = 80% | **29/35 = 83%** | 1,45 → **0,05** |
+| **tiltrotor** | lato | 14/35 = 40% | 12/35 = 34% | 2,05 → 0,45 |
+| **tiltrotor** | upał | 12/35 = 34% | 7/35 = 20% | 2,80 → 1,00 |
+| quad | jesień | 9/35 = 26% | 8/35 = 23% | 0,10 → 0 |
+| quad | mróz | 6/35 = 17% | 9/35 = 26% | 0 → 0 |
+| quad | lato | 6/35 = 17% | 7/35 = 20% | 0,45 → 0 |
+| quad | upał | 2/35 = 6% | 2/35 = 6% | 0,60 → 0,05 |
+| **razem** | | **172/420 = 41%** | **161/420 = 38%** | **1,26 → 0,37** |
+
+Fałszywych alarmów jest 3,4 razy mniej: głazów 221 → 59, kozic 73 → 6.
+**Zgłoszenie jest teraz człowiekiem w 2 przypadkach na 3**, a nie w 1 na 3
+(161 ludzi i 88 pomyłek).
+
+Kosztuje to 11 znalezionych mniej, prawie wszystkich w upale i lecie:
+
+| dzień | znalezieni, tura 3 → z lotami | pomyłki |
+| --- | --- | --- |
+| jesień | 55 → 56 | 57 → 11 |
+| mróz | 57 → 60 | 44 → 2 |
+| lato | 36 → 31 | 85 → 34 |
+| upał | 24 → 14 | 117 → 41 |
+
+Wszystkie zgubione osoby to kandydaci odrzuceni przy potwierdzaniu: 39
+zamiast 28. Przedział przeszukujący jest ten sam, więc kandydatów jest tyle
+samo. W upale człowiek i nagrzany głaz z bliska mają prawie te same cechy.
+Mózg może je pomylić albo w jedną stronę, albo w drugą.
+
+W chłodne dni zmiana to czysty zysk: tiltrotor jesienią i w mrozie znajduje
+więcej i prawie się nie myli.
+
+Żaden z 480 lotów nie skończył się rozbiciem. Pokrycie obszaru i czas
+potwierdzania są bez zmian (średnio 66% razem z quadem, około 150 s).
+
+**Co jeszcze sprawdziłem:**
+- *Cały mózg uczony na lotach* (oba przedziały). Wynik: 152/420 = 36% i
+  0,13 fałszywego alarmu na lot, czyli zgłoszenie jest człowiekiem w 83%.
+  Przedział przeszukujący gubi jednak ludzi już przy wyborze kandydatów,
+  także w chłodne dni (jesień 52, mróz 51). W upale znajduje 19, więcej niż
+  wybrany wariant.
+- *Średnia z obu przedziałów potwierdzających* (zdjęcia i loty). W teście
+  na plamach z bliska w upale uznaje 50% ludzi i 81% zwierząt i głazów,
+  czyli jest gorsza od obu przedziałów osobno.
+- *Inne ustawienia uczenia*: 6 albo 10 przejść, cel 0,15 albo 0,5, gęstość
+  kodu 5%, 4000 komórek Kenyona, wolniejsze uczenie. Wszystkie tylko
+  przesuwają mózg wzdłuż tej samej krzywej: więcej ludzi i więcej pomyłek
+  albo mniej jednego i drugiego.
+
+**Lekcje z lotów:**
+- są zapisane w `data/teren_<kamera>_loty.npz` dla czterech kamer;
+- dla nowej kamery 90 lotów trwa około godziny na czterech rdzeniach;
+- surowe wyniki: `docs/teren_pomiary_loty.json`.
+
 ## Filmy
 
 - **Z widoku trzeciej osoby** (`film.film`): samolot z tyłu nad doliną.
@@ -270,11 +355,12 @@ wersji 3.
 
 ## Co dalej
 
-- Kozice i lisy z bliska: nowy mózg myli je z człowiekiem częściej niż
-  stary. Do sprawdzenia: kamera pochylona przy potwierdzaniu, żeby widzieć
+- Upał: z bliska człowiek i nagrzany głaz wyglądają prawie tak samo. Szukać
+  o świcie, gdy ziemia jest chłodna i plamą stają się też stojący. Albo
+  zmierzyć kształt: kamera pochylona przy potwierdzaniu, żeby widzieć
   sylwetkę z boku.
-- W upale: mózg nadal odrzuca około połowy ludzi, którzy są plamą. Szukać
-  o świcie, gdy ziemia jest chłodna i plamą stają się też stojący.
+- Lekcje z lotów w kolejnych rundach: latać z mózgiem uczonym już na lotach
+  i dokładać nowe pomyłki.
 - Operator zamiast odrzucania: kandydaci odrzuceni z bliska albo
   nieobejrzani idą do człowieka z obrazem (`operator.py` już to umie w
   arenie).

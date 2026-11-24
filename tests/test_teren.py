@@ -285,3 +285,64 @@ def test_the_close_looks_have_their_own_compartment_taught_on_them_alone():
     assert np.mean(liked[:60]) > 0.7 and np.mean(liked[60:]) < 0.3
     assert W.naucz(far, labels).z_bliska is None
     assert W.naucz(np.vstack([near, far]), np.r_[labels, labels], blisko=None).z_bliska is None
+
+
+def test_the_drones_own_flights_teach_only_the_compartment_that_confirms():
+    """A warm boulder seen close up only in flights: with them, the confirming compartment
+    turns against it, and the searching one is taught as it was."""
+    rng = np.random.default_rng(4)
+
+    def spots(n, temp, size, pixel=0.06):
+        return np.column_stack(
+            [
+                rng.uniform(0.9, 1.1, n) * temp,
+                rng.uniform(0.9, 1.1, n) * temp * 0.6,
+                rng.uniform(0.8, 1.2, n) * size * 0.5,
+                rng.uniform(0.8, 1.2, n) * size * 1.5,
+                rng.uniform(0.8, 1.2, n) * size * 0.5,
+                np.full(n, pixel),
+            ]
+        )
+
+    person, fox = spots(60, 10, 1.2), spots(60, 10, 0.3)
+    boulder = spots(60, 10, 1.0)  # as warm as a person, nearly as big
+    f, p = np.vstack([person, fox]), np.r_[np.ones(60, bool), np.zeros(60, bool)]
+    plain = W.naucz(f, p)
+    taught = W.naucz(f, p, z_lotow=(boulder, np.zeros(60, bool)))
+
+    def liked(m, s):
+        return np.mean([m.ocena(W.Plama(np.zeros(3), c)) > 0 for c in s])
+
+    assert liked(taught.z_bliska, boulder) < liked(plain.z_bliska, boulder) - 0.3
+    assert liked(taught.z_bliska, person) > 0.7
+    assert np.array_equal(taught.mb.approach, plain.mb.approach)
+    assert np.array_equal(taught.mb.avoid, plain.mb.avoid)
+
+
+def test_flight_lessons_thin_bare_ground_and_are_kept(tmp_path, monkeypatch):
+    from wingloop.dronomucha.teren import lekcje as L
+
+    monkeypatch.setattr(L, "DATA", tmp_path)
+    monkeypatch.setattr(L, "lekcje", lambda *a, **k: None)
+    flown = []
+
+    def one(name, seed, doliny=L.DOLINY):
+        flown.append(seed)
+        kinds = np.array(["tlo"] * 200 + ["czlowiek", "glaz"])
+        return (
+            np.full((202, len(W.CECHY)), float(seed)),
+            kinds == "czlowiek",
+            kinds,
+            np.zeros(202, bool),
+        )
+
+    monkeypatch.setattr(L, "_lot", one)
+    cam = KAMERY["mlx90640_55"]
+    f, p, k, c = L.loty("proba", cam, ile=3, procesy=1, progress=None)
+    assert flown == [0, 1, 2] and (k == "czlowiek").sum() == 3 and (k == "glaz").sum() == 3
+    assert 20 < (k == "tlo").sum() < 120  # one in ten of 600
+    assert f.shape[1] == len(W.CECHY) and len(f) == len(p) == len(c)
+    L.loty("proba", cam, ile=3, procesy=1, progress=None)
+    assert flown == [0, 1, 2]  # kept, not flown again
+    L.loty("proba", cam, ile=4, procesy=1, progress=None)
+    assert flown == [0, 1, 2, 0, 1, 2, 3]
