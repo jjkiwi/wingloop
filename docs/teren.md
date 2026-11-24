@@ -339,6 +339,69 @@ potwierdzania są bez zmian (średnio 66% razem z quadem, około 150 s).
 - dla nowej kamery 90 lotów trwa około godziny na czterech rdzeniach;
 - surowe wyniki: `docs/teren_pomiary_loty.json`.
 
+## Nauka: granica sześciu cech (listopad 2026, tura 5)
+
+Tura 5 nie zmienia mózgu. Mierzy, ile mózg może wyciągnąć z sześciu cech
+plamy, i sprawdza pomysły na lepszy wynik. Żaden nie dał czystego zysku,
+więc kod zostaje jak po turze 4.
+
+**Granica cech.** Na spojrzeniach z bliska w upale (test z doliny 0) zwykły
+klasyfikator (wzmacnianie gradientowe) uznaje 57% ludzi i 3% zwierząt i
+głazów. Przedział potwierdzający uznaje 50% ludzi i 27% reszty. Mucha
+wyciąga więc z cech mniej, niż w nich jest. Brakuje jej przede wszystkim
+**kontekstu dnia**. W lekcjach plama dużo cieplejsza od powietrza to prawie
+zawsze człowiek w mróz, a w upale tak samo wygląda nagrzany głaz.
+
+**Pomysły sprawdzone bez lotów.** Wszystkie na plamach z bliska z czterech
+dni, średnio z pięciu losowań okablowania:
+
+| wariant | ludzie uznani | zwierzęta i głazy uznane |
+| --- | --- | --- |
+| obecnie | 76–77% | 12–15% |
+| 8000 komórek Kenyona | 66% | 9% |
+| dwa ciała grzybkowate, średnia | 72% | 10% |
+| cztery ciała grzybkowate | 68% | 9% |
+| wzmocnienie wejść 1 zamiast 4 | 70% | 13% |
+| temperatura ×2 | 77% | 16% |
+| temperatura ×3 | 76% | 27% |
+| bez rozmiaru piksela | 71% | 13% |
+| siódma cecha: ziemia względem powietrza | 66% | 12% |
+
+Siódma cecha miała dać mózgowi kontekst dnia. Zamiast tego w lecie i upale
+uznaje mniej ludzi (lato 71 → 51%, upał 63 → 44%).
+
+Każdy wariant tylko przesuwa mózg po tej samej krzywej: mniej pomyłek
+kosztem ludzi albo odwrotnie.
+
+**Losowanie okablowania** waży więcej niż każdy z tych pomysłów. Obecne
+okablowanie przedziału potwierdzającego uznaje 67% ludzi przy 14% pomyłek,
+a średnia z pięciu losowań to 77% przy 15%. Wybór losowania pod wynik testu
+byłby jednak dopasowaniem do testu, więc okablowanie zostaje.
+
+**Niższy próg przy szukaniu.** W upale ludzie giną głównie przy szukaniu.
+Z 70 osób (samolot i tiltrotor) 43 nie zostały nawet kandydatami. Ocena
+przedziału przeszukującego jest blisko zera, a przedział potwierdzający od
+tury 4 dobrze odsiewa głazy. Dlatego przeszukujący dostał chętniejszy próg:
+plama jest ciekawa, gdy ocena > −0,01 albo > −0,02, a nie > 0. Na lotach nad
+dolinami do nauki próg −0,01 podnosi odsetek zauważonych ludzi z 70 do 75%.
+
+Pomiar na tych samych 20 obszarach, 480 lotów na próg:
+
+| próg | znalezieni | fałszywe alarmy | zgłoszenie to człowiek | pokrycie | potwierdzanie |
+| --- | --- | --- | --- | --- | --- |
+| 0 (tura 4) | 161/420 = 38% | 88 | 65% | 66% | 151 s |
+| −0,01 | 156/420 = 37% | 96 | 62% | 61% | 258 s |
+| −0,02 | 162/420 = 39% | 103 | 61% | 49% | 377 s |
+
+W upale znalezionych jest 14, 15 i 14, a osób, które nie zostały
+kandydatami, prawie tyle samo: 43, 40 i 41. Kandydatów przybywa dwa–trzy
+razy, ale to puste plamy ziemi (w upale 12,5 → 27,8 → 42,6 na lot). Dron
+spędza czas na ich oglądaniu i przeszukuje mniej (w upale pokrycie 91% →
+77% → 49%). Zgubieni ludzie nie leżą więc tuż pod progiem: mają ocenę
+wyraźnie ujemną albo nie zostają zobaczeni dwa razy. Próg zostaje 0.
+
+Surowe wyniki lotów: `docs/teren_pomiary_prog.json`.
+
 ## Filmy
 
 - **Z widoku trzeciej osoby** (`film.film`): samolot z tyłu nad doliną.
@@ -359,6 +422,11 @@ potwierdzania są bez zmian (średnio 66% razem z quadem, około 150 s).
   o świcie, gdy ziemia jest chłodna i plamą stają się też stojący. Albo
   zmierzyć kształt: kamera pochylona przy potwierdzaniu, żeby widzieć
   sylwetkę z boku.
+- Kontekst dnia dla mózgu: osobne lekcje (albo osobny przedział) na zimne i
+  na ciepłe dni, wybierane po temperaturze powietrza. Tura 5 pokazała, że
+  sam dodatkowy kanał „ziemia względem powietrza” tego nie daje.
+- W upale sprawdzić, dlaczego ludzie nie zostają kandydatami: czy mózg
+  ocenia ich wyraźnie ujemnie, czy dron widzi ich tylko raz.
 - Lekcje z lotów w kolejnych rundach: latać z mózgiem uczonym już na lotach
   i dokładać nowe pomyłki.
 - Operator zamiast odrzucania: kandydaci odrzuceni z bliska albo
