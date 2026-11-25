@@ -402,6 +402,77 @@ wyraźnie ujemną albo nie zostają zobaczeni dwa razy. Próg zostaje 0.
 
 Surowe wyniki lotów: `docs/teren_pomiary_prog.json`.
 
+## Nauka: dlaczego w upale ginie człowiek (listopad 2026, tura 6)
+
+**Diagnoza.** 160 lotów T256s z 60 m (samolot i tiltrotor, po 20 obszarów
+na dzień), mózg z tury 4. Dla każdego człowieka zapisane jest, w ilu
+kadrach przeszukiwania był, jakie plamy były przy nim i jak ocenił je
+przedział przeszukujący:
+
+| dzień | kandydat | poza kadrem | w kadrze, bez plamy | plama z oceną ≤ 0 | polubiony raz |
+| --- | --- | --- | --- | --- | --- |
+| jesień | 56 | 6 | 0 | 4 | 4 |
+| mróz | 56 | 4 | 0 | 6 | 4 |
+| lato | 33 | 6 | 3 | 17 | 11 |
+| upał | 27 | 7 | 13 | 16 | 7 |
+
+To poprawia wniosek z tury 5. Zgubieni w upale i lecie to w większości
+ludzie, którzy z 60 m są **plamą na granicy wykrycia**: o około 3 K
+cieplejszą od ziemi (próg wykrycia to 2,5 K), na 1–2 pikselach. Mózg
+ocenia ich na 0 albo −1/60, czyli jedną komórkę Kenyona od zera. Tak samo
+ocenia tysiące identycznych plam pustej ziemi. Osobna grupa to ludzie przy
+śniegu albo stawie, gdzie ziemia ma około 0 °C. Ich plama jest duża i
+o 18–31 K cieplejsza od ziemi, ale nie od powietrza. Mózg odrzuca ją
+zdecydowanie (−0,3): w lekcjach ze zdjęć na 244 takie plamy był jeden
+człowiek, a w lekcjach z lotów na 1425 żaden. Reszta to puste plamy ziemi,
+głazy i kozice.
+
+Z 43 osób zgubionych w upale co najmniej 13 nie daje żadnej plamy, a
+kilkanaście daje plamę, której nie da się odróżnić od ziemi. Tego żadne
+uczenie nie naprawi. Pomóc może niższy lot, lepsza kamera albo szukanie o
+świcie.
+
+**Wyczucie dnia.** Lekcje obejmowały dni od −12 do 25 °C, a upał w teście
+ma 27 °C. Nagrałem je od nowa z dniami do 32 °C i z zapisaną temperaturą
+powietrza. Przedział przeszukujący uczył się tylko na lekcjach z dni o
+powietrzu najwyżej 8 K od dzisiejszego (kontekst, jak u muchy, której
+dopamina zależy od stanu).
+
+Bez lotów, na plamach z lotów testowych, przy tej samej liczbie uznanych
+plam pustej ziemi co obecny mózg, wyglądało to obiecująco:
+
+| dzień | obecny: ludzie / głazy i zwierzęta | z wyczuciem dnia |
+| --- | --- | --- |
+| jesień | 77% / 13% | 88% / 22% |
+| mróz | 66% / 13% | 74% / 15% |
+| lato | 78% / 14% | 73% / 6% |
+| upał | 76% / 18% | 76% / 3% |
+
+W lotach, przy progu 0, na tych samych 20 obszarach:
+
+| dzień | znalezieni, tura 4 → kontekst | fałszywe alarmy |
+| --- | --- | --- |
+| jesień | 56 → 50 | 11 → 17 |
+| mróz | 60 → 52 | 2 → 1 |
+| lato | 31 → 23 | 34 → 7 |
+| upał | 14 → 13 | 41 → 1 |
+| **razem** | **161 → 138** | **88 → 26** |
+
+Zgłoszenie jest człowiekiem w 84% przypadków zamiast 65%. Znalezionych
+jest jednak 23 mniej. To ten sam rodzaj wymiany co wariant A w turze 4.
+
+Na koniec 60 lotów kalibracyjnych nad dolinami do nauki, w dni od −12 do
+32 °C, rozstrzygnęło sprawę bez dotykania doliny testowej. Przy progu, przy
+którym nowy przedział uznaje tyle samo pustej ziemi co obecny (−0,01 do
+−0,015: 6,6–8,2‰ wobec 7,0‰), uznaje też tyle samo ludzi (71–76% wobec
+75%) i niewiele mniej głazów i zwierząt (12–15% wobec 16%). W chłodne dni
+jest trochę lepszy, w ciepłe trochę gorszy. Zysk z tabeli bez lotów był
+więc w dużej części przypadkiem małego zbioru testowego (w upale 34 plamy
+ludzi). Kontekst dnia nie przesuwa krzywej, tylko punkt na niej. Mózg
+zostaje jak po turze 4.
+
+Surowe wyniki (diagnoza i loty): `docs/teren_pomiary_kontekst.json`.
+
 ## Filmy
 
 - **Z widoku trzeciej osoby** (`film.film`): samolot z tyłu nad doliną.
@@ -422,11 +493,11 @@ Surowe wyniki lotów: `docs/teren_pomiary_prog.json`.
   o świcie, gdy ziemia jest chłodna i plamą stają się też stojący. Albo
   zmierzyć kształt: kamera pochylona przy potwierdzaniu, żeby widzieć
   sylwetkę z boku.
-- Kontekst dnia dla mózgu: osobne lekcje (albo osobny przedział) na zimne i
-  na ciepłe dni, wybierane po temperaturze powietrza. Tura 5 pokazała, że
-  sam dodatkowy kanał „ziemia względem powietrza” tego nie daje.
-- W upale sprawdzić, dlaczego ludzie nie zostają kandydatami: czy mózg
-  ocenia ich wyraźnie ujemnie, czy dron widzi ich tylko raz.
+- Upał i lato to teraz granica kamery, nie mózgu (tura 6). Sprawdzić niższe
+  przeszukiwanie w ciepłe dni (40 m: piksel około 0,17 m zamiast 0,25 m) albo
+  kamerę 384, i ile pokrycia to kosztuje.
+- Wariant z wyczuciem dnia (84% zgłoszeń to ludzie, 138 znalezionych) jako
+  tryb do wyboru, gdy operator ma mało czasu na fałszywe alarmy.
 - Lekcje z lotów w kolejnych rundach: latać z mózgiem uczonym już na lotach
   i dokładać nowe pomyłki.
 - Operator zamiast odrzucania: kandydaci odrzuceni z bliska albo
