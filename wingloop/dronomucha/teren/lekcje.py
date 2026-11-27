@@ -55,6 +55,11 @@ WYSOKOSC_LOTOW = 60.0
 #: search sees bare ground nearly all the time, and every spot of it kept would bury the
 #: few hundred close looks at boulders and people.
 TLO_Z_LOTOW = 0.1
+#: How many rounds of searches :func:`mozg` learns from. Round 2 is flown with the brain
+#: round 1 taught, over :data:`LOTY` other areas: it lands at the boulders, chamois and
+#: bare ground that brain still flies down to, and learning those took one in five of
+#: its false alarms away (88 -> 71; docs/teren.md, tura 7).
+RUNDY = 2
 DATA = Path(__file__).resolve().parent.parent / "data"
 
 
@@ -183,9 +188,10 @@ class _Zapis:
         return self.mozg.ocena(plama)
 
 
-def _lot(kamera_nazwa: str, seed: int, doliny=DOLINY):
+def _lot(kamera_nazwa: str, seed: int, doliny=DOLINY, runda: int = 1):
     """(measures, is it a person, what it was, close look?) of every spot judged in one
-    search of :func:`loty` -- over a lesson area, on a lesson day."""
+    search of :func:`loty` -- over a lesson area, on a lesson day. Round ``runda`` flies
+    seeds from ``(runda - 1) * LOTY`` on, with the brain the rounds before it taught."""
     from ..platformy import KAMERY, PLATFORMY
 
     kamera = KAMERY[kamera_nazwa]
@@ -196,8 +202,13 @@ def _lot(kamera_nazwa: str, seed: int, doliny=DOLINY):
     area = O.uloz(t, pg, seed=ZIARNO + 500 + seed)
     gt = t.temperatura(pg, seed=seed)
     log = []
-    plat = PLATFORMY["samolot" if seed < SAMOLOTEM else "vtol"]
-    brain = _Zapis(W.naucz(f, p), log)
+    plat = PLATFORMY["samolot" if seed - (runda - 1) * LOTY < SAMOLOTEM else "vtol"]
+    if runda == 1:
+        teacher = W.naucz(f, p)
+    else:
+        fl, pl = _z_rund(kamera_nazwa, kamera, runda - 1, doliny)
+        teacher = W.naucz(f, p, z_lotow=(fl, pl))
+    brain = _Zapis(teacher, log)
     LOT.szukaj(
         plat, kamera, t, gt, area, brain, agl=WYSOKOSC_LOTOW, seed=seed, powietrze=pg.powietrze
     )
@@ -224,13 +235,17 @@ def loty(
     progress=print,
     doliny=DOLINY,
     procesy: int | None = None,
+    runda: int = 1,
 ):
     """(measures, is it a person, what it was, close look?) of the spots judged in ``ile``
     searches flown over the lesson valleys with the brain the pictures taught, bare ground
     thinned to :data:`TLO_Z_LOTOW` -- flown once and kept in ``data/teren_<camera>_loty.npz``.
     The searches are flown ``procesy`` at a time (all the computer's cores by default):
-    for 90 of them that is still the best part of an hour."""
-    path = DATA / f"teren_{kamera_nazwa}_loty.npz"
+    for 90 of them that is still the best part of an hour.
+
+    ``runda`` 2 and on fly other areas with the brain the rounds before taught (pictures,
+    and the searches of rounds ``1 .. runda - 1``), kept in ``..._loty<runda>.npz``."""
+    path = DATA / f"teren_{kamera_nazwa}_loty{'' if runda == 1 else runda}.npz"
     key = "|".join(
         [
             _klucz(kamera, UJECIA, doliny),
@@ -240,6 +255,7 @@ def loty(
             str(TLO_Z_LOTOW),
             str(W.BLISKO),
         ]
+        + ([] if runda == 1 else [f"runda{runda}", str(LOTY)])
     )
     if path.exists() and not fresh:
         with np.load(path) as d:
@@ -247,30 +263,44 @@ def loty(
                 return d["cechy"], d["ludzie"], d["rodzaje"], d["z_bliska"]
         if progress:
             progress(f"Loty {path.name} są z innej wersji symulacji: latam od nowa.")
-    # The pictures first, once: else every search of the pool would fly them.
+    # The pictures and the rounds before first, once: else every search of the pool
+    # would fly them.
     lekcje(kamera_nazwa, kamera, progress=progress, doliny=doliny)
+    if runda > 1:
+        _z_rund(kamera_nazwa, kamera, runda - 1, doliny, progress=progress, procesy=procesy)
     if progress:
-        progress(f"Latam {ile} poszukiwań na lekcje dla kamery {kamera_nazwa} ...")
+        progress(f"Latam {ile} poszukiwań na lekcje dla kamery {kamera_nazwa} (runda {runda}) ...")
     from concurrent.futures import ProcessPoolExecutor
     from functools import partial
 
-    one = partial(_lot, kamera_nazwa, doliny=tuple(doliny))
+    one = partial(_lot, kamera_nazwa, doliny=tuple(doliny), runda=runda)
+    seeds = range((runda - 1) * LOTY, (runda - 1) * LOTY + ile)
     if procesy == 1:
-        parts = list(map(one, range(ile)))
+        parts = list(map(one, seeds))
     else:
         with ProcessPoolExecutor(procesy) as pool:
-            parts = list(pool.map(one, range(ile)))
+            parts = list(pool.map(one, seeds))
     f, p, k, c = (np.concatenate([part[i] for part in parts]) for i in range(4))
     f = f.reshape(-1, len(W.CECHY))
-    keep = (k != "tlo") | (np.random.default_rng(0).uniform(size=len(k)) < TLO_Z_LOTOW)
+    keep = (k != "tlo") | (np.random.default_rng(runda - 1).uniform(size=len(k)) < TLO_Z_LOTOW)
     f, p, k, c = f[keep], p[keep], k[keep], c[keep]
     np.savez_compressed(path, cechy=f, ludzie=p, rodzaje=k, z_bliska=c, klucz=key)
     return f, p, k, c
 
 
-def mozg(kamera_nazwa: str, kamera: Kamera, progress=print) -> W.Mozg:
+def _z_rund(kamera_nazwa, kamera, rundy, doliny=DOLINY, progress=None, procesy=None):
+    """(measures, is it a person) of the searches of rounds 1 .. ``rundy`` together."""
+    parts = [
+        loty(kamera_nazwa, kamera, LOTY, progress=progress, doliny=doliny, procesy=procesy, runda=r)
+        for r in range(1, rundy + 1)
+    ]
+    return np.vstack([q[0] for q in parts]), np.concatenate([q[1] for q in parts])
+
+
+def mozg(kamera_nazwa: str, kamera: Kamera, progress=print, rundy: int = RUNDY) -> W.Mozg:
     """The brain a search flies with: taught on the camera's pictures (:func:`lekcje`), its
-    confirming compartment on its own searches too (:func:`loty`)."""
+    confirming compartment on its own searches too (:func:`loty`) -- ``rundy`` rounds of
+    them, each flown with the brain the ones before taught."""
     f, p, _ = lekcje(kamera_nazwa, kamera, progress=progress)
-    fl, pl, _, _ = loty(kamera_nazwa, kamera, progress=progress)
+    fl, pl = _z_rund(kamera_nazwa, kamera, rundy, progress=progress)
     return W.naucz(f, p, z_lotow=(fl, pl))

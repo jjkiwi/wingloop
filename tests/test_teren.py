@@ -326,7 +326,7 @@ def test_flight_lessons_thin_bare_ground_and_are_kept(tmp_path, monkeypatch):
     monkeypatch.setattr(L, "lekcje", lambda *a, **k: None)
     flown = []
 
-    def one(name, seed, doliny=L.DOLINY):
+    def one(name, seed, doliny=L.DOLINY, runda=1):
         flown.append(seed)
         kinds = np.array(["tlo"] * 200 + ["czlowiek", "glaz"])
         return (
@@ -346,3 +346,29 @@ def test_flight_lessons_thin_bare_ground_and_are_kept(tmp_path, monkeypatch):
     assert flown == [0, 1, 2]  # kept, not flown again
     L.loty("proba", cam, ile=4, procesy=1, progress=None)
     assert flown == [0, 1, 2, 0, 1, 2, 3]
+
+
+def test_second_round_flies_other_areas_after_the_first(tmp_path, monkeypatch):
+    from wingloop.dronomucha.teren import lekcje as L
+
+    monkeypatch.setattr(L, "DATA", tmp_path)
+    monkeypatch.setattr(L, "lekcje", lambda *a, **k: None)
+    monkeypatch.setattr(L, "LOTY", 3)
+    flown = []
+
+    def one(name, seed, doliny=L.DOLINY, runda=1):
+        flown.append((seed, runda))
+        kinds = np.array(["czlowiek", "glaz"])
+        return np.full((2, len(W.CECHY)), float(seed)), kinds == "czlowiek", kinds, np.ones(2, bool)
+
+    monkeypatch.setattr(L, "_lot", one)
+    cam = KAMERY["mlx90640_55"]
+    f, p, k, c = L.loty("proba", cam, ile=3, procesy=1, progress=None, runda=2)
+    # Round 1 first (its brain teaches round 2's), then three areas no round 1 search saw.
+    assert flown == [(0, 1), (1, 1), (2, 1), (3, 2), (4, 2), (5, 2)]
+    assert sorted(set(f[:, 0])) == [3.0, 4.0, 5.0]
+    assert (tmp_path / "teren_proba_loty.npz").exists()
+    assert (tmp_path / "teren_proba_loty2.npz").exists()
+    fl, pl = L._z_rund("proba", cam, 2)
+    assert flown == [(0, 1), (1, 1), (2, 1), (3, 2), (4, 2), (5, 2)]  # both kept
+    assert sorted(set(fl[:, 0])) == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0] and pl.sum() == 6

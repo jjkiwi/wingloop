@@ -473,6 +473,62 @@ zostaje jak po turze 4.
 
 Surowe wyniki (diagnoza i loty): `docs/teren_pomiary_kontekst.json`.
 
+## Nauka: druga runda lotów (listopad 2026, tura 7)
+
+Mózg z tury 4 uczył się na lotach, które latał mózg uczony tylko na
+zdjęciach. Popełnia więc już inne pomyłki niż tamten. Tura 7 to druga runda
+takiej nauki (`lekcje.RUNDY = 2`, `lekcje.loty(..., runda=2)`):
+- 90 nowych lotów nad dolinami do nauki, na innych obszarach niż w rundzie 1
+  (ziarna 90–179), znowu 2/3 samolotem i 1/3 tiltrotorem;
+- lata mózg z tury 4, więc zniża się do tego, co on bierze za człowieka;
+- dla T256s to 44 675 plam, w tym 1002 ludzi i 2109 spojrzeń z bliska
+  (głazy 640, kozice 736, lisy 270, ludzie 407);
+- przedział potwierdzający uczy się na obu rundach naraz, a przedział
+  przeszukujący zostaje bez zmian.
+
+**Bez lotów.** Przedział potwierdzający oceniał spojrzenia z bliska z połowy
+lotów rundy 2, a uczył się na drugiej połowie. 5 losowań okablowania, obie
+połowy na zmianę:
+
+| | ludzie uznani | zwierzęta, głazy i ziemia uznane |
+| --- | --- | --- |
+| tura 4 | 84,9% | 8,1% |
+| z rundą 2 | 85,9% | 7,2% |
+
+Mniej pomyłek w 8 próbach z 10. Ubyło uznanych kozic (5,2 → 3,7%) i pustej
+ziemi (3,7 → 2,1%). Głazów nie ubyło (16%).
+
+**W lotach**, 480 na tych samych 20 obszarach, mózg z repo:
+
+| dzień | znalezieni, tura 4 → runda 2 | fałszywe alarmy |
+| --- | --- | --- |
+| jesień | 56 → 56 | 11 → 15 |
+| mróz | 60 → 62 | 2 → 3 |
+| lato | 31 → 26 | 34 → 19 |
+| upał | 14 → 17 | 41 → 34 |
+| **razem** | **161 → 161** | **88 → 71** |
+
+Zgłoszenie jest człowiekiem w 69% przypadków zamiast 65%. Fałszywych
+alarmów jest o 17 mniej (95% przedział z losowania lotów: od 1 do 34 mniej),
+a znalezionych tyle samo (od 11 mniej do 11 więcej). Ubyło głównie pustej
+ziemi (22 → 10) i kozic (6 → 3). Głazy zostały: 59 → 57. Pokrycie (66%),
+czas potwierdzania (151 s) i liczba kandydatów są bez zmian, bo przedział
+przeszukujący jest ten sam. Żaden lot nie skończył się rozbiciem.
+
+Pierwszy pomiar tego samego pomysłu (lekcje w innej kolejności) dał 162
+znalezionych i 73 fałszywe alarmy, więc wynik nie zależy od przypadku
+kolejności.
+
+Zysk jest mały, ale idzie w tę samą stronę bez lotów i w lotach, i nic nie
+kosztuje w locie. Mózg zostaje z drugą rundą. Głaz nagrzany słońcem z bliska
+dalej wygląda jak człowiek: tego sześć cech nie rozróżnia (tura 5).
+
+**Lekcje z lotów, runda 2:**
+- są zapisane w `data/teren_<kamera>_loty2.npz` dla czterech kamer;
+- MLX90640 z 60 m nie zniża się do żadnej plamy w żadnej z rund (piksel
+  około 2 m), więc runda 2 nic mu nie daje;
+- surowe wyniki: `docs/teren_pomiary_runda2.json`.
+
 ## Filmy
 
 - **Z widoku trzeciej osoby** (`film.film`): samolot z tyłu nad doliną.
@@ -498,8 +554,8 @@ Surowe wyniki (diagnoza i loty): `docs/teren_pomiary_kontekst.json`.
   kamerę 384, i ile pokrycia to kosztuje.
 - Wariant z wyczuciem dnia (84% zgłoszeń to ludzie, 138 znalezionych) jako
   tryb do wyboru, gdy operator ma mało czasu na fałszywe alarmy.
-- Lekcje z lotów w kolejnych rundach: latać z mózgiem uczonym już na lotach
-  i dokładać nowe pomyłki.
+- Trzecia runda lotów (`RUNDY = 3`): po rundzie 2 zysk był już mały, więc
+  raczej nie warto bez nowej cechy na głazy.
 - Operator zamiast odrzucania: kandydaci odrzuceni z bliska albo
   nieobejrzani idą do człowieka z obrazem (`operator.py` już to umie w
   arenie).
